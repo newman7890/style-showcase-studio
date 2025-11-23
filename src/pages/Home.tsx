@@ -3,13 +3,20 @@ import { ArrowRight, Facebook, Twitter, Instagram } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
+import heroBg from "@/assets/hero-bg.jpg";
 
 const Home = () => {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-16 pb-20">
-        <div className="container mx-auto px-4">
+      <main className="min-h-screen pt-16 pb-20 relative overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${heroBg})` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-background/30" />
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
