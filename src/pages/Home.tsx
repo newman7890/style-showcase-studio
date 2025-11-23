@@ -14,7 +14,7 @@ const Home = () => {
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(${heroBg})` }}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-background/30" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/40 via-background/20 to-transparent" />
         </div>
         <div className="container mx-auto px-4 relative z-10">
           <motion.div
