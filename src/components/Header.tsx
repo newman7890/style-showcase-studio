@@ -1,8 +1,11 @@
-import { ShoppingBag, Heart } from "lucide-react";
+import { ShoppingBag, Heart, User, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Header = () => {
+  const { user, isAdmin } = useAuth();
+
   return (
     <motion.header
       initial={{ y: -20, opacity: 0 }}
@@ -15,6 +18,18 @@ export const Header = () => {
         </Link>
         
         <div className="flex items-center gap-4">
+          {isAdmin && (
+            <Link to="/admin">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative"
+                title="Admin Dashboard"
+              >
+                <Shield className="w-5 h-5" />
+              </motion.button>
+            </Link>
+          )}
           <Link to="/favorites">
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -34,6 +49,15 @@ export const Header = () => {
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full text-xs flex items-center justify-center">
                 0
               </span>
+            </motion.button>
+          </Link>
+          <Link to={user ? "/profile" : "/auth"}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative"
+            >
+              <User className="w-5 h-5" />
             </motion.button>
           </Link>
         </div>
