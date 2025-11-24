@@ -1,33 +1,81 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Heart, ShoppingCart, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { products } from "@/data/products";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  category: string;
+}
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const product = products.find((p) => p.id === id);
-  const [selectedColor, setSelectedColor] = useState(0);
-  const [selectedSize, setSelectedSize] = useState("");
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
 
-  if (!product) {
-    return <div>Product not found</div>;
-  }
+  useEffect(() => {
+    fetchProduct();
+  }, [id]);
 
-  const relatedProducts = products
-    .filter((p) => p.category === product.category && p.id !== product.id)
-    .slice(0, 2);
+  const fetchProduct = async () => {
+    try {
+      // Fetch the main product
+      const { data: productData, error: productError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (productError) throw productError;
+      
+      setProduct(productData);
+
+      // Fetch related products from the same category
+      if (productData) {
+        const { data: relatedData } = await supabase
+          .from("products")
+          .select("*")
+          .eq("category", productData.category)
+          .neq("id", id)
+          .limit(2);
+
+        setRelatedProducts(relatedData || []);
+      }
+    } catch (error) {
+      console.error("Error fetching product:", error);
+      toast.error("Failed to load product");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddToCart = () => {
-    if (!selectedSize && product.sizes.length > 1) {
-      toast.error("Please select a size");
-      return;
-    }
     toast.success("Added to cart!");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Product not found</p>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen pb-8">
@@ -85,45 +133,6 @@ const ProductDetail = () => {
               <Heart className="w-5 h-5" />
             </motion.button>
           </div>
-
-          <div className="mb-6">
-            <h3 className="text-sm font-medium mb-3">Color</h3>
-            <div className="flex gap-3">
-              {product.colors.map((color, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedColor(index)}
-                  className={`w-10 h-10 rounded-full border-2 transition-all ${
-                    selectedColor === index
-                      ? "border-foreground scale-110"
-                      : "border-transparent"
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {product.sizes.length > 1 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-medium mb-3">Size</h3>
-              <div className="flex gap-3">
-                {product.sizes.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setSelectedSize(size)}
-                    className={`px-6 py-3 rounded-full border transition-all ${
-                      selectedSize === size
-                        ? "bg-foreground text-background border-foreground"
-                        : "border-border hover:border-foreground"
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="mb-8">
             <h3 className="text-sm font-medium mb-3">Quantity</h3>
