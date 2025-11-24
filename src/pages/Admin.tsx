@@ -39,6 +39,8 @@ const Admin = () => {
     image: "",
     category: "",
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -67,13 +69,34 @@ const Admin = () => {
     e.preventDefault();
 
     try {
+      let imageUrl = formData.image;
+
+      // Upload image if a new file was selected
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
+
+        imageUrl = publicUrl;
+      }
+
       if (editingProduct) {
         const { error } = await supabase
           .from("products")
           .update({
             name: formData.name,
             price: parseFloat(formData.price),
-            image: formData.image,
+            image: imageUrl,
             category: formData.category,
           })
           .eq("id", editingProduct.id);
@@ -84,7 +107,7 @@ const Admin = () => {
         const { error } = await supabase.from("products").insert({
           name: formData.name,
           price: parseFloat(formData.price),
-          image: formData.image,
+          image: imageUrl,
           category: formData.category,
         });
 
@@ -130,12 +153,27 @@ const Admin = () => {
       image: product.image,
       category: product.category,
     });
+    setImagePreview(product.image);
     setIsDialogOpen(true);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const resetForm = () => {
     setEditingProduct(null);
     setFormData({ name: "", price: "", image: "", category: "" });
+    setImageFile(null);
+    setImagePreview("");
   };
 
   const handleLogout = async () => {
@@ -207,16 +245,23 @@ const Admin = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="image">Image URL</Label>
+                      <Label htmlFor="image">Product Image</Label>
                       <Input
                         id="image"
-                        type="url"
-                        value={formData.image}
-                        onChange={(e) =>
-                          setFormData({ ...formData, image: e.target.value })
-                        }
-                        required
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="cursor-pointer"
                       />
+                      {imagePreview && (
+                        <div className="mt-2">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-48 object-cover rounded-md"
+                          />
+                        </div>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="category">Category</Label>
