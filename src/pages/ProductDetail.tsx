@@ -11,6 +11,7 @@ interface Product {
   name: string;
   price: number;
   image: string;
+  images?: string[];
   category: string;
 }
 
@@ -20,6 +21,7 @@ const ProductDetail = () => {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     fetchProduct();
@@ -77,6 +79,22 @@ const ProductDetail = () => {
     );
   }
 
+  const productImages = product.images && product.images.length > 0 
+    ? product.images 
+    : [product.image];
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === productImages.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const previousImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === 0 ? productImages.length - 1 : prev - 1
+    );
+  };
+
   return (
     <main className="min-h-screen pb-8">
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -103,14 +121,67 @@ const ProductDetail = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="aspect-square bg-secondary rounded-3xl mb-8 overflow-hidden"
+          className="relative aspect-square bg-secondary rounded-3xl mb-4 overflow-hidden group"
         >
           <img
-            src={product.image}
-            alt={product.name}
+            src={productImages[currentImageIndex]}
+            alt={`${product.name} - Image ${currentImageIndex + 1}`}
             className="w-full h-full object-cover"
           />
+          
+          {productImages.length > 1 && (
+            <>
+              <button
+                onClick={previousImage}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm p-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <ArrowLeft className="w-5 h-5 rotate-180" />
+              </button>
+              
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                {productImages.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      index === currentImageIndex
+                        ? "bg-primary w-8"
+                        : "bg-background/50"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </motion.div>
+
+        {productImages.length > 1 && (
+          <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+            {productImages.map((img, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentImageIndex(index)}
+                className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                  index === currentImageIndex
+                    ? "border-primary"
+                    : "border-transparent opacity-60 hover:opacity-100"
+                }`}
+              >
+                <img
+                  src={img}
+                  alt={`Thumbnail ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        )}
 
         <motion.div
           initial={{ opacity: 0 }}

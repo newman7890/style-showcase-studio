@@ -39,8 +39,8 @@ const Admin = () => {
     image: "",
     category: "",
   });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
@@ -70,26 +70,40 @@ const Admin = () => {
     e.preventDefault();
 
     try {
-      let imageUrl = formData.image;
+      const imageUrls: string[] = [];
 
-      // Upload image if a new file was selected
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
+      // Upload all new images
+      if (imageFiles.length > 0) {
+        for (const file of imageFiles) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Math.random()}.${fileExt}`;
+          const filePath = `${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, imageFile);
+          const { error: uploadError } = await supabase.storage
+            .from('product-images')
+            .upload(filePath, file);
 
-        if (uploadError) throw uploadError;
+          if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(filePath);
+          const { data: { publicUrl } } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath);
 
-        imageUrl = publicUrl;
+          imageUrls.push(publicUrl);
+        }
       }
+
+      // If editing and keeping existing images, merge them
+      let finalImages = imageUrls;
+      if (editingProduct && imagePreviews.length > imageFiles.length) {
+        // Keep existing images that weren't replaced
+        const existingImages = imagePreviews.filter((preview) => 
+          !preview.startsWith('data:')
+        );
+        finalImages = [...existingImages, ...imageUrls];
+      }
+
+      const mainImage = finalImages.length > 0 ? finalImages[0] : formData.image;
 
       if (editingProduct) {
         const { error } = await supabase
@@ -97,7 +111,8 @@ const Admin = () => {
           .update({
             name: formData.name,
             price: parseFloat(formData.price),
-            image: imageUrl,
+            image: mainImage,
+            images: finalImages,
             category: formData.category,
           })
           .eq("id", editingProduct.id);
@@ -108,7 +123,8 @@ const Admin = () => {
         const { error } = await supabase.from("products").insert({
           name: formData.name,
           price: parseFloat(formData.price),
-          image: imageUrl,
+          image: mainImage,
+          images: finalImages,
           category: formData.category,
         });
 
@@ -154,19 +170,27 @@ const Admin = () => {
       image: product.image,
       category: product.category,
     });
-    setImagePreview(product.image);
+    // Load existing images as previews
+    const existingImages = (product as any).images || [product.image];
+    setImagePreviews(existingImages);
     setIsDialogOpen(true);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setImageFiles(files);
+      const readers = files.map((file) => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      Promise.all(readers).then((previews) => {
+        setImagePreviews(previews);
+      });
     }
   };
 
@@ -184,22 +208,36 @@ const Admin = () => {
     e.preventDefault();
     setIsDragging(false);
     
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.dataTransfer.files).filter((file) =>
+      file.type.startsWith('image/')
+    );
+    
+    if (files.length > 0) {
+      setImageFiles(files);
+      const readers = files.map((file) => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      Promise.all(readers).then((previews) => {
+        setImagePreviews(previews);
+      });
     }
+  };
+
+  const removeImage = (index: number) => {
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const resetForm = () => {
     setEditingProduct(null);
     setFormData({ name: "", price: "", image: "", category: "" });
-    setImageFile(null);
-    setImagePreview("");
+    setImageFiles([]);
+    setImagePreviews([]);
   };
 
   const handleLogout = async () => {
@@ -271,7 +309,7 @@ const Admin = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="image">Product Image</Label>
+                      <Label htmlFor="image">Product Images</Label>
                       <div
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
@@ -282,21 +320,39 @@ const Admin = () => {
                             : "border-border hover:border-primary/50"
                         }`}
                       >
-                        {imagePreview ? (
+                        {imagePreviews.length > 0 ? (
                           <div className="space-y-2">
-                            <img
-                              src={imagePreview}
-                              alt="Preview"
-                              className="w-full h-48 object-cover rounded-md"
-                            />
+                            <div className="grid grid-cols-3 gap-2">
+                              {imagePreviews.map((preview, index) => (
+                                <div key={index} className="relative group">
+                                  <img
+                                    src={preview}
+                                    alt={`Preview ${index + 1}`}
+                                    className="w-full h-32 object-cover rounded-md"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeImage(index)}
+                                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                  {index === 0 && (
+                                    <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
+                                      Main
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                             <p className="text-sm text-muted-foreground">
-                              Drag a new image or click to replace
+                              Drag new images or click to replace
                             </p>
                           </div>
                         ) : (
                           <div className="space-y-2">
                             <p className="text-muted-foreground">
-                              Drag and drop an image here, or click to select
+                              Drag and drop images here, or click to select (multiple images supported)
                             </p>
                           </div>
                         )}
@@ -304,6 +360,7 @@ const Admin = () => {
                           id="image"
                           type="file"
                           accept="image/*"
+                          multiple
                           onChange={handleImageChange}
                           className="hidden"
                         />
@@ -311,7 +368,7 @@ const Admin = () => {
                           htmlFor="image"
                           className="inline-block mt-2 px-4 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90"
                         >
-                          Select Image
+                          Select Images
                         </label>
                       </div>
                     </div>
