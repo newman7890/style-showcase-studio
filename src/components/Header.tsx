@@ -2,9 +2,13 @@ import { ShoppingBag, Heart, User, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
+import { useFavorites } from "@/hooks/useFavorites";
 
 export const Header = () => {
   const { user, isAdmin } = useAuth();
+  const { itemCount } = useCart();
+  const { favorites } = useFavorites();
 
   return (
     <motion.header
@@ -37,6 +41,11 @@ export const Header = () => {
               className="relative"
             >
               <Heart className="w-5 h-5" />
+              {favorites.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full text-xs flex items-center justify-center">
+                  {favorites.length}
+                </span>
+              )}
             </motion.button>
           </Link>
           <Link to="/cart">
@@ -46,9 +55,11 @@ export const Header = () => {
               className="relative"
             >
               <ShoppingBag className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full text-xs flex items-center justify-center">
-                0
-              </span>
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full text-xs flex items-center justify-center">
+                  {itemCount}
+                </span>
+              )}
             </motion.button>
           </Link>
           <Link to={user ? "/profile" : "/auth"}>
