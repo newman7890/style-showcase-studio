@@ -5,6 +5,8 @@ import { ArrowLeft, Heart, ShoppingCart, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCart } from "@/hooks/useCart";
+import { useFavorites } from "@/hooks/useFavorites";
 
 interface Product {
   id: string;
@@ -22,6 +24,8 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const { addToCart } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   useEffect(() => {
     fetchProduct();
@@ -60,7 +64,15 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = () => {
-    toast.success("Added to cart!");
+    if (product) {
+      addToCart(product.id, quantity);
+    }
+  };
+
+  const handleToggleFavorite = () => {
+    if (product) {
+      toggleFavorite(product.id);
+    }
   };
 
   if (loading) {
@@ -111,8 +123,11 @@ const ProductDetail = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={handleToggleFavorite}
           >
-            <Heart className="w-5 h-5" />
+            <Heart 
+              className={`w-5 h-5 ${isFavorite(product.id) ? 'fill-primary text-primary' : ''}`}
+            />
           </motion.button>
         </div>
       </header>
@@ -199,9 +214,12 @@ const ProductDetail = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={handleToggleFavorite}
               className="w-12 h-12 rounded-full bg-accent flex items-center justify-center"
             >
-              <Heart className="w-5 h-5" />
+              <Heart 
+                className={`w-5 h-5 ${isFavorite(product.id) ? 'fill-primary text-primary' : ''}`}
+              />
             </motion.button>
           </div>
 
