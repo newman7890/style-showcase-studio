@@ -209,7 +209,7 @@ const ProductDetail = () => {
                 {product.category}
               </p>
               <h2 className="text-2xl font-semibold mb-2">{product.name}</h2>
-              <p className="text-xl font-bold">${product.price.toFixed(2)}</p>
+              <p className="text-xl font-bold">GH₵{product.price.toFixed(2)}</p>
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -279,7 +279,7 @@ const ProductDetail = () => {
                       />
                     </div>
                     <p className="text-sm font-medium">{item.name}</p>
-                    <p className="text-sm font-semibold">${item.price}</p>
+                    <p className="text-sm font-semibold">GH₵{item.price}</p>
                   </Link>
                 ))}
               </div>

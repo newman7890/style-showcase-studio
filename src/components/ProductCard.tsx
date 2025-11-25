@@ -42,7 +42,7 @@ export const ProductCard = ({ id, name, price, image }: ProductCardProps) => {
           </button>
         </div>
         <h3 className="text-sm font-medium mb-1">{name}</h3>
-        <p className="text-sm font-semibold">${price}</p>
+        <p className="text-sm font-semibold">GH₵{price}</p>
       </motion.div>
     </Link>
   );

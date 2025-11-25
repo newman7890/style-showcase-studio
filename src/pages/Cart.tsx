@@ -104,7 +104,7 @@ const Cart = () => {
                     <h3 className="font-medium mb-1 truncate">{item.products.name}</h3>
                   </Link>
                   <p className="text-sm text-muted-foreground mb-2">
-                    ${item.products.price.toFixed(2)}
+                    GH₵{item.products.price.toFixed(2)}
                   </p>
                   <div className="flex items-center gap-3">
                     <Button
@@ -130,7 +130,7 @@ const Cart = () => {
                 </div>
                 <div className="flex flex-col items-end justify-between">
                   <p className="font-semibold">
-                    ${(item.products.price * item.quantity).toFixed(2)}
+                    GH₵{(item.products.price * item.quantity).toFixed(2)}
                   </p>
                   <Button
                     variant="ghost"
@@ -153,15 +153,17 @@ const Cart = () => {
           >
             <div className="flex justify-between text-lg">
               <span>Subtotal</span>
-              <span>${total.toFixed(2)}</span>
+              <span>GH₵{total.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-lg font-semibold">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>GH₵{total.toFixed(2)}</span>
             </div>
-            <Button size="lg" className="w-full rounded-full">
-              Proceed to Checkout
-            </Button>
+            <Link to="/checkout" className="block">
+              <Button size="lg" className="w-full rounded-full">
+                Proceed to Checkout
+              </Button>
+            </Link>
           </motion.div>
         </div>
       </main>
