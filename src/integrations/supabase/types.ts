@@ -634,6 +634,80 @@ export type Database = {
         }
         Relationships: []
       }
+      seller_billing_authorizations: {
+        Row: {
+          card_brand: string | null
+          created_at: string
+          exp_month: number | null
+          exp_year: number | null
+          id: string
+          is_default: boolean
+          last4: string | null
+          paystack_authorization_code: string
+          user_id: string
+        }
+        Insert: {
+          card_brand?: string | null
+          created_at?: string
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: string
+          is_default?: boolean
+          last4?: string | null
+          paystack_authorization_code: string
+          user_id: string
+        }
+        Update: {
+          card_brand?: string | null
+          created_at?: string
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: string
+          is_default?: boolean
+          last4?: string | null
+          paystack_authorization_code?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      seller_compliance_documents: {
+        Row: {
+          doc_type: string
+          doc_url: string
+          id: string
+          notes: string | null
+          seller_profile_id: string
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          doc_type: string
+          doc_url: string
+          id?: string
+          notes?: string | null
+          seller_profile_id: string
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          doc_type?: string
+          doc_url?: string
+          id?: string
+          notes?: string | null
+          seller_profile_id?: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_compliance_documents_seller_profile_id_fkey"
+            columns: ["seller_profile_id"]
+            isOneToOne: false
+            referencedRelation: "seller_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seller_profiles: {
         Row: {
           account_name: string | null
@@ -642,20 +716,46 @@ export type Database = {
           applied_at: string
           approved_at: string | null
           bank_code: string | null
+          bank_name: string | null
           bio: string | null
+          business_address: string | null
           business_name: string
+          business_registration_number: string | null
+          business_type: string | null
           commission_override: number | null
           created_at: string
+          date_of_birth: string | null
           email: string | null
+          email_verified_at: string | null
+          full_legal_name: string | null
           ghana_card_image_url: string | null
           ghana_card_number: string | null
           id: string
+          id_document_back_url: string | null
+          id_document_front_url: string | null
+          id_document_number: string | null
+          id_document_type: string | null
+          identity_verified_at: string | null
           paystack_subaccount_code: string | null
           phone: string | null
+          phone_verified_at: string | null
+          proof_of_address_issued_on: string | null
+          proof_of_address_type: string | null
+          proof_of_address_url: string | null
           rejection_reason: string | null
+          return_address: string | null
+          selfie_url: string | null
           status: Database["public"]["Enums"]["seller_status"]
+          store_description: string | null
+          store_logo_url: string | null
+          store_name: string | null
+          swift_bic: string | null
+          tax_form_type: string | null
+          tax_form_url: string | null
+          tax_id: string | null
           updated_at: string
           user_id: string
+          vat_number: string | null
         }
         Insert: {
           account_name?: string | null
@@ -664,20 +764,46 @@ export type Database = {
           applied_at?: string
           approved_at?: string | null
           bank_code?: string | null
+          bank_name?: string | null
           bio?: string | null
+          business_address?: string | null
           business_name: string
+          business_registration_number?: string | null
+          business_type?: string | null
           commission_override?: number | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
+          email_verified_at?: string | null
+          full_legal_name?: string | null
           ghana_card_image_url?: string | null
           ghana_card_number?: string | null
           id?: string
+          id_document_back_url?: string | null
+          id_document_front_url?: string | null
+          id_document_number?: string | null
+          id_document_type?: string | null
+          identity_verified_at?: string | null
           paystack_subaccount_code?: string | null
           phone?: string | null
+          phone_verified_at?: string | null
+          proof_of_address_issued_on?: string | null
+          proof_of_address_type?: string | null
+          proof_of_address_url?: string | null
           rejection_reason?: string | null
+          return_address?: string | null
+          selfie_url?: string | null
           status?: Database["public"]["Enums"]["seller_status"]
+          store_description?: string | null
+          store_logo_url?: string | null
+          store_name?: string | null
+          swift_bic?: string | null
+          tax_form_type?: string | null
+          tax_form_url?: string | null
+          tax_id?: string | null
           updated_at?: string
           user_id: string
+          vat_number?: string | null
         }
         Update: {
           account_name?: string | null
@@ -686,20 +812,46 @@ export type Database = {
           applied_at?: string
           approved_at?: string | null
           bank_code?: string | null
+          bank_name?: string | null
           bio?: string | null
+          business_address?: string | null
           business_name?: string
+          business_registration_number?: string | null
+          business_type?: string | null
           commission_override?: number | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
+          email_verified_at?: string | null
+          full_legal_name?: string | null
           ghana_card_image_url?: string | null
           ghana_card_number?: string | null
           id?: string
+          id_document_back_url?: string | null
+          id_document_front_url?: string | null
+          id_document_number?: string | null
+          id_document_type?: string | null
+          identity_verified_at?: string | null
           paystack_subaccount_code?: string | null
           phone?: string | null
+          phone_verified_at?: string | null
+          proof_of_address_issued_on?: string | null
+          proof_of_address_type?: string | null
+          proof_of_address_url?: string | null
           rejection_reason?: string | null
+          return_address?: string | null
+          selfie_url?: string | null
           status?: Database["public"]["Enums"]["seller_status"]
+          store_description?: string | null
+          store_logo_url?: string | null
+          store_name?: string | null
+          swift_bic?: string | null
+          tax_form_type?: string | null
+          tax_form_url?: string | null
+          tax_id?: string | null
           updated_at?: string
           user_id?: string
+          vat_number?: string | null
         }
         Relationships: []
       }
