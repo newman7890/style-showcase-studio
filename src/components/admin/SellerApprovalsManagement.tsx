@@ -59,6 +59,10 @@ interface SellerRow {
   tax_form_url: string | null;
   bank_name: string | null;
   swift_bic: string | null;
+  payout_method: string | null;
+  momo_provider: string | null;
+  momo_number: string | null;
+  momo_account_name: string | null;
   store_name: string | null;
   store_logo_url: string | null;
   store_description: string | null;
@@ -321,7 +325,7 @@ export const SellerApprovalsManagement = () => {
                 <TabsTrigger value="personal">Personal</TabsTrigger>
                 <TabsTrigger value="business">Business</TabsTrigger>
                 <TabsTrigger value="identity">Identity</TabsTrigger>
-                <TabsTrigger value="bank">Bank</TabsTrigger>
+                <TabsTrigger value="bank">Payout</TabsTrigger>
                 <TabsTrigger value="store">Store</TabsTrigger>
                 <TabsTrigger value="compliance">Compliance</TabsTrigger>
                 <TabsTrigger value="billing">Billing</TabsTrigger>
@@ -387,11 +391,42 @@ export const SellerApprovalsManagement = () => {
               </TabsContent>
 
               <TabsContent value="bank" className="space-y-2 pt-3">
-                <Row label="Bank name" value={reviewing.bank_name} />
-                <Row label="Account holder" value={reviewing.account_name} />
-                <Row label="Account #" value={reviewing.account_number} mono />
-                <Row label="Bank code" value={reviewing.bank_code} mono />
-                <Row label="SWIFT / BIC" value={reviewing.swift_bic} mono />
+                <Row
+                  label="Payout method"
+                  value={
+                    reviewing.payout_method === "momo"
+                      ? "Mobile Money"
+                      : reviewing.payout_method === "bank"
+                      ? "Bank account"
+                      : reviewing.payout_method
+                  }
+                />
+                {reviewing.payout_method === "momo" ? (
+                  <>
+                    <Row
+                      label="Network"
+                      value={
+                        reviewing.momo_provider === "mtn"
+                          ? "MTN Mobile Money"
+                          : reviewing.momo_provider === "vod"
+                          ? "Telecel Cash"
+                          : reviewing.momo_provider === "atl"
+                          ? "AirtelTigo Money"
+                          : reviewing.momo_provider
+                      }
+                    />
+                    <Row label="MoMo number" value={reviewing.momo_number} mono />
+                    <Row label="Account name" value={reviewing.momo_account_name} />
+                  </>
+                ) : (
+                  <>
+                    <Row label="Bank name" value={reviewing.bank_name} />
+                    <Row label="Account holder" value={reviewing.account_name} />
+                    <Row label="Account #" value={reviewing.account_number} mono />
+                    <Row label="Bank code" value={reviewing.bank_code} mono />
+                    <Row label="SWIFT / BIC" value={reviewing.swift_bic} mono />
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="store" className="space-y-2 pt-3">

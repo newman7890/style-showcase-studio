@@ -40,12 +40,16 @@ type Form = {
   proof_of_address_type: string;
   proof_of_address_issued_on: string;
   tax_form_type: string;
-  // Step 4 - Bank
+  // Step 4 - Payout (Bank OR Mobile Money)
+  payout_method: "bank" | "momo";
   bank_name: string;
   account_name: string;
   account_number: string;
   bank_code: string;
   swift_bic: string;
+  momo_provider: string;
+  momo_number: string;
+  momo_account_name: string;
   // Step 5 - Store
   store_name: string;
   store_description: string;
@@ -71,11 +75,15 @@ const EMPTY: Form = {
   proof_of_address_type: "",
   proof_of_address_issued_on: "",
   tax_form_type: "none",
+  payout_method: "bank",
   bank_name: "",
   account_name: "",
   account_number: "",
   bank_code: "",
   swift_bic: "",
+  momo_provider: "",
+  momo_number: "",
+  momo_account_name: "",
   store_name: "",
   store_description: "",
   return_address: "",
@@ -116,13 +124,27 @@ const stepSchemas = [
     proof_of_address_issued_on: z.string().min(1, "Required"),
     tax_form_type: z.enum(["w9", "w8ben", "other", "none"]),
   }),
-  z.object({
-    bank_name: z.string().trim().min(2, "Required").max(120),
-    account_name: z.string().trim().min(2, "Required").max(120),
-    account_number: z.string().trim().min(4, "Required").max(40),
-    bank_code: z.string().trim().min(2, "Required").max(20),
-    swift_bic: z.string().trim().max(20).optional().or(z.literal("")),
-  }),
+  z.discriminatedUnion("payout_method", [
+    z.object({
+      payout_method: z.literal("bank"),
+      bank_name: z.string().trim().min(2, "Required").max(120),
+      account_name: z.string().trim().min(2, "Required").max(120),
+      account_number: z.string().trim().min(4, "Required").max(40),
+      bank_code: z.string().trim().min(2, "Required").max(20),
+      swift_bic: z.string().trim().max(20).optional().or(z.literal("")),
+    }),
+    z.object({
+      payout_method: z.literal("momo"),
+      momo_provider: z.enum(["mtn", "vod", "atl"], {
+        errorMap: () => ({ message: "Select a Mobile Money network" }),
+      }),
+      momo_number: z
+        .string()
+        .trim()
+        .regex(/^0\d{9}$/, "Enter a 10-digit Ghana number, e.g. 024xxxxxxx"),
+      momo_account_name: z.string().trim().min(2, "Required").max(120),
+    }),
+  ]),
   z.object({
     store_name: z.string().trim().min(2, "Required").max(120),
     store_description: z.string().trim().min(10, "At least 10 chars").max(500),
@@ -293,11 +315,15 @@ export default function SellerWizard() {
         proof_of_address_issued_on: form.proof_of_address_issued_on,
         tax_form_type: form.tax_form_type,
         tax_form_url: taxForm,
-        bank_name: form.bank_name,
-        account_name: form.account_name,
-        account_number: form.account_number,
-        bank_code: form.bank_code,
-        swift_bic: form.swift_bic || null,
+        payout_method: form.payout_method,
+        bank_name: form.payout_method === "bank" ? form.bank_name : null,
+        account_name: form.payout_method === "bank" ? form.account_name : null,
+        account_number: form.payout_method === "bank" ? form.account_number : null,
+        bank_code: form.payout_method === "bank" ? form.bank_code : null,
+        swift_bic: form.payout_method === "bank" ? form.swift_bic || null : null,
+        momo_provider: form.payout_method === "momo" ? form.momo_provider : null,
+        momo_number: form.payout_method === "momo" ? form.momo_number : null,
+        momo_account_name: form.payout_method === "momo" ? form.momo_account_name : null,
         store_name: form.store_name,
         store_logo_url: storeLogo,
         store_description: form.store_description,
@@ -319,7 +345,7 @@ export default function SellerWizard() {
   };
 
   const stepTitle = useMemo(
-    () => ["Personal info", "Business details", "Identity verification", "Bank account", "Store setup"][step],
+    () => ["Personal info", "Business details", "Identity verification", "Payout method", "Store setup"][step],
     [step],
   );
 
@@ -660,29 +686,90 @@ function StepBank({ form, set, errors }: StepProps) {
   return (
     <>
       <div>
-        <Label>Bank name</Label>
-        <Input value={form.bank_name} onChange={(e) => set("bank_name", e.target.value)} />
-        <Err msg={errors.bank_name} />
+        <Label>How would you like to receive your payouts?</Label>
+        <Select
+          value={form.payout_method}
+          onValueChange={(v) => set("payout_method", v as "bank" | "momo")}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="bank">Bank account</SelectItem>
+            <SelectItem value="momo">Mobile Money (Ghana)</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          You can only choose one payout method. Contact support later to change it.
+        </p>
       </div>
-      <div>
-        <Label>Account holder name</Label>
-        <Input value={form.account_name} onChange={(e) => set("account_name", e.target.value)} />
-        <Err msg={errors.account_name} />
-      </div>
-      <div>
-        <Label>Account number</Label>
-        <Input value={form.account_number} onChange={(e) => set("account_number", e.target.value)} />
-        <Err msg={errors.account_number} />
-      </div>
-      <div>
-        <Label>Bank code (Ghana)</Label>
-        <Input value={form.bank_code} onChange={(e) => set("bank_code", e.target.value)} placeholder="e.g. 070100" />
-        <Err msg={errors.bank_code} />
-      </div>
-      <div>
-        <Label>SWIFT / BIC (optional, for international transfers)</Label>
-        <Input value={form.swift_bic} onChange={(e) => set("swift_bic", e.target.value)} />
-      </div>
+
+      {form.payout_method === "bank" ? (
+        <>
+          <div>
+            <Label>Bank name</Label>
+            <Input value={form.bank_name} onChange={(e) => set("bank_name", e.target.value)} />
+            <Err msg={errors.bank_name} />
+          </div>
+          <div>
+            <Label>Account holder name</Label>
+            <Input value={form.account_name} onChange={(e) => set("account_name", e.target.value)} />
+            <Err msg={errors.account_name} />
+          </div>
+          <div>
+            <Label>Account number</Label>
+            <Input value={form.account_number} onChange={(e) => set("account_number", e.target.value)} />
+            <Err msg={errors.account_number} />
+          </div>
+          <div>
+            <Label>Bank code (Ghana)</Label>
+            <Input value={form.bank_code} onChange={(e) => set("bank_code", e.target.value)} placeholder="e.g. 070100" />
+            <Err msg={errors.bank_code} />
+          </div>
+          <div>
+            <Label>SWIFT / BIC (optional, for international transfers)</Label>
+            <Input value={form.swift_bic} onChange={(e) => set("swift_bic", e.target.value)} />
+          </div>
+        </>
+      ) : (
+        <>
+          <div>
+            <Label>Mobile Money network</Label>
+            <Select
+              value={form.momo_provider}
+              onValueChange={(v) => set("momo_provider", v)}
+            >
+              <SelectTrigger><SelectValue placeholder="Select network" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mtn">MTN Mobile Money</SelectItem>
+                <SelectItem value="vod">Telecel Cash</SelectItem>
+                <SelectItem value="atl">AirtelTigo Money</SelectItem>
+              </SelectContent>
+            </Select>
+            <Err msg={errors.momo_provider} />
+          </div>
+          <div>
+            <Label>Mobile Money number</Label>
+            <Input
+              value={form.momo_number}
+              onChange={(e) => set("momo_number", e.target.value)}
+              placeholder="e.g. 024xxxxxxx"
+              inputMode="numeric"
+            />
+            <Err msg={errors.momo_number} />
+          </div>
+          <div>
+            <Label>Registered account name</Label>
+            <Input
+              value={form.momo_account_name}
+              onChange={(e) => set("momo_account_name", e.target.value)}
+              placeholder="Name as it appears on the wallet"
+            />
+            <Err msg={errors.momo_account_name} />
+            <p className="text-xs text-muted-foreground mt-1">
+              Must match the name registered with your Mobile Money wallet, or payouts will fail.
+            </p>
+          </div>
+        </>
+      )}
     </>
   );
 }

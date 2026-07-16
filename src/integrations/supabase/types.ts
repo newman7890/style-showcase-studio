@@ -736,6 +736,10 @@ export type Database = {
           id_document_number: string | null
           id_document_type: string | null
           identity_verified_at: string | null
+          momo_account_name: string | null
+          momo_number: string | null
+          momo_provider: string | null
+          payout_method: string
           paystack_subaccount_code: string | null
           phone: string | null
           phone_verified_at: string | null
@@ -784,6 +788,10 @@ export type Database = {
           id_document_number?: string | null
           id_document_type?: string | null
           identity_verified_at?: string | null
+          momo_account_name?: string | null
+          momo_number?: string | null
+          momo_provider?: string | null
+          payout_method?: string
           paystack_subaccount_code?: string | null
           phone?: string | null
           phone_verified_at?: string | null
@@ -832,6 +840,10 @@ export type Database = {
           id_document_number?: string | null
           id_document_type?: string | null
           identity_verified_at?: string | null
+          momo_account_name?: string | null
+          momo_number?: string | null
+          momo_provider?: string | null
+          payout_method?: string
           paystack_subaccount_code?: string | null
           phone?: string | null
           phone_verified_at?: string | null
