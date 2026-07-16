@@ -124,13 +124,27 @@ const stepSchemas = [
     proof_of_address_issued_on: z.string().min(1, "Required"),
     tax_form_type: z.enum(["w9", "w8ben", "other", "none"]),
   }),
-  z.object({
-    bank_name: z.string().trim().min(2, "Required").max(120),
-    account_name: z.string().trim().min(2, "Required").max(120),
-    account_number: z.string().trim().min(4, "Required").max(40),
-    bank_code: z.string().trim().min(2, "Required").max(20),
-    swift_bic: z.string().trim().max(20).optional().or(z.literal("")),
-  }),
+  z.discriminatedUnion("payout_method", [
+    z.object({
+      payout_method: z.literal("bank"),
+      bank_name: z.string().trim().min(2, "Required").max(120),
+      account_name: z.string().trim().min(2, "Required").max(120),
+      account_number: z.string().trim().min(4, "Required").max(40),
+      bank_code: z.string().trim().min(2, "Required").max(20),
+      swift_bic: z.string().trim().max(20).optional().or(z.literal("")),
+    }),
+    z.object({
+      payout_method: z.literal("momo"),
+      momo_provider: z.enum(["mtn", "vod", "atl"], {
+        errorMap: () => ({ message: "Select a Mobile Money network" }),
+      }),
+      momo_number: z
+        .string()
+        .trim()
+        .regex(/^0\d{9}$/, "Enter a 10-digit Ghana number, e.g. 024xxxxxxx"),
+      momo_account_name: z.string().trim().min(2, "Required").max(120),
+    }),
+  ]),
   z.object({
     store_name: z.string().trim().min(2, "Required").max(120),
     store_description: z.string().trim().min(10, "At least 10 chars").max(500),
