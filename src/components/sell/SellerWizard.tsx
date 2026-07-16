@@ -289,6 +289,7 @@ export default function SellerWizard() {
 
       const { error } = await supabase.from("seller_profiles").insert({
         user_id: user.id,
+        status: "pending",
         // legacy required fields
         business_name: form.business_name,
         email: form.email,
