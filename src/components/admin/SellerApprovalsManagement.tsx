@@ -59,6 +59,10 @@ interface SellerRow {
   tax_form_url: string | null;
   bank_name: string | null;
   swift_bic: string | null;
+  payout_method: string | null;
+  momo_provider: string | null;
+  momo_number: string | null;
+  momo_account_name: string | null;
   store_name: string | null;
   store_logo_url: string | null;
   store_description: string | null;
