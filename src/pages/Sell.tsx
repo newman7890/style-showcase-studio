@@ -159,7 +159,7 @@ const Sell = () => {
             <Store className="w-5 h-5" /> Become a seller
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Fill in your details to start selling instantly. Your info stays private and is used only for verification.
+            Fill in your details to apply. An admin will review your application and activate your account before you can start selling.
           </p>
         </CardHeader>
         <CardContent>
