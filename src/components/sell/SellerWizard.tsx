@@ -273,6 +273,31 @@ export default function SellerWizard() {
   const submit = async () => {
     if (!validateStep()) return;
     if (!user) return;
+
+    // Re-check identity uploads — files aren't persisted in the localStorage
+    // draft, so a page refresh can leave the form on step 4/5 with no files.
+    // Without this check the application would be submitted with null image URLs.
+    const missing: Record<string, string> = {};
+    if (!files.id_front) missing.id_front = "Upload the front of your ID";
+    if (form.id_document_type !== "passport" && !files.id_back)
+      missing.id_back = "Upload the back of your ID";
+    if (!files.selfie) missing.selfie = "Upload a clear selfie";
+    if (!files.proof_of_address)
+      missing.proof_of_address = "Upload a proof of address";
+    if (form.tax_form_type !== "none" && !files.tax_form)
+      missing.tax_form = "Upload the selected tax form";
+    if (Object.keys(missing).length) {
+      setErrors(missing);
+      setStep(2);
+      toast({
+        title: "Please re-upload your documents",
+        description:
+          "Your uploaded files were cleared (likely by a page refresh). Please re-attach them before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const idFront = files.id_front ? await uploadPrivate(files.id_front, "id-front") : null;
