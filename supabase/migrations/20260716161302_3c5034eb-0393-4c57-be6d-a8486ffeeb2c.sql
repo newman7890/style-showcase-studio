@@ -1,0 +1,1 @@
+ALTER TABLE public.seller_profiles ALTER COLUMN status SET DEFAULT 'pending'::seller_status;

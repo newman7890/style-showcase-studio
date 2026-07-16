@@ -107,11 +107,10 @@ const Sell = () => {
       });
       if (error) throw error;
       toast({
-        title: "You're in! 🎉",
-        description: "You can now start listing products.",
+        title: "Application submitted 📨",
+        description: "An admin will review your application shortly. You'll be notified once approved.",
       });
       await refreshRoles();
-      navigate("/seller");
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -160,7 +159,7 @@ const Sell = () => {
             <Store className="w-5 h-5" /> Become a seller
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Fill in your details to start selling instantly. Your info stays private and is used only for verification.
+            Fill in your details to apply. An admin will review your application and activate your account before you can start selling.
           </p>
         </CardHeader>
         <CardContent>
@@ -257,7 +256,7 @@ const Sell = () => {
             </div>
             <div className="rounded-lg border p-3 text-sm text-muted-foreground flex gap-2">
               <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
-              <span>Once you submit, you can list products right away — no waiting.</span>
+              <span>After you submit, an admin will review your application. You'll be able to list products once your account is approved.</span>
             </div>
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? (
