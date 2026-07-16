@@ -658,6 +658,27 @@ export const SellerApprovalsManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!deletingId} onOpenChange={(o) => { if (!o && !deleting) setDeletingId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete seller account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the seller profile and revokes their seller role. The user's login account is preserved, but they will lose access to the seller dashboard and any listed products may become orphaned. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); deleteSeller(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };
