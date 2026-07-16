@@ -261,7 +261,7 @@ export const CustomerList = () => {
           </div>
         </div>
       </div>
-      </div>
+
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleting) setDeleteTarget(null); }}>
         <AlertDialogContent>
