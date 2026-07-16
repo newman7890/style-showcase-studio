@@ -157,12 +157,9 @@ const Home = () => {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAddToCart = async (product: Product) => {
-    try {
-      await addToCart(product.id, 1);
-      toast({ title: "Added to cart!", description: product.name });
-    } catch {
-      toast({ title: "Error", description: "Could not add to cart", variant: "destructive" });
-    }
+    // useCart.addToCart handles its own success/error toasts (including the
+    // signed-out case), so we don't fire a duplicate/false success toast here.
+    await addToCart(product.id, 1);
   };
 
   const handleSearch = (e: React.FormEvent) => {
