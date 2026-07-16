@@ -256,7 +256,7 @@ const Sell = () => {
             </div>
             <div className="rounded-lg border p-3 text-sm text-muted-foreground flex gap-2">
               <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
-              <span>Once you submit, you can list products right away — no waiting.</span>
+              <span>After you submit, an admin will review your application. You'll be able to list products once your account is approved.</span>
             </div>
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? (
