@@ -37,12 +37,30 @@ interface CustomerData {
 
 export const CustomerList = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<CustomerData | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  const deleteCustomer = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.functions.invoke("admin-delete-user", {
+      body: { user_id: deleteTarget.id },
+    });
+    setDeleting(false);
+    if (error) {
+      return toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+    toast({ title: "Account deleted" });
+    setDeleteTarget(null);
+    fetchCustomers();
+  };
 
   const fetchCustomers = async () => {
     try {
