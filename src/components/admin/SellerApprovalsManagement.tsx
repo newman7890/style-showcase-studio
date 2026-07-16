@@ -325,7 +325,7 @@ export const SellerApprovalsManagement = () => {
                 <TabsTrigger value="personal">Personal</TabsTrigger>
                 <TabsTrigger value="business">Business</TabsTrigger>
                 <TabsTrigger value="identity">Identity</TabsTrigger>
-                <TabsTrigger value="bank">Bank</TabsTrigger>
+                <TabsTrigger value="bank">Payout</TabsTrigger>
                 <TabsTrigger value="store">Store</TabsTrigger>
                 <TabsTrigger value="compliance">Compliance</TabsTrigger>
                 <TabsTrigger value="billing">Billing</TabsTrigger>
