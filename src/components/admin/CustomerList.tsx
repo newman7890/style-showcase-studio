@@ -156,6 +156,7 @@ export const CustomerList = () => {
                 <TableHead>Joined</TableHead>
                 <TableHead>Orders</TableHead>
                 <TableHead>Total Spent</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
