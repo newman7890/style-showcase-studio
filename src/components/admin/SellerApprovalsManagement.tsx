@@ -17,6 +17,13 @@ interface SellerRow {
   business_name: string;
   phone: string | null;
   bio: string | null;
+  email: string | null;
+  address: string | null;
+  bank_code: string | null;
+  account_number: string | null;
+  account_name: string | null;
+  ghana_card_number: string | null;
+  ghana_card_image_url: string | null;
   status: "pending" | "approved" | "rejected" | "suspended";
   rejection_reason: string | null;
   commission_override: number | null;
@@ -103,12 +110,45 @@ export const SellerApprovalsManagement = () => {
             <Card key={r.id}>
               <CardContent className="pt-4 space-y-3">
                 <div className="flex justify-between items-start gap-3">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="font-semibold text-lg">{r.business_name}</div>
-                    <div className="text-sm text-muted-foreground">{r.phone}</div>
-                    {r.bio && <p className="text-sm mt-2">{r.bio}</p>}
-                    <div className="text-xs text-muted-foreground mt-2">
-                      Applied {new Date(r.applied_at).toLocaleDateString()}
+                    {r.email && <div className="text-sm text-muted-foreground break-all">{r.email}</div>}
+                    {r.phone && <div className="text-sm text-muted-foreground">📞 {r.phone}</div>}
+                    {r.address && <div className="text-sm text-muted-foreground">📍 {r.address}</div>}
+                    {r.bio && (
+                      <div className="mt-3">
+                        <div className="text-xs font-medium text-muted-foreground uppercase">About</div>
+                        <p className="text-sm mt-1 whitespace-pre-wrap">{r.bio}</p>
+                      </div>
+                    )}
+
+                    <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                      <div className="rounded-md border p-3">
+                        <div className="text-xs font-medium text-muted-foreground uppercase mb-1">Bank details</div>
+                        <div className="text-sm">Bank code: <span className="font-mono">{r.bank_code || "—"}</span></div>
+                        <div className="text-sm">Account #: <span className="font-mono">{r.account_number || "—"}</span></div>
+                        <div className="text-sm">Name: {r.account_name || "—"}</div>
+                      </div>
+                      <div className="rounded-md border p-3">
+                        <div className="text-xs font-medium text-muted-foreground uppercase mb-1">Ghana Card</div>
+                        <div className="text-sm">#: <span className="font-mono">{r.ghana_card_number || "—"}</span></div>
+                        {r.ghana_card_image_url ? (
+                          <a
+                            href={r.ghana_card_image_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-primary underline mt-1 inline-block"
+                          >
+                            View ID image
+                          </a>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">No image uploaded</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground mt-3">
+                      Applied {new Date(r.applied_at).toLocaleString()}
                     </div>
                     {r.rejection_reason && (
                       <div className="text-xs text-destructive mt-1">Reason: {r.rejection_reason}</div>
