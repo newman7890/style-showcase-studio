@@ -107,11 +107,10 @@ const Sell = () => {
       });
       if (error) throw error;
       toast({
-        title: "You're in! 🎉",
-        description: "You can now start listing products.",
+        title: "Application submitted 📨",
+        description: "An admin will review your application shortly. You'll be notified once approved.",
       });
       await refreshRoles();
-      navigate("/seller");
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
