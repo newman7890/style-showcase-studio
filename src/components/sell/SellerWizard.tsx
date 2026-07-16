@@ -254,7 +254,7 @@ export default function SellerWizard() {
     const path = `${user!.id}/${name}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage
       .from("seller-verification")
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { upsert: false, contentType: file.type });
     if (error) throw error;
     return path;
   };
