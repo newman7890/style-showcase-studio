@@ -421,6 +421,9 @@ export const SellerApprovalsManagement = () => {
                         <Ban className="w-4 h-4 mr-1" /> Suspend
                       </Button>
                     )}
+                    <Button size="sm" variant="destructive" onClick={() => setDeletingId(r.id)}>
+                      <Trash2 className="w-4 h-4 mr-1" /> Delete account
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
