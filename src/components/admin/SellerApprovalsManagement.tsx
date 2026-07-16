@@ -391,11 +391,42 @@ export const SellerApprovalsManagement = () => {
               </TabsContent>
 
               <TabsContent value="bank" className="space-y-2 pt-3">
-                <Row label="Bank name" value={reviewing.bank_name} />
-                <Row label="Account holder" value={reviewing.account_name} />
-                <Row label="Account #" value={reviewing.account_number} mono />
-                <Row label="Bank code" value={reviewing.bank_code} mono />
-                <Row label="SWIFT / BIC" value={reviewing.swift_bic} mono />
+                <Row
+                  label="Payout method"
+                  value={
+                    reviewing.payout_method === "momo"
+                      ? "Mobile Money"
+                      : reviewing.payout_method === "bank"
+                      ? "Bank account"
+                      : reviewing.payout_method
+                  }
+                />
+                {reviewing.payout_method === "momo" ? (
+                  <>
+                    <Row
+                      label="Network"
+                      value={
+                        reviewing.momo_provider === "mtn"
+                          ? "MTN Mobile Money"
+                          : reviewing.momo_provider === "vod"
+                          ? "Telecel Cash"
+                          : reviewing.momo_provider === "atl"
+                          ? "AirtelTigo Money"
+                          : reviewing.momo_provider
+                      }
+                    />
+                    <Row label="MoMo number" value={reviewing.momo_number} mono />
+                    <Row label="Account name" value={reviewing.momo_account_name} />
+                  </>
+                ) : (
+                  <>
+                    <Row label="Bank name" value={reviewing.bank_name} />
+                    <Row label="Account holder" value={reviewing.account_name} />
+                    <Row label="Account #" value={reviewing.account_number} mono />
+                    <Row label="Bank code" value={reviewing.bank_code} mono />
+                    <Row label="SWIFT / BIC" value={reviewing.swift_bic} mono />
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="store" className="space-y-2 pt-3">
