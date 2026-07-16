@@ -115,6 +115,8 @@ export const SellerApprovalsManagement = () => {
   const [reviewing, setReviewing] = useState<SellerRow | null>(null);
   const [compliance, setCompliance] = useState<ComplianceDoc[]>([]);
   const [billing, setBilling] = useState<BillingAuth[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
