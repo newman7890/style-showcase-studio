@@ -40,12 +40,16 @@ type Form = {
   proof_of_address_type: string;
   proof_of_address_issued_on: string;
   tax_form_type: string;
-  // Step 4 - Bank
+  // Step 4 - Payout (Bank OR Mobile Money)
+  payout_method: "bank" | "momo";
   bank_name: string;
   account_name: string;
   account_number: string;
   bank_code: string;
   swift_bic: string;
+  momo_provider: string;
+  momo_number: string;
+  momo_account_name: string;
   // Step 5 - Store
   store_name: string;
   store_description: string;
