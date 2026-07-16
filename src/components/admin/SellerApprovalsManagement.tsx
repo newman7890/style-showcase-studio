@@ -9,7 +9,18 @@ import {
   FileSearch,
   ShieldCheck,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,6 +115,8 @@ export const SellerApprovalsManagement = () => {
   const [reviewing, setReviewing] = useState<SellerRow | null>(null);
   const [compliance, setCompliance] = useState<ComplianceDoc[]>([]);
   const [billing, setBilling] = useState<BillingAuth[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -155,6 +168,29 @@ export const SellerApprovalsManagement = () => {
       .eq("id", id);
     if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
     toast({ title: "Identity marked verified" });
+    load();
+  };
+
+  const deleteSeller = async () => {
+    if (!deletingId) return;
+    setDeleting(true);
+    const target = rows.find((r) => r.id === deletingId);
+    // Remove seller role first, then delete the profile row.
+    if (target?.user_id) {
+      await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", target.user_id)
+        .eq("role", "seller" as any);
+    }
+    const { error } = await supabase
+      .from("seller_profiles")
+      .delete()
+      .eq("id", deletingId);
+    setDeleting(false);
+    if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
+    toast({ title: "Seller account deleted" });
+    setDeletingId(null);
     load();
   };
 
@@ -385,6 +421,9 @@ export const SellerApprovalsManagement = () => {
                         <Ban className="w-4 h-4 mr-1" /> Suspend
                       </Button>
                     )}
+                    <Button size="sm" variant="destructive" onClick={() => setDeletingId(r.id)}>
+                      <Trash2 className="w-4 h-4 mr-1" /> Delete account
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -619,6 +658,27 @@ export const SellerApprovalsManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!deletingId} onOpenChange={(o) => { if (!o && !deleting) setDeletingId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete seller account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the seller profile and revokes their seller role. The user's login account is preserved, but they will lose access to the seller dashboard and any listed products may become orphaned. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); deleteSeller(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };
