@@ -345,7 +345,7 @@ export default function SellerWizard() {
   };
 
   const stepTitle = useMemo(
-    () => ["Personal info", "Business details", "Identity verification", "Bank account", "Store setup"][step],
+    () => ["Personal info", "Business details", "Identity verification", "Payout method", "Store setup"][step],
     [step],
   );
 
