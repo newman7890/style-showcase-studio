@@ -223,67 +223,173 @@ export const SellerApprovalsManagement = () => {
         <Card><CardContent className="pt-6 text-center text-muted-foreground">No {filter} sellers.</CardContent></Card>
       ) : (
         <div className="grid gap-3">
-          {rows.map((r) => (
-            <Card key={r.id}>
-              <CardContent className="pt-4 space-y-3">
-                <div className="flex justify-between items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-lg">{r.store_name || r.business_name}</div>
-                    {r.full_legal_name && (
-                      <div className="text-sm text-muted-foreground">Legal name: {r.full_legal_name}</div>
-                    )}
-                    {r.email && <div className="text-sm text-muted-foreground break-all">{r.email}</div>}
-                    {r.phone && <div className="text-sm text-muted-foreground">📞 {r.phone}</div>}
-                    <div className="text-xs text-muted-foreground mt-2">
-                      Applied {new Date(r.applied_at).toLocaleString()}
+          {rows.map((r) => {
+            const payoutLabel =
+              r.payout_method === "momo"
+                ? "Mobile Money"
+                : r.payout_method === "bank"
+                ? "Bank account"
+                : r.payout_method || "—";
+            const momoNet =
+              r.momo_provider === "mtn"
+                ? "MTN"
+                : r.momo_provider === "vod"
+                ? "Telecel"
+                : r.momo_provider === "atl"
+                ? "AirtelTigo"
+                : r.momo_provider;
+            return (
+              <Card key={r.id}>
+                <CardContent className="pt-4 space-y-4">
+                  {/* Header */}
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      {r.store_logo_url ? (
+                        <img
+                          src={r.store_logo_url}
+                          alt=""
+                          className="w-12 h-12 rounded-md object-cover border shrink-0"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-md border bg-muted flex items-center justify-center shrink-0">
+                          <Store className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="font-semibold text-lg truncate">
+                          {r.store_name || r.business_name}
+                        </div>
+                        {r.full_legal_name && (
+                          <div className="text-sm text-muted-foreground">
+                            Legal name: {r.full_legal_name}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Applied {new Date(r.applied_at).toLocaleString()}
+                        </div>
+                      </div>
                     </div>
-                    {r.rejection_reason && (
-                      <div className="text-xs text-destructive mt-1">Reason: {r.rejection_reason}</div>
-                    )}
+                    <Badge
+                      variant={
+                        r.status === "approved"
+                          ? "default"
+                          : r.status === "pending"
+                          ? "secondary"
+                          : "destructive"
+                      }
+                    >
+                      {r.status}
+                    </Badge>
                   </div>
-                  <Badge variant={r.status === "approved" ? "default" : r.status === "pending" ? "secondary" : "destructive"}>
-                    {r.status}
-                  </Badge>
-                </div>
 
-                {r.status === "approved" && (
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1">
-                      <Label className="text-xs">Commission override (%)</Label>
-                      <Input
-                        type="number"
-                        placeholder={r.commission_override != null ? "" : "Uses platform default"}
-                        defaultValue={r.commission_override ?? ""}
-                        onChange={(e) => setOverrides({ ...overrides, [r.id]: e.target.value })}
+                  {/* Grid summary — all the key data at a glance */}
+                  <div className="grid md:grid-cols-2 gap-3 text-sm">
+                    <Panel title="Contact">
+                      <KV k="Email" v={r.email} badge={r.email_verified_at ? "verified" : undefined} />
+                      <KV k="Phone" v={r.phone} badge={r.phone_verified_at ? "verified" : undefined} />
+                      <KV k="Date of birth" v={r.date_of_birth} />
+                      <KV k="Residential address" v={r.address} />
+                    </Panel>
+
+                    <Panel title="Business">
+                      <KV k="Type" v={r.business_type} />
+                      <KV k="Business name" v={r.business_name} />
+                      <KV k="Registration #" v={r.business_registration_number} />
+                      <KV k="Business address" v={r.business_address} />
+                      <KV k="Tax ID (TIN)" v={r.tax_id} />
+                      <KV k="VAT #" v={r.vat_number} />
+                    </Panel>
+
+                    <Panel title="Identity">
+                      <KV k="ID type" v={r.id_document_type} />
+                      <KV k="ID number" v={r.id_document_number} mono />
+                      <KV k="Ghana Card #" v={r.ghana_card_number} mono />
+                      <KV
+                        k="Identity"
+                        v={r.identity_verified_at ? "Verified" : "Not verified"}
                       />
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => saveOverride(r.id)}>Save</Button>
-                  </div>
-                )}
+                      <div className="flex gap-2 flex-wrap pt-1">
+                        <MiniDoc label="ID front" path={r.id_document_front_url} onOpen={openDoc} />
+                        <MiniDoc label="ID back" path={r.id_document_back_url} onOpen={openDoc} />
+                        <MiniDoc label="Selfie" path={r.selfie_url} onOpen={openDoc} />
+                        <MiniDoc label="Proof of address" path={r.proof_of_address_url} onOpen={openDoc} />
+                        <MiniDoc label="Tax form" path={r.tax_form_url} onOpen={openDoc} />
+                      </div>
+                    </Panel>
 
-                <div className="flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={() => openReview(r)}>
-                    <FileSearch className="w-4 h-4 mr-1" /> Review full application
-                  </Button>
-                  {r.status !== "approved" && (
-                    <Button size="sm" onClick={() => setStatus(r.id, "approved")}>
-                      <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
-                    </Button>
+                    <Panel title={`Payout — ${payoutLabel}`}>
+                      {r.payout_method === "momo" ? (
+                        <>
+                          <KV k="Network" v={momoNet} />
+                          <KV k="MoMo #" v={r.momo_number} mono />
+                          <KV k="Account name" v={r.momo_account_name} />
+                        </>
+                      ) : (
+                        <>
+                          <KV k="Bank" v={r.bank_name} />
+                          <KV k="Account holder" v={r.account_name} />
+                          <KV k="Account #" v={r.account_number} mono />
+                          <KV k="Bank code" v={r.bank_code} mono />
+                          <KV k="SWIFT / BIC" v={r.swift_bic} mono />
+                        </>
+                      )}
+                    </Panel>
+
+                    <Panel title="Store" className="md:col-span-2">
+                      <KV k="Store name" v={r.store_name} />
+                      <KV k="Return address" v={r.return_address} />
+                      <KV k="Description" v={r.store_description} />
+                      <KV k="Public bio" v={r.bio} />
+                    </Panel>
+                  </div>
+
+                  {r.rejection_reason && (
+                    <div className="text-xs text-destructive">
+                      Reason: {r.rejection_reason}
+                    </div>
                   )}
-                  {r.status === "pending" && (
-                    <Button size="sm" variant="destructive" onClick={() => setRejectingId(r.id)}>
-                      <XCircle className="w-4 h-4 mr-1" /> Reject
-                    </Button>
-                  )}
+
                   {r.status === "approved" && (
-                    <Button size="sm" variant="destructive" onClick={() => setRejectingId(r.id)}>
-                      <Ban className="w-4 h-4 mr-1" /> Suspend
-                    </Button>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <Label className="text-xs">Commission override (%)</Label>
+                        <Input
+                          type="number"
+                          placeholder={r.commission_override != null ? "" : "Uses platform default"}
+                          defaultValue={r.commission_override ?? ""}
+                          onChange={(e) => setOverrides({ ...overrides, [r.id]: e.target.value })}
+                        />
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => saveOverride(r.id)}>
+                        Save
+                      </Button>
+                    </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+
+                  <div className="flex gap-2 flex-wrap pt-1">
+                    <Button size="sm" variant="outline" onClick={() => openReview(r)}>
+                      <FileSearch className="w-4 h-4 mr-1" /> Open full review (compliance & billing)
+                    </Button>
+                    {r.status !== "approved" && (
+                      <Button size="sm" onClick={() => setStatus(r.id, "approved")}>
+                        <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
+                      </Button>
+                    )}
+                    {r.status === "pending" && (
+                      <Button size="sm" variant="destructive" onClick={() => setRejectingId(r.id)}>
+                        <XCircle className="w-4 h-4 mr-1" /> Reject
+                      </Button>
+                    )}
+                    {r.status === "approved" && (
+                      <Button size="sm" variant="destructive" onClick={() => setRejectingId(r.id)}>
+                        <Ban className="w-4 h-4 mr-1" /> Suspend
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
