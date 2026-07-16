@@ -171,6 +171,29 @@ export const SellerApprovalsManagement = () => {
     load();
   };
 
+  const deleteSeller = async () => {
+    if (!deletingId) return;
+    setDeleting(true);
+    const target = rows.find((r) => r.id === deletingId);
+    // Remove seller role first, then delete the profile row.
+    if (target?.user_id) {
+      await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", target.user_id)
+        .eq("role", "seller" as any);
+    }
+    const { error } = await supabase
+      .from("seller_profiles")
+      .delete()
+      .eq("id", deletingId);
+    setDeleting(false);
+    if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
+    toast({ title: "Seller account deleted" });
+    setDeletingId(null);
+    load();
+  };
+
   const openReview = async (r: SellerRow) => {
     setReviewing(r);
     setCompliance([]);
