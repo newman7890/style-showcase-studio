@@ -201,6 +201,17 @@ export const CustomerList = () => {
                   <TableCell className="font-medium">
                     GH₵{customer.total_spent.toFixed(2)}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      disabled={user?.id === customer.id}
+                      onClick={() => setDeleteTarget(customer)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
