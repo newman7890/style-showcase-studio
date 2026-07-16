@@ -17,6 +17,13 @@ interface SellerRow {
   business_name: string;
   phone: string | null;
   bio: string | null;
+  email: string | null;
+  address: string | null;
+  bank_code: string | null;
+  account_number: string | null;
+  account_name: string | null;
+  ghana_card_number: string | null;
+  ghana_card_image_url: string | null;
   status: "pending" | "approved" | "rejected" | "suspended";
   rejection_reason: string | null;
   commission_override: number | null;
