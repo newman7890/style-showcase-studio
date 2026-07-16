@@ -264,7 +264,7 @@ export default function SellerWizard() {
     const path = `store-logos/${user!.id}/logo-${Date.now()}.${ext}`;
     const { error } = await supabase.storage
       .from("product-images")
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { upsert: false, contentType: file.type });
     if (error) throw error;
     const { data } = supabase.storage.from("product-images").getPublicUrl(path);
     return data.publicUrl;
