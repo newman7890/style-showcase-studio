@@ -1,0 +1,253 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 220 8% 96%;
+    --foreground: 220 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 10%;
+
+    --primary: 142 50% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 6% 91%;
+    --secondary-foreground: 220 10% 15%;
+
+    --muted: 220 6% 91%;
+    --muted-foreground: 220 8% 45%;
+
+    --accent: 142 50% 38%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 8% 88%;
+    --input: 220 8% 88%;
+    --ring: 142 50% 38%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 10% 10%;
+    --sidebar-primary: 142 50% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 6% 91%;
+    --sidebar-accent-foreground: 220 10% 15%;
+    --sidebar-border: 220 8% 88%;
+    --sidebar-ring: 142 50% 38%;
+  }
+
+  .dark {
+    --background: 220 8% 96%;
+    --foreground: 220 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 10%;
+
+    --primary: 142 50% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 6% 91%;
+    --secondary-foreground: 220 10% 15%;
+
+    --muted: 220 6% 91%;
+    --muted-foreground: 220 8% 45%;
+
+    --accent: 142 50% 38%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 8% 88%;
+    --input: 220 8% 88%;
+    --ring: 142 50% 38%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 10% 10%;
+    --sidebar-primary: 142 50% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 6% 91%;
+    --sidebar-accent-foreground: 220 10% 15%;
+    --sidebar-border: 220 8% 88%;
+    --sidebar-ring: 142 50% 38%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* =============================================
+   RTL (Right-to-Left) Support for Arabic
+   ============================================= */
+
+/* Arabic font for RTL languages */
+[dir="rtl"] {
+  font-family: 'Segoe UI', 'Tahoma', 'Arial', 'DM Sans', system-ui, sans-serif;
+  text-align: right;
+}
+
+/* Fix flex row direction in RTL */
+[dir="rtl"] .flex-row,
+[dir="rtl"] .flex {
+  direction: rtl;
+}
+
+/* Fix fixed positioned bottom nav and header for RTL */
+[dir="rtl"] nav.fixed {
+  direction: rtl;
+}
+
+/* Fix icon + text pairs to not reverse awkwardly */
+[dir="rtl"] .flex.items-center.gap-2,
+[dir="rtl"] .flex.items-center.gap-1,
+[dir="rtl"] .flex.items-center.gap-3,
+[dir="rtl"] .flex.items-center.gap-4 {
+  flex-direction: row-reverse;
+}
+
+/* Keep icon-only buttons normal */
+[dir="rtl"] button.w-10.h-10 {
+  flex-direction: row;
+}
+
+/* Fix ChevronRight/Left icons for RTL navigation */
+[dir="rtl"] .lucide-chevron-right {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .lucide-chevron-left {
+  transform: scaleX(-1);
+}
+
+/* Fix header flex layout */
+[dir="rtl"] header .container {
+  flex-direction: row-reverse;
+}
+
+/* Fix navigation links */
+[dir="rtl"] nav.flex {
+  flex-direction: row-reverse;
+}
+
+/* Fix form inputs to be RTL-friendly */
+[dir="rtl"] input,
+[dir="rtl"] textarea {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Fix grid text alignment */
+[dir="rtl"] .grid {
+  direction: rtl;
+}
+
+/* Fix button content alignment */
+[dir="rtl"] button {
+  direction: rtl;
+}
+
+/* Fix absolute positioned elements */
+[dir="rtl"] .absolute.left-0 {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .absolute.right-0 {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .absolute.left-3 {
+  left: auto;
+  right: 0.75rem;
+}
+
+[dir="rtl"] .absolute.-left-1 {
+  left: auto;
+  right: -0.25rem;
+}
+
+/* Fix padding for RTL */
+[dir="rtl"] .pl-10 {
+  padding-left: 0;
+  padding-right: 2.5rem;
+}
+
+[dir="rtl"] .pl-5 {
+  padding-left: 0;
+  padding-right: 1.25rem;
+}
+
+[dir="rtl"] .pr-4 {
+  padding-right: 0;
+  padding-left: 1rem;
+}
+
+/* Fix margin for RTL */
+[dir="rtl"] .ml-2 {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+[dir="rtl"] .mr-2 {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+/* Fix translate for RTL active indicator dot */
+[dir="rtl"] .-translate-x-1\/2 {
+  transform: translateX(50%);
+}
+
+/* Fix marquee animation for RTL */
+[dir="rtl"] @keyframes marquee-rtl {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(50%); }
+}
+
+[dir="rtl"] .animate-marquee {
+  animation: marquee-rtl 30s linear infinite;
+}

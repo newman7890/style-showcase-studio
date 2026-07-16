@@ -1,0 +1,31 @@
+project_id = "rsxpoctivfhlacgmjawj"
+
+[functions.send-order-notification]
+verify_jwt = false
+
+[functions.initialize-payment]
+verify_jwt = false
+
+[functions.verify-payment]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.ai-product-search]
+verify_jwt = false
+
+[functions.ai-generate-description]
+verify_jwt = false
+
+[functions.send-notification-email]
+verify_jwt = false
+
+[functions.charge-momo]
+verify_jwt = false
+
+[functions.check-charge-status]
+verify_jwt = false
