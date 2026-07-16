@@ -671,3 +671,75 @@ function DocButton({
     </Button>
   );
 }
+
+function Panel({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-md border p-3 space-y-1 ${className ?? ""}`}>
+      <div className="text-xs font-medium text-muted-foreground uppercase mb-1">
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function KV({
+  k,
+  v,
+  mono,
+  badge,
+}: {
+  k: string;
+  v: string | null | undefined;
+  mono?: boolean;
+  badge?: string;
+}) {
+  return (
+    <div className="flex justify-between gap-3 py-0.5">
+      <span className="text-xs text-muted-foreground shrink-0">{k}</span>
+      <span className={`text-xs text-right break-all ${mono ? "font-mono" : ""}`}>
+        {v || <span className="text-muted-foreground">—</span>}
+        {badge && (
+          <Badge variant="secondary" className="ml-2 text-[10px]">
+            {badge}
+          </Badge>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function MiniDoc({
+  label,
+  path,
+  onOpen,
+}: {
+  label: string;
+  path: string | null;
+  onOpen: (p: string | null) => void;
+}) {
+  if (!path) {
+    return (
+      <span className="text-[11px] px-2 py-1 rounded border border-dashed text-muted-foreground">
+        {label}: —
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(path)}
+      className="text-[11px] px-2 py-1 rounded border hover:bg-accent inline-flex items-center gap-1"
+    >
+      <ExternalLink className="w-3 h-3" /> {label}
+    </button>
+  );
+}
