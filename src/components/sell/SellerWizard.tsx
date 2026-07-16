@@ -686,29 +686,90 @@ function StepBank({ form, set, errors }: StepProps) {
   return (
     <>
       <div>
-        <Label>Bank name</Label>
-        <Input value={form.bank_name} onChange={(e) => set("bank_name", e.target.value)} />
-        <Err msg={errors.bank_name} />
+        <Label>How would you like to receive your payouts?</Label>
+        <Select
+          value={form.payout_method}
+          onValueChange={(v) => set("payout_method", v as "bank" | "momo")}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="bank">Bank account</SelectItem>
+            <SelectItem value="momo">Mobile Money (Ghana)</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          You can only choose one payout method. Contact support later to change it.
+        </p>
       </div>
-      <div>
-        <Label>Account holder name</Label>
-        <Input value={form.account_name} onChange={(e) => set("account_name", e.target.value)} />
-        <Err msg={errors.account_name} />
-      </div>
-      <div>
-        <Label>Account number</Label>
-        <Input value={form.account_number} onChange={(e) => set("account_number", e.target.value)} />
-        <Err msg={errors.account_number} />
-      </div>
-      <div>
-        <Label>Bank code (Ghana)</Label>
-        <Input value={form.bank_code} onChange={(e) => set("bank_code", e.target.value)} placeholder="e.g. 070100" />
-        <Err msg={errors.bank_code} />
-      </div>
-      <div>
-        <Label>SWIFT / BIC (optional, for international transfers)</Label>
-        <Input value={form.swift_bic} onChange={(e) => set("swift_bic", e.target.value)} />
-      </div>
+
+      {form.payout_method === "bank" ? (
+        <>
+          <div>
+            <Label>Bank name</Label>
+            <Input value={form.bank_name} onChange={(e) => set("bank_name", e.target.value)} />
+            <Err msg={errors.bank_name} />
+          </div>
+          <div>
+            <Label>Account holder name</Label>
+            <Input value={form.account_name} onChange={(e) => set("account_name", e.target.value)} />
+            <Err msg={errors.account_name} />
+          </div>
+          <div>
+            <Label>Account number</Label>
+            <Input value={form.account_number} onChange={(e) => set("account_number", e.target.value)} />
+            <Err msg={errors.account_number} />
+          </div>
+          <div>
+            <Label>Bank code (Ghana)</Label>
+            <Input value={form.bank_code} onChange={(e) => set("bank_code", e.target.value)} placeholder="e.g. 070100" />
+            <Err msg={errors.bank_code} />
+          </div>
+          <div>
+            <Label>SWIFT / BIC (optional, for international transfers)</Label>
+            <Input value={form.swift_bic} onChange={(e) => set("swift_bic", e.target.value)} />
+          </div>
+        </>
+      ) : (
+        <>
+          <div>
+            <Label>Mobile Money network</Label>
+            <Select
+              value={form.momo_provider}
+              onValueChange={(v) => set("momo_provider", v)}
+            >
+              <SelectTrigger><SelectValue placeholder="Select network" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mtn">MTN Mobile Money</SelectItem>
+                <SelectItem value="vod">Telecel Cash</SelectItem>
+                <SelectItem value="atl">AirtelTigo Money</SelectItem>
+              </SelectContent>
+            </Select>
+            <Err msg={errors.momo_provider} />
+          </div>
+          <div>
+            <Label>Mobile Money number</Label>
+            <Input
+              value={form.momo_number}
+              onChange={(e) => set("momo_number", e.target.value)}
+              placeholder="e.g. 024xxxxxxx"
+              inputMode="numeric"
+            />
+            <Err msg={errors.momo_number} />
+          </div>
+          <div>
+            <Label>Registered account name</Label>
+            <Input
+              value={form.momo_account_name}
+              onChange={(e) => set("momo_account_name", e.target.value)}
+              placeholder="Name as it appears on the wallet"
+            />
+            <Err msg={errors.momo_account_name} />
+            <p className="text-xs text-muted-foreground mt-1">
+              Must match the name registered with your Mobile Money wallet, or payouts will fail.
+            </p>
+          </div>
+        </>
+      )}
     </>
   );
 }
