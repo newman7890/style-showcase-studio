@@ -8,11 +8,13 @@ interface ProductCardProps {
   name: string;
   price: number;
   image: string;
+  stock?: number;
   sale_price?: number | null;
   sale_ends_at?: string | null;
 }
 
-export const ProductCard = ({ id, name, price, image, sale_price, sale_ends_at }: ProductCardProps) => {
+export const ProductCard = ({ id, name, price, image, stock, sale_price, sale_ends_at }: ProductCardProps) => {
+
   const { isFavorite, toggleFavorite } = useFavorites();
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
@@ -86,7 +88,17 @@ export const ProductCard = ({ id, name, price, image, sale_price, sale_ends_at }
               GH₵{price.toFixed(2)}
             </p>
           )}
+          {typeof stock === "number" && (
+            stock <= 0 ? (
+              <p className="text-[11px] font-medium text-destructive">Out of stock</p>
+            ) : stock <= 5 ? (
+              <p className="text-[11px] font-medium text-destructive">Only {stock} left</p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">{stock} in stock</p>
+            )
+          )}
         </div>
+
       </motion.div>
     </Link>
   );
