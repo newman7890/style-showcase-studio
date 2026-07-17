@@ -88,7 +88,17 @@ export const ProductCard = ({ id, name, price, image, stock, sale_price, sale_en
               GH₵{price.toFixed(2)}
             </p>
           )}
+          {typeof stock === "number" && (
+            stock <= 0 ? (
+              <p className="text-[11px] font-medium text-destructive">Out of stock</p>
+            ) : stock <= 5 ? (
+              <p className="text-[11px] font-medium text-destructive">Only {stock} left</p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">{stock} in stock</p>
+            )
+          )}
         </div>
+
       </motion.div>
     </Link>
   );
