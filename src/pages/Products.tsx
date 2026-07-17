@@ -148,37 +148,41 @@ const Products = () => {
             </p>
           </motion.div>
 
-          {/* New Arrivals Section */}
-          <motion.div
-            ref={newArrivalsRef}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="mb-12 scroll-mt-20"
-          >
-            <div className="flex items-center gap-2 mb-5">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <h2 className="text-lg md:text-xl font-bold tracking-tight">New Arrivals</h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {newArrivals.map((product, index) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(index * 0.06, 0.4) }}
-                >
-                  <ProductCard
-                    {...product}
-                    sale_price={product.sale_price}
-                    sale_ends_at={product.sale_ends_at}
-                  />
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+          {/* New Arrivals Section — only when browsing all products with no search */}
+          {activeCategory === "all" && searchQuery === "" && (
+            <>
+              <motion.div
+                ref={newArrivalsRef}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="mb-12 scroll-mt-20"
+              >
+                <div className="flex items-center gap-2 mb-5">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg md:text-xl font-bold tracking-tight">New Arrivals</h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {newArrivals.map((product, index) => (
+                    <motion.div
+                      key={product.id}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(index * 0.06, 0.4) }}
+                    >
+                      <ProductCard
+                        {...product}
+                        sale_price={product.sale_price}
+                        sale_ends_at={product.sale_ends_at}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
 
-          <div className="border-t border-border/40 mb-8" />
+              <div className="border-t border-border/40 mb-8" />
+            </>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: -10 }}
