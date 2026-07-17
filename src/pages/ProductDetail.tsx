@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Heart, ShoppingCart, Plus, Minus, Star, Truck } from "lucide-react";
+import { ArrowLeft, Heart, ShoppingCart, Plus, Minus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -278,11 +278,6 @@ const ProductDetail = () => {
               </motion.button>
             </div>
 
-            {/* Free delivery info */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Truck className="w-4 h-4" />
-              <span>Free delivery on orders over GH₵300.00</span>
-            </div>
           </div>
         </div>
 
