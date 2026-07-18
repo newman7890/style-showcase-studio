@@ -103,9 +103,9 @@ const stepSchemas = [
       errorMap: () => ({ message: "Select a business type" }),
     }),
     business_name: z.string().trim().min(2, "Required").max(120),
-    business_registration_number: z.string().trim().min(2, "Required").max(60),
+    business_registration_number: z.string().trim().max(60).optional().or(z.literal("")),
     business_address: z.string().trim().min(4, "Required").max(300),
-    tax_id: z.string().trim().min(3, "Required").max(60),
+    tax_id: z.string().trim().max(60).optional().or(z.literal("")),
     vat_number: z.string().trim().max(60).optional().or(z.literal("")),
   }),
   z.object({
