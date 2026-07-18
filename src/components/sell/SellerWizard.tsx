@@ -103,9 +103,9 @@ const stepSchemas = [
       errorMap: () => ({ message: "Select a business type" }),
     }),
     business_name: z.string().trim().min(2, "Required").max(120),
-    business_registration_number: z.string().trim().min(2, "Required").max(60),
+    business_registration_number: z.string().trim().max(60).optional().or(z.literal("")),
     business_address: z.string().trim().min(4, "Required").max(300),
-    tax_id: z.string().trim().min(3, "Required").max(60),
+    tax_id: z.string().trim().max(60).optional().or(z.literal("")),
     vat_number: z.string().trim().max(60).optional().or(z.literal("")),
   }),
   z.object({
@@ -327,9 +327,9 @@ export default function SellerWizard() {
         full_legal_name: form.full_legal_name,
         date_of_birth: form.date_of_birth,
         business_type: form.business_type,
-        business_registration_number: form.business_registration_number,
+        business_registration_number: form.business_registration_number || null,
         business_address: form.business_address,
-        tax_id: form.tax_id,
+        tax_id: form.tax_id || null,
         vat_number: form.vat_number || null,
         id_document_type: form.id_document_type,
         id_document_number: form.id_document_number,
@@ -560,7 +560,7 @@ function StepBusiness({ form, set, errors }: StepProps) {
         <Err msg={errors.business_name} />
       </div>
       <div>
-        <Label>Business registration number</Label>
+        <Label>Business registration number (optional)</Label>
         <Input value={form.business_registration_number} onChange={(e) => set("business_registration_number", e.target.value)} />
         <Err msg={errors.business_registration_number} />
       </div>
@@ -570,7 +570,7 @@ function StepBusiness({ form, set, errors }: StepProps) {
         <Err msg={errors.business_address} />
       </div>
       <div>
-        <Label>Tax identification number (TIN)</Label>
+        <Label>Tax identification number (TIN) (optional)</Label>
         <Input value={form.tax_id} onChange={(e) => set("tax_id", e.target.value)} />
         <Err msg={errors.tax_id} />
       </div>
