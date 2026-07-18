@@ -201,9 +201,10 @@ const Department = () => {
                     </div>
                     <span className="text-xs text-center text-foreground/80 group-hover:text-primary">{cat.name}</span>
                   </Link>
-                ))}
-              </div>
-            </section>
+                </motion.div>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Featured collection banners (fashion & gadgets) */}
