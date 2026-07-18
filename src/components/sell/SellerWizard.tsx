@@ -560,9 +560,12 @@ function StepBusiness({ form, set, errors }: StepProps) {
         <Err msg={errors.business_name} />
       </div>
       <div>
-        <Label>Business registration number (optional)</Label>
-        <Input value={form.business_registration_number} onChange={(e) => set("business_registration_number", e.target.value)} />
-        <Err msg={errors.business_registration_number} />
+        <Label>Business registration number</Label>
+        <Input
+          value={form.business_registration_number}
+          onChange={(e) => set("business_registration_number", e.target.value)}
+          placeholder="Optional — leave blank if you do not have one"
+        />
       </div>
       <div>
         <Label>Business address</Label>
@@ -570,9 +573,12 @@ function StepBusiness({ form, set, errors }: StepProps) {
         <Err msg={errors.business_address} />
       </div>
       <div>
-        <Label>Tax identification number (TIN) (optional)</Label>
-        <Input value={form.tax_id} onChange={(e) => set("tax_id", e.target.value)} />
-        <Err msg={errors.tax_id} />
+        <Label>Tax identification number (TIN)</Label>
+        <Input
+          value={form.tax_id}
+          onChange={(e) => set("tax_id", e.target.value)}
+          placeholder="Optional — leave blank if you do not have one"
+        />
       </div>
       <div>
         <Label>VAT number (optional)</Label>
