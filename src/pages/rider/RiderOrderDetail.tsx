@@ -3,11 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, MapPin, Phone, Package, CheckCircle2,
-  Loader2, Navigation, Clock, Mail, DollarSign, Truck
+  Loader2, Navigation, Clock, Mail, Truck
 } from "lucide-react";
 
 interface OrderItem {
@@ -36,17 +34,25 @@ interface Order {
   payment_method: string;
 }
 
-const statusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  processing: "bg-blue-100 text-blue-800",
-  shipped: "bg-purple-100 text-purple-800",
-  delivered: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800",
+interface SellerProfile {
+  business_name: string;
+  business_address: string | null;
+  address: string | null;
+  phone: string | null;
+}
+
+const STATUS_STYLE: Record<string, { bg: string; text: string; dot: string }> = {
+  pending:    { bg: "bg-amber-400/15",  text: "text-amber-400",  dot: "bg-amber-400"  },
+  processing: { bg: "bg-blue-400/15",   text: "text-blue-400",   dot: "bg-blue-400"   },
+  shipped:    { bg: "bg-purple-400/15", text: "text-purple-400", dot: "bg-purple-400" },
+  delivered:  { bg: "bg-green-400/15",  text: "text-green-400",  dot: "bg-green-400"  },
+  cancelled:  { bg: "bg-red-400/15",    text: "text-red-400",    dot: "bg-red-400"    },
 };
 
 const RiderOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
+  const [seller, setSeller] = useState<SellerProfile | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -61,13 +67,11 @@ const RiderOrderDetail = () => {
     try {
       const [orderRes, itemsRes] = await Promise.all([
         supabase.from("orders").select("*").eq("id", id!).single(),
-        supabase.from("order_items").select("*, products(name, image)").eq("order_id", id!),
+        supabase.from("order_items").select("*, products(name, image, seller_id)").eq("order_id", id!),
       ]);
-
       if (orderRes.error) throw orderRes.error;
       setOrder(orderRes.data);
 
-      // Handle the products join - it may come as an object or array
       const processedItems = (itemsRes.data || []).map((item: any) => ({
         ...item,
         products: item.products
@@ -75,6 +79,29 @@ const RiderOrderDetail = () => {
           : null,
       }));
       setItems(processedItems);
+
+      // Fetch seller profile based on the first product's seller_id
+      const firstProduct = processedItems[0]?.products;
+      console.log("First Product:", firstProduct);
+      
+      if (firstProduct?.seller_id) {
+        console.log("Fetching seller profile for ID:", firstProduct.seller_id);
+        // Call our new secure RPC function to bypass RLS
+        const { data: sellerData, error: sellerError } = await (supabase as any)
+          .rpc("get_public_seller_info", { seller_uuid: firstProduct.seller_id })
+          .maybeSingle();
+          
+        console.log("Seller Data:", sellerData, "Error:", sellerError);
+        if (sellerError) {
+          toast({ title: "Seller Fetch Error", description: sellerError.message, variant: "destructive" });
+        }
+        if (sellerData) {
+          setSeller(sellerData as any as SellerProfile);
+        }
+      } else {
+        toast({ title: "Product Data Missing", description: "Could not find seller_id on the product", variant: "destructive" });
+        console.log("No seller_id found on the first product.");
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -90,9 +117,7 @@ const RiderOrderDetail = () => {
         .from("orders")
         .update({ status: "delivered", updated_at: new Date().toISOString() })
         .eq("id", order.id);
-
       if (error) throw error;
-
       toast({ title: "Order Delivered ✅", description: "Status updated successfully." });
       navigate("/rider/dashboard");
     } catch (error: any) {
@@ -110,173 +135,291 @@ const RiderOrderDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#4ade80]" />
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <p className="text-muted-foreground">Order not found</p>
+      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+        <p className="text-white/40">Order not found</p>
       </div>
     );
   }
 
   const isDeliverable = order.status !== "delivered" && order.status !== "cancelled";
+  const s = STATUS_STYLE[order.status] || STATUS_STYLE.pending;
 
   return (
-    <div className="min-h-screen bg-background pb-8">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-primary text-primary-foreground px-4 py-4 shadow-lg">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/rider/dashboard")} className="p-1">
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <div>
-            <h1 className="text-lg font-bold">Order Details</h1>
-            <p className="text-xs opacity-80">#{order.tracking_code || order.id.slice(0, 8).toUpperCase()}</p>
+    <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
+      {/* Phone frame */}
+      <div className="w-full max-w-[390px] h-[844px] bg-[#111827] rounded-[44px] shadow-2xl shadow-black/60 border border-white/10 overflow-hidden flex flex-col">
+
+        {/* Status bar */}
+        <div className="flex items-center justify-between px-8 pt-4 pb-2 flex-shrink-0">
+          <span className="text-white/70 text-xs font-semibold">9:41</span>
+          <div className="w-24 h-6 bg-black rounded-full" />
+          <div className="flex items-center gap-1.5">
+            <div className="flex gap-0.5 items-end h-3">
+              {[2, 3, 4, 5].map((h, i) => (
+                <div key={i} className="w-1 rounded-sm bg-white/70" style={{ height: `${h * 3}px` }} />
+              ))}
+            </div>
+            <span className="text-white/70 text-xs">100%</span>
           </div>
-          <Badge className={`ml-auto ${statusColors[order.status] || ""}`}>
-            {order.status}
-          </Badge>
         </div>
-      </div>
 
-      <div className="px-4 mt-4 space-y-4">
-        {/* Customer Info */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-card border border-border rounded-xl p-4"
-        >
-          <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Package className="w-4 h-4" /> Customer Info
-          </h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Name</span>
-              <span className="font-medium text-foreground">{order.shipping_name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Phone</span>
-              <a href={`tel:${order.shipping_phone}`} className="font-medium text-primary flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5" /> {order.shipping_phone}
-              </a>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Email</span>
-              <span className="font-medium text-foreground text-xs">{order.shipping_email}</span>
-            </div>
+        {/* Header */}
+        <div className="px-6 pt-3 pb-4 flex-shrink-0 flex items-center gap-4">
+          <button
+            onClick={() => navigate("/rider/dashboard")}
+            className="w-10 h-10 rounded-2xl bg-white/8 flex items-center justify-center text-white/70 hover:bg-white/15 transition-all flex-shrink-0"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-white font-bold text-base leading-tight">Order Details</h1>
+            <p className="text-white/40 text-xs font-mono">#{order.tracking_code || order.id.slice(0, 8).toUpperCase()}</p>
           </div>
-        </motion.div>
+          <span className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${s.bg} ${s.text}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+            {order.status}
+          </span>
+        </div>
 
-        {/* Delivery Address */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-card border border-border rounded-xl p-4"
-        >
-          <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-            <MapPin className="w-4 h-4" /> Delivery Address
-          </h3>
-          <p className="text-sm text-foreground mb-1">{order.shipping_address}</p>
-          <p className="text-sm text-muted-foreground">{order.shipping_city}, {order.shipping_region}</p>
-          <Button onClick={openInMaps} variant="outline" className="w-full mt-3 h-11">
-            <Navigation className="w-4 h-4 mr-2" /> Open in Google Maps
-          </Button>
-        </motion.div>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
 
-        {/* Order Items */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-card border border-border rounded-xl p-4"
-        >
-          <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Truck className="w-4 h-4" /> Order Items ({items.length})
-          </h3>
-          <div className="space-y-3">
-            {items.map((item) => (
-              <div key={item.id} className="flex items-center gap-3">
-                {item.products?.image && (
-                  <img
-                    src={item.products.image}
-                    alt={item.products?.name || "Product"}
-                    className="w-12 h-12 rounded-lg object-cover border border-border"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {item.products?.name || "Product"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+          {/* Customer Info */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#1a2234] rounded-2xl p-4 border border-white/5"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 rounded-xl bg-blue-400/15 flex items-center justify-center">
+                <Package className="w-3.5 h-3.5 text-blue-400" />
+              </div>
+              <h3 className="text-white font-semibold text-sm">Customer Info</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-xs">Name</span>
+                <span className="text-white text-sm font-semibold">{order.shipping_name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-xs">Phone</span>
+                <a href={`tel:${order.shipping_phone}`} className="text-[#4ade80] text-sm font-semibold flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5" /> {order.shipping_phone}
+                </a>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-xs">Email</span>
+                <span className="text-white/60 text-xs">{order.shipping_email}</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Pickup Location (Seller) */}
+          {seller ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.03 }}
+              className="bg-[#1a2234] rounded-2xl p-4 border border-[#4ade80]/20 relative overflow-hidden"
+            >
+              {/* Subtle background glow for the pickup card to distinguish it */}
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#4ade80]/5 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-[#4ade80]/15 flex items-center justify-center">
+                    <MapPin className="w-3.5 h-3.5 text-[#4ade80]" />
+                  </div>
+                  <h3 className="text-white font-semibold text-sm">Pickup (Seller)</h3>
                 </div>
-                <span className="text-sm font-semibold text-foreground">
-                  {order.currency} {item.price.toFixed(2)}
+                {seller.phone && (
+                  <a
+                    href={`tel:${seller.phone}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4ade80]/15 text-[#4ade80] rounded-lg text-xs font-semibold hover:bg-[#4ade80]/25 transition-colors"
+                  >
+                    <Phone className="w-3.5 h-3.5" /> Call Seller
+                  </a>
+                )}
+              </div>
+              
+              <div className="space-y-3 relative z-10">
+                <div className="flex items-start justify-between">
+                  <span className="text-white/40 text-xs mt-0.5">Store</span>
+                  <span className="text-white text-sm font-semibold text-right max-w-[200px]">
+                    {seller.business_name}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between">
+                  <span className="text-white/40 text-xs mt-0.5">Address</span>
+                  <span className="text-white/80 text-sm font-medium text-right max-w-[200px]">
+                    {seller.business_address || seller.address || "Address not provided"}
+                  </span>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    const addr = encodeURIComponent(seller.business_address || seller.address || seller.business_name);
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${addr}`, "_blank");
+                  }}
+                  className="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-xs font-semibold hover:bg-white/10 transition-all"
+                >
+                  <Navigation className="w-3.5 h-3.5" /> Navigate to Pickup
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.03 }}
+              className="bg-[#1a2234] rounded-2xl p-4 border border-orange-500/20"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-xl bg-orange-500/15 flex items-center justify-center">
+                  <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                </div>
+                <h3 className="text-white font-semibold text-sm">Pickup (Unknown Seller)</h3>
+              </div>
+              <p className="text-white/50 text-xs">
+                The seller for this item hasn't set up their business profile yet, so pickup details are unavailable.
+              </p>
+            </motion.div>
+          )}
+
+          {/* Delivery Address */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.07 }}
+            className="bg-[#1a2234] rounded-2xl p-4 border border-white/5"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 rounded-xl bg-amber-400/15 flex items-center justify-center">
+                <MapPin className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+              <h3 className="text-white font-semibold text-sm">Delivery Address</h3>
+            </div>
+            <p className="text-white/80 text-sm mb-0.5">{order.shipping_address}</p>
+            <p className="text-white/40 text-xs mb-4">{order.shipping_city}, {order.shipping_region}</p>
+            <button
+              onClick={openInMaps}
+              className="w-full h-11 flex items-center justify-center gap-2 rounded-xl border border-white/10 text-white/70 text-sm font-semibold hover:bg-white/5 transition-all"
+            >
+              <Navigation className="w-4 h-4" /> Open in Google Maps
+            </button>
+          </motion.div>
+
+          {/* Order Items */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.14 }}
+            className="bg-[#1a2234] rounded-2xl p-4 border border-white/5"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 rounded-xl bg-purple-400/15 flex items-center justify-center">
+                <Truck className="w-3.5 h-3.5 text-purple-400" />
+              </div>
+              <h3 className="text-white font-semibold text-sm">Order Items ({items.length})</h3>
+            </div>
+            <div className="space-y-3">
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center gap-3">
+                  {item.products?.image && (
+                    <img
+                      src={item.products.image}
+                      alt={item.products?.name || "Product"}
+                      className="w-12 h-12 rounded-xl object-cover border border-white/10 flex-shrink-0"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{item.products?.name || "Product"}</p>
+                    <p className="text-white/40 text-xs">Qty: {item.quantity}</p>
+                  </div>
+                  <span className="text-white font-bold text-sm flex-shrink-0">
+                    {order.currency} {item.price.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-white/8 mt-4 pt-4 flex justify-between items-center">
+              <span className="text-white/60 text-sm font-medium">Total</span>
+              <span className="text-white font-bold text-lg">{order.currency} {order.total_amount.toFixed(2)}</span>
+            </div>
+          </motion.div>
+
+          {/* Order Meta */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.21 }}
+            className="bg-[#1a2234] rounded-2xl p-4 border border-white/5"
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-xs flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Ordered
+                </span>
+                <span className="text-white/70 text-xs">
+                  {order.created_at ? new Date(order.created_at).toLocaleString() : "N/A"}
                 </span>
               </div>
-            ))}
-          </div>
-
-          <div className="border-t border-border mt-3 pt-3 flex justify-between">
-            <span className="font-semibold text-foreground">Total</span>
-            <span className="font-bold text-foreground">{order.currency} {order.total_amount.toFixed(2)}</span>
-          </div>
-        </motion.div>
-
-        {/* Order Meta */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-card border border-border rounded-xl p-4"
-        >
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Ordered</span>
-              <span className="text-foreground">{order.created_at ? new Date(order.created_at).toLocaleString() : "N/A"}</span>
+              <div className="flex items-center justify-between">
+                <span className="text-white/40 text-xs">Payment</span>
+                <span className="text-white/70 text-xs capitalize">{order.payment_method}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" /> Payment</span>
-              <span className="text-foreground capitalize">{order.payment_method}</span>
+          </motion.div>
+
+          {/* Action Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.28 }}
+            className="space-y-3 pb-4"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <a
+                href={`tel:${order.shipping_phone}`}
+                className="flex items-center justify-center gap-2 h-12 bg-white/8 text-white/80 rounded-2xl text-sm font-semibold hover:bg-white/12 transition-all border border-white/8"
+              >
+                <Phone className="w-4 h-4" /> Call
+              </a>
+              <a
+                href={`mailto:${order.shipping_email}`}
+                className="flex items-center justify-center gap-2 h-12 bg-white/8 text-white/80 rounded-2xl text-sm font-semibold hover:bg-white/12 transition-all border border-white/8"
+              >
+                <Mail className="w-4 h-4" /> Email
+              </a>
             </div>
-          </div>
-        </motion.div>
 
-        {/* Action Buttons */}
-        <div className="space-y-3 pt-2">
-          <div className="grid grid-cols-2 gap-3">
-            <a
-              href={`tel:${order.shipping_phone}`}
-              className="flex items-center justify-center gap-2 h-12 bg-secondary text-secondary-foreground rounded-xl font-semibold text-sm"
-            >
-              <Phone className="w-5 h-5" /> Call
-            </a>
-            <a
-              href={`mailto:${order.shipping_email}`}
-              className="flex items-center justify-center gap-2 h-12 bg-secondary text-secondary-foreground rounded-xl font-semibold text-sm"
-            >
-              <Mail className="w-5 h-5" /> Email
-            </a>
-          </div>
+            {isDeliverable && (
+              <button
+                onClick={handleMarkDelivered}
+                disabled={updating}
+                className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#4ade80] to-[#16a34a] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-green-500/25 disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              >
+                {updating ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Updating...</>
+                ) : (
+                  <><CheckCircle2 className="w-5 h-5" /> Mark as Delivered</>
+                )}
+              </button>
+            )}
+          </motion.div>
+        </div>
 
-          {isDeliverable && (
-            <Button
-              onClick={handleMarkDelivered}
-              disabled={updating}
-              className="w-full h-14 text-base font-bold rounded-xl"
-            >
-              {updating ? (
-                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Updating...</>
-              ) : (
-                <><CheckCircle2 className="w-5 h-5 mr-2" /> Mark as Delivered</>
-              )}
-            </Button>
-          )}
+        {/* Home indicator */}
+        <div className="flex-shrink-0 flex justify-center py-3 bg-[#111827] border-t border-white/5">
+          <div className="w-28 h-1 bg-white/20 rounded-full" />
         </div>
       </div>
     </div>

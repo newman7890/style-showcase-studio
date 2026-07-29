@@ -2,12 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Truck, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Bike } from "lucide-react";
 
 const RiderLogin = () => {
   const [email, setEmail] = useState("");
@@ -20,7 +17,6 @@ const RiderLogin = () => {
 
   useEffect(() => {
     if (!authLoading && user) {
-      // Check if user has rider role
       checkRiderRole(user.id);
     }
   }, [user, authLoading]);
@@ -32,25 +28,16 @@ const RiderLogin = () => {
       .eq("user_id", userId)
       .eq("role", "rider")
       .single();
-
-    if (data) {
-      navigate("/rider/dashboard");
-    }
+    if (data) navigate("/rider/dashboard");
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      // Check rider role
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
@@ -63,110 +50,141 @@ const RiderLogin = () => {
         throw new Error("Access denied. You are not registered as a delivery rider.");
       }
 
-      toast({
-        title: "Welcome, Rider! 🚚",
-        description: "You're now logged in.",
-      });
+      toast({ title: "Welcome back! 🚴", description: "Logged in successfully." });
       navigate("/rider/dashboard");
     } catch (error: any) {
-      toast({
-        title: "Login Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Login Failed", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#4ade80]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/10 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-sm"
-      >
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary text-primary-foreground mb-4 shadow-lg">
-            <Truck className="w-10 h-10" />
+    /* Full-screen dark backdrop */
+    <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
+      {/* Mobile phone frame */}
+      <div className="w-full max-w-[390px] h-[844px] bg-[#111827] rounded-[44px] shadow-2xl shadow-black/60 border border-white/10 overflow-hidden flex flex-col">
+
+        {/* Status bar */}
+        <div className="flex items-center justify-between px-8 pt-4 pb-2">
+          <span className="text-white/70 text-xs font-semibold">9:41</span>
+          <div className="w-24 h-6 bg-black rounded-full" />
+          <div className="flex items-center gap-1.5">
+            <div className="flex gap-0.5 items-end h-3">
+              {[2, 3, 4, 5].map((h, i) => (
+                <div key={i} className={`w-1 rounded-sm bg-white/70`} style={{ height: `${h * 3}px` }} />
+              ))}
+            </div>
+            <div className="text-white/70 text-xs">100%</div>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Rider Delivery</h1>
-          <p className="text-muted-foreground text-sm mt-1">Joyce's Fashion Enterprise</p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-xl">
-          <h2 className="text-lg font-semibold text-center mb-6">Sign In</h2>
+        {/* Hero gradient area */}
+        <div className="relative flex flex-col items-center justify-center pt-10 pb-8 px-6">
+          {/* Glow blob */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-[#4ade80]/10 blur-3xl pointer-events-none" />
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            className="relative z-10 w-24 h-24 rounded-3xl bg-gradient-to-br from-[#4ade80] to-[#16a34a] flex items-center justify-center shadow-lg shadow-green-500/30 mb-6"
+          >
+            <Bike className="w-12 h-12 text-white" strokeWidth={1.5} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="text-center relative z-10"
+          >
+            <h1 className="text-2xl font-bold text-white tracking-tight">Rider Portal</h1>
+            <p className="text-white/50 text-sm mt-1">Joyce's Fashion Enterprise</p>
+          </motion.div>
+        </div>
+
+        {/* Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.4 }}
+          className="flex-1 bg-[#1a2234] rounded-t-[32px] px-6 pt-8 pb-10 overflow-y-auto"
+        >
+          <h2 className="text-white text-xl font-bold mb-1">Sign In</h2>
+          <p className="text-white/40 text-sm mb-8">Enter your credentials to continue</p>
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            {/* Email */}
             <div>
-              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="rider@example.com"
-                className="mt-1 h-12 text-base"
-              />
+              <label className="text-white/60 text-xs font-semibold uppercase tracking-wider mb-2 block">
+                Email Address
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="rider@example.com"
+                  className="w-full h-14 bg-[#0f1620] border border-white/10 rounded-2xl px-5 text-white text-[15px] placeholder:text-white/25 focus:outline-none focus:border-[#4ade80]/60 focus:ring-2 focus:ring-[#4ade80]/20 transition-all"
+                />
+              </div>
             </div>
 
+            {/* Password */}
             <div>
-              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-              <div className="relative mt-1">
-                <Input
-                  id="password"
+              <label className="text-white/60 text-xs font-semibold uppercase tracking-wider mb-2 block">
+                Password
+              </label>
+              <div className="relative">
+                <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
                   placeholder="••••••••"
-                  className="h-12 text-base pr-12"
+                  className="w-full h-14 bg-[#0f1620] border border-white/10 rounded-2xl px-5 pr-14 text-white text-[15px] placeholder:text-white/25 focus:outline-none focus:border-[#4ade80]/60 focus:ring-2 focus:ring-[#4ade80]/20 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
-            <Button
+            {/* Submit */}
+            <motion.button
               type="submit"
-              className="w-full h-12 text-base font-semibold"
               disabled={loading}
+              whileTap={{ scale: 0.97 }}
+              className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#4ade80] to-[#16a34a] text-white font-bold text-base shadow-lg shadow-green-500/25 flex items-center justify-center gap-2 mt-2 disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
             >
               {loading ? (
-                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Signing In...</>
+                <><Loader2 className="w-5 h-5 animate-spin" /> Signing In...</>
               ) : (
-                "Sign In"
+                "Sign In →"
               )}
-            </Button>
+            </motion.button>
           </form>
-        </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Only authorized delivery riders can access this app.
-        </p>
-      </motion.div>
+          <p className="text-center text-white/25 text-xs mt-8 leading-relaxed">
+            Only authorized delivery riders can access this portal.
+          </p>
+        </motion.div>
+      </div>
     </div>
   );
 };

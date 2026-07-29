@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -40,6 +40,13 @@ import SellerDashboard from "./pages/SellerDashboard";
 import { SellerProtectedRoute } from "@/components/SellerProtectedRoute";
 
 const queryClient = new QueryClient();
+
+// Hide the AI chatbot on all rider pages
+const ConditionalChatbot = () => {
+  const { pathname } = useLocation();
+  if (pathname.startsWith("/rider")) return null;
+  return <AIChatbot />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -100,7 +107,7 @@ const App = () => (
               } />
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <AIChatbot />
+            <ConditionalChatbot />
           </BrowserRouter>
         </LanguageProvider>
       </AuthProvider>
