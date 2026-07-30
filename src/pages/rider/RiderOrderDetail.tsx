@@ -82,25 +82,18 @@ const RiderOrderDetail = () => {
 
       // Fetch seller profile based on the first product's seller_id
       const firstProduct = processedItems[0]?.products;
-      console.log("First Product:", firstProduct);
-      
+
       if (firstProduct?.seller_id) {
-        console.log("Fetching seller profile for ID:", firstProduct.seller_id);
-        // Call our new secure RPC function to bypass RLS
         const { data: sellerData, error: sellerError } = await (supabase as any)
           .rpc("get_public_seller_info", { seller_uuid: firstProduct.seller_id })
           .maybeSingle();
-          
-        console.log("Seller Data:", sellerData, "Error:", sellerError);
+
         if (sellerError) {
-          toast({ title: "Seller Fetch Error", description: sellerError.message, variant: "destructive" });
+          console.error("Failed to load seller info:", sellerError.message);
         }
         if (sellerData) {
           setSeller(sellerData as any as SellerProfile);
         }
-      } else {
-        toast({ title: "Product Data Missing", description: "Could not find seller_id on the product", variant: "destructive" });
-        console.log("No seller_id found on the first product.");
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -153,23 +146,10 @@ const RiderOrderDetail = () => {
   const s = STATUS_STYLE[order.status] || STATUS_STYLE.pending;
 
   return (
-    <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
-      {/* Phone frame */}
-      <div className="w-full max-w-[390px] h-[844px] bg-[#111827] rounded-[44px] shadow-2xl shadow-black/60 border border-white/10 overflow-hidden flex flex-col">
+    <div className="h-[100dvh] bg-[#0f1117] flex justify-center">
+      <div className="w-full max-w-[520px] h-full bg-[#111827] overflow-hidden flex flex-col">
 
-        {/* Status bar */}
-        <div className="flex items-center justify-between px-8 pt-4 pb-2 flex-shrink-0">
-          <span className="text-white/70 text-xs font-semibold">9:41</span>
-          <div className="w-24 h-6 bg-black rounded-full" />
-          <div className="flex items-center gap-1.5">
-            <div className="flex gap-0.5 items-end h-3">
-              {[2, 3, 4, 5].map((h, i) => (
-                <div key={i} className="w-1 rounded-sm bg-white/70" style={{ height: `${h * 3}px` }} />
-              ))}
-            </div>
-            <span className="text-white/70 text-xs">100%</span>
-          </div>
-        </div>
+
 
         {/* Header */}
         <div className="px-6 pt-3 pb-4 flex-shrink-0 flex items-center gap-4">
