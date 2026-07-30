@@ -192,94 +192,70 @@ const ProductDetail = () => {
 
           {/* RIGHT: Product Info */}
           <div className="flex flex-col pt-2 sm:pt-6">
-            
-            <div className="inline-block bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded-md mb-4 self-start">
-              New Arrival
+
+            <div className="inline-block bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded-md mb-4 self-start capitalize">
+              {product.category}
             </div>
-            
+
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-black mb-3 leading-tight">
               {product.name}
             </h1>
-
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star key={star} className="w-4 h-4 fill-black text-black" />
-                ))}
-              </div>
-              <span className="text-sm font-medium text-gray-600">4.8 (128 reviews)</span>
-            </div>
 
             {/* Price Block */}
             <div className="flex items-center gap-4 mb-6">
               <span className="text-3xl font-bold text-black">
                 GH₵{displayPrice.toFixed(2)}
               </span>
-              {(isOnSale || true) && ( // Forcing the strikethrough for design showcase
+              {isOnSale && (
                 <>
                   <span className="text-lg text-gray-400 line-through font-medium">
-                    GH₵{(product.price * 1.5).toFixed(2)}
+                    GH₵{product.price.toFixed(2)}
                   </span>
                   <span className="text-xs font-bold text-white bg-black px-2 py-1 rounded">
-                    33% OFF
+                    {Math.round(((product.price - displayPrice) / product.price) * 100)}% OFF
                   </span>
                 </>
               )}
             </div>
 
-            <p className="text-gray-600 text-sm leading-relaxed mb-8">
-              {product.description || "Premium heavyweight cotton hoodie with an oversized fit for ultimate comfort and modern style."}
-            </p>
+            {product.description && (
+              <p className="text-gray-600 text-sm leading-relaxed mb-8">
+                {product.description}
+              </p>
+            )}
+
+            {typeof product.stock === "number" && (
+              <p className="text-sm font-medium mb-6">
+                {product.stock > 0 ? (
+                  <span className="text-gray-600">
+                    {product.stock <= 5 ? `Only ${product.stock} left in stock` : `${product.stock} in stock`}
+                  </span>
+                ) : (
+                  <span className="text-red-600">Out of stock</span>
+                )}
+              </p>
+            )}
 
             <Separator className="mb-8" />
 
-            {/* Color Selector */}
+            {/* Quantity */}
             <div className="mb-8">
-              <p className="text-sm font-bold text-black mb-3">
-                Color: <span className="font-medium text-gray-600">{selectedColor}</span>
-              </p>
-              <div className="flex gap-3">
-                {colors.map((c) => (
-                  <button
-                    key={c.name}
-                    onClick={() => setSelectedColor(c.name)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-                      selectedColor === c.name ? "border-gray-400" : "border-transparent"
-                    }`}
-                  >
-                    <span 
-                      className="w-8 h-8 rounded-full border border-gray-200"
-                      style={{ backgroundColor: c.hex }}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Size Selector */}
-            <div className="mb-8">
-              <div className="flex justify-between items-center mb-3">
-                <p className="text-sm font-bold text-black">
-                  Size: <span className="font-medium text-gray-600">{selectedSize}</span>
-                </p>
-                <button className="text-sm font-medium text-gray-500 hover:text-black underline flex items-center gap-1">
-                  <span className="text-lg leading-none mb-1">📐</span> Size Guide
+              <p className="text-sm font-bold text-black mb-3">Quantity</p>
+              <div className="flex items-center gap-4 w-fit border border-gray-200 rounded-xl px-3 h-12">
+                <button
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="w-8 h-8 text-lg font-bold text-black disabled:opacity-30"
+                  disabled={quantity <= 1}
+                >
+                  −
                 </button>
-              </div>
-              <div className="flex gap-3">
-                {sizes.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setSelectedSize(s)}
-                    className={`w-14 h-12 rounded-lg text-sm font-bold border transition-all ${
-                      selectedSize === s 
-                        ? "bg-black text-white border-black" 
-                        : "bg-white text-black border-gray-200 hover:border-black"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
+                <span className="w-8 text-center text-sm font-bold">{quantity}</span>
+                <button
+                  onClick={() => setQuantity((q) => q + 1)}
+                  className="w-8 h-8 text-lg font-bold text-black"
+                >
+                  +
+                </button>
               </div>
             </div>
 
@@ -287,6 +263,7 @@ const ProductDetail = () => {
             <div className="flex gap-4 mb-8">
               <Button
                 onClick={handleAddToCart}
+                disabled={product.stock === 0}
                 className="flex-1 h-14 bg-black hover:bg-black/90 text-white rounded-xl font-bold text-base gap-3"
               >
                 <ShoppingBag className="w-5 h-5" />
@@ -305,6 +282,7 @@ const ProductDetail = () => {
                 />
               </button>
             </div>
+
 
             {/* Feature Icons Row */}
             <div className="grid grid-cols-3 gap-2 mt-auto">
@@ -334,87 +312,45 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* ── Middle Section: Tabs & Detail Image ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 mb-24">
-          
-          {/* Tabs & Content */}
-          <div>
-            <div className="flex gap-6 sm:gap-8 border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar">
-              {tabs.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`pb-4 text-sm font-bold whitespace-nowrap transition-colors relative ${
-                    activeTab === tab ? "text-black" : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  {tab}
-                  {activeTab === tab && (
-                    <motion.div 
-                      layoutId="tabIndicator"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-black"
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            <div className="text-gray-600 text-sm leading-relaxed mb-8">
-              Crafted from high-quality heavyweight cotton, this hoodie delivers unmatched comfort and durability. The oversized fit and minimal design make it a versatile staple for any wardrobe.
-            </div>
-
-            <ul className="space-y-4">
-              <li className="flex items-center gap-3 text-sm font-medium text-black">
-                <ShoppingBag className="w-5 h-5 text-gray-400" /> Oversized fit
-              </li>
-              <li className="flex items-center gap-3 text-sm font-medium text-black">
-                <Hexagon className="w-5 h-5 text-gray-400" /> Soft & heavyweight fabric
-              </li>
-              <li className="flex items-center gap-3 text-sm font-medium text-black">
-                <Settings className="w-5 h-5 text-gray-400" /> Adjustable drawstring hood
-              </li>
-              <li className="flex items-center gap-3 text-sm font-medium text-black">
-                <CheckCircle2 className="w-5 h-5 text-gray-400" /> Ribbed cuffs and hem
-              </li>
-              <li className="flex items-center gap-3 text-sm font-medium text-black">
-                <Users className="w-5 h-5 text-gray-400" /> Unisex style
-              </li>
-            </ul>
+        {/* ── Middle Section: Product description ── */}
+        {product.description && (
+          <div className="max-w-3xl mb-24">
+            <h2 className="text-2xl font-bold text-black mb-4">Product Details</h2>
+            <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
+              {product.description}
+            </p>
           </div>
+        )}
 
-          {/* Large Detail Image */}
-          <div className="aspect-[4/3] rounded-3xl overflow-hidden bg-gray-100">
-            {/* Using a mockup high-res fabric image since it's a structural mockup */}
-            <img 
-              src="https://images.unsplash.com/photo-1620799140188-3b2a02fd9a77?q=80&w=2000&auto=format&fit=crop" 
-              alt="Fabric Detail" 
-              className="w-full h-full object-cover grayscale opacity-90"
-            />
-          </div>
+
+        {/* ── Customer Reviews ── */}
+        <div className="mb-24">
+          <ProductReviews productId={product.id} />
         </div>
 
         {/* ── Bottom Section: You May Also Like ── */}
-        <div>
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-black">You May Also Like</h2>
-            <Link to="/products" className="text-sm font-bold text-black flex items-center gap-1 hover:underline">
-              View All <ArrowLeft className="w-4 h-4 rotate-180" />
-            </Link>
-          </div>
+        {relatedProducts.length > 0 && (
+          <div>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-bold text-black">You May Also Like</h2>
+              <Link to="/products" className="text-sm font-bold text-black flex items-center gap-1 hover:underline">
+                View All <ArrowLeft className="w-4 h-4 rotate-180" />
+              </Link>
+            </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {relatedProducts.length > 0 ? (
-              relatedProducts.map((item) => (
-                <div key={item.id} className="group cursor-pointer">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {relatedProducts.map((item) => (
+                <Link key={item.id} to={`/product/${item.id}`} className="group cursor-pointer block">
                   <div className="aspect-[3/4] bg-gray-100 rounded-2xl mb-4 overflow-hidden relative">
                     <img
                       src={item.image}
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <button 
+                    <button
                       onClick={(e) => {
                         e.preventDefault();
+                        e.stopPropagation();
                         toggleFavorite(item.id);
                       }}
                       className="absolute bottom-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
@@ -424,29 +360,12 @@ const ProductDetail = () => {
                   </div>
                   <h3 className="text-sm font-bold text-black mb-1 line-clamp-1">{item.name}</h3>
                   <p className="text-sm font-bold text-gray-600">GH₵{item.price.toFixed(2)}</p>
-                </div>
-              ))
-            ) : (
-              // Mock items if no related products are found in DB just to match the visual
-              [1, 2, 3, 4].map((i) => (
-                <div key={i} className="group cursor-pointer">
-                  <div className="aspect-[3/4] bg-gray-100 rounded-2xl mb-4 overflow-hidden relative">
-                    <img
-                      src={`https://source.unsplash.com/random/400x500?fashion,hoodie&sig=${i}`}
-                      alt="Mock Product"
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <button className="absolute bottom-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform">
-                      <Heart className="w-4 h-4 text-black" />
-                    </button>
-                  </div>
-                  <h3 className="text-sm font-bold text-black mb-1 line-clamp-1">Classic Sweatshirt {i}</h3>
-                  <p className="text-sm font-bold text-gray-600">GH₵49.99</p>
-                </div>
-              ))
-            )}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
 
       </div>
     </main>
