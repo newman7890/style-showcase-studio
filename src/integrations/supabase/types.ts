@@ -703,13 +703,6 @@ export type Database = {
             foreignKeyName: "seller_compliance_documents_seller_profile_id_fkey"
             columns: ["seller_profile_id"]
             isOneToOne: false
-            referencedRelation: "public_seller_info"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seller_compliance_documents_seller_profile_id_fkey"
-            columns: ["seller_profile_id"]
-            isOneToOne: false
             referencedRelation: "seller_profiles"
             referencedColumns: ["id"]
           },
@@ -975,39 +968,6 @@ export type Database = {
       }
     }
     Views: {
-      public_seller_info: {
-        Row: {
-          address: string | null
-          business_address: string | null
-          business_name: string | null
-          id: string | null
-          phone: string | null
-          store_logo_url: string | null
-          store_name: string | null
-          user_id: string | null
-        }
-        Insert: {
-          address?: string | null
-          business_address?: string | null
-          business_name?: string | null
-          id?: string | null
-          phone?: string | null
-          store_logo_url?: string | null
-          store_name?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          address?: string | null
-          business_address?: string | null
-          business_name?: string | null
-          id?: string | null
-          phone?: string | null
-          store_logo_url?: string | null
-          store_name?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       public_sellers: {
         Row: {
           approved_at: string | null
