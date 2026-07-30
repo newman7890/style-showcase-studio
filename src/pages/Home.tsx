@@ -204,6 +204,28 @@ const Home = () => {
         </Link>
       </header>
 
+      {/* ── Department nav (visible on mobile + desktop) ───────────────────── */}
+      <nav className="sticky top-[57px] z-40 bg-[#f8f9fa]/95 backdrop-blur-sm border-b border-border/40">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [-ms-overflow-style:none]">
+          {[
+            { slug: "fashion", label: "Fashion" },
+            { slug: "gadgets", label: "Gadgets" },
+            { slug: "home", label: "Home & Living" },
+            { slug: "other", label: "Other" },
+          ].map((d) => (
+            <Link
+              key={d.slug}
+              to={`/department/${d.slug}`}
+              className="shrink-0 rounded-full border border-border bg-background px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground/80 transition-colors hover:bg-secondary active:scale-95"
+            >
+              {d.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+
+
+
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
       <main className="flex flex-col gap-6 pb-24 pt-4 max-w-7xl mx-auto w-full">
