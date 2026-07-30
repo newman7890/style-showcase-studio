@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  ArrowLeft, Heart, ShoppingBag, Star, 
-  Search, Truck, RotateCcw, Lock, 
-  Settings, Users, CheckCircle2, Hexagon
+  ArrowLeft, Heart, ShoppingBag, 
+  Search, Truck, RotateCcw, Lock
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -35,11 +35,8 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  
-  // Mock UI state for new design
-  const [selectedColor, setSelectedColor] = useState("Charcoal Gray");
-  const [selectedSize, setSelectedSize] = useState("M");
-  const [activeTab, setActiveTab] = useState("Details");
+
+
 
   const { addToCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -83,10 +80,10 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product.id, 1);
-      toast.success(t("addedToCart"));
+      addToCart(product.id, quantity);
     }
   };
+
 
   const handleToggleFavorite = () => {
     if (product) {
@@ -110,24 +107,14 @@ const ProductDetail = () => {
     );
   }
 
-  // Use up to 5 images for the vertical gallery, duplicating the main image if necessary just to show the layout
-  const productImages = product.images && product.images.length > 0 
-    ? product.images 
-    : Array(5).fill(product.image);
+  const productImages = product.images && product.images.length > 0
+    ? product.images
+    : [product.image];
+
 
   const isOnSale = product.sale_price != null && product.sale_ends_at && new Date(product.sale_ends_at) > new Date();
   const displayPrice = isOnSale ? product.sale_price! : product.price;
 
-  // Mock colors
-  const colors = [
-    { name: "Charcoal Gray", hex: "#4b4f54" },
-    { name: "Light Gray", hex: "#d1d5db" },
-    { name: "Beige", hex: "#e5e0d8" },
-    { name: "Black", hex: "#000000" }
-  ];
-
-  const sizes = ["S", "M", "L", "XL", "XXL"];
-  const tabs = ["Details", "Materials", "Size & Fit", "Shipping & Returns"];
 
   return (
     <main className="min-h-screen bg-white font-sans text-black pb-20">
