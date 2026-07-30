@@ -45,7 +45,7 @@ export const Header = () => {
         </nav>
 
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
           <Link to="/favorites" className="text-foreground">
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative">
               <Heart className="w-5 h-5" />
