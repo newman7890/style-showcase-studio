@@ -21,18 +21,18 @@ export const Header = () => {
       animate={{ y: 0, opacity: 1 }}
       className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border"
     >
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
-        <Link to="/" className="text-base md:text-xl font-semibold tracking-tight whitespace-nowrap">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-2 md:gap-4">
+        <Link to="/" className="text-base md:text-xl font-semibold tracking-tight whitespace-nowrap shrink-0">
           {t("logo")}
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto md:overflow-visible md:flex-none scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]">
           {DEPARTMENTS.map((d) => (
             <NavLink
               key={d.slug}
               to={`/department/${d.slug}`}
               className={({ isActive }) =>
-                `px-3 py-1.5 text-xs uppercase tracking-wider rounded-full transition-colors ${
+                `shrink-0 px-2.5 md:px-3 py-1.5 text-[10px] md:text-xs uppercase tracking-wider rounded-full transition-colors ${
                   isActive
                     ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
@@ -43,6 +43,7 @@ export const Header = () => {
             </NavLink>
           ))}
         </nav>
+
 
         <div className="flex items-center gap-4">
           <Link to="/favorites" className="text-foreground">
