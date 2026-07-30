@@ -1019,6 +1019,15 @@ export type Database = {
           rating: number
         }[]
       }
+      get_public_seller_info: {
+        Args: { seller_uuid: string }
+        Returns: {
+          address: string
+          business_address: string
+          business_name: string
+          phone: string
+        }[]
+      }
       get_seller_earnings_summary: {
         Args: { _seller_id: string }
         Returns: {
