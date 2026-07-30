@@ -68,24 +68,9 @@ const RiderLogin = () => {
   }
 
   return (
-    /* Full-screen dark backdrop */
-    <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
-      {/* Mobile phone frame */}
-      <div className="w-full max-w-[390px] h-[844px] bg-[#111827] rounded-[44px] shadow-2xl shadow-black/60 border border-white/10 overflow-hidden flex flex-col">
+    <div className="min-h-[100dvh] bg-[#0f1117] flex justify-center">
+      <div className="w-full max-w-[520px] min-h-[100dvh] bg-[#111827] overflow-hidden flex flex-col">
 
-        {/* Status bar */}
-        <div className="flex items-center justify-between px-8 pt-4 pb-2">
-          <span className="text-white/70 text-xs font-semibold">9:41</span>
-          <div className="w-24 h-6 bg-black rounded-full" />
-          <div className="flex items-center gap-1.5">
-            <div className="flex gap-0.5 items-end h-3">
-              {[2, 3, 4, 5].map((h, i) => (
-                <div key={i} className={`w-1 rounded-sm bg-white/70`} style={{ height: `${h * 3}px` }} />
-              ))}
-            </div>
-            <div className="text-white/70 text-xs">100%</div>
-          </div>
-        </div>
 
         {/* Hero gradient area */}
         <div className="relative flex flex-col items-center justify-center pt-10 pb-8 px-6">
