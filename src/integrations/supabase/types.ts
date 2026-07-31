@@ -1007,6 +1007,17 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_order_pickup_info: {
+        Args: { _order_id: string }
+        Returns: {
+          address: string
+          business_name: string
+          email: string
+          item_count: number
+          phone: string
+          seller_id: string
+        }[]
+      }
       get_product_reviews: {
         Args: { _product_id: string }
         Returns: {
