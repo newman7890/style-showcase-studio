@@ -197,59 +197,77 @@ const RiderOrderDetail = () => {
             </div>
           </motion.div>
 
-          {/* Pickup Location (Seller) */}
-          {seller ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.03 }}
-              className="bg-[#1a2234] rounded-2xl p-4 border border-[#4ade80]/20 relative overflow-hidden"
-            >
-              {/* Subtle background glow for the pickup card to distinguish it */}
-              <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#4ade80]/5 rounded-full blur-2xl pointer-events-none" />
-              
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-xl bg-[#4ade80]/15 flex items-center justify-center">
-                    <MapPin className="w-3.5 h-3.5 text-[#4ade80]" />
+          {/* Pickup Locations (Sellers) */}
+          {pickups.length > 0 ? (
+            pickups.map((seller, idx) => (
+              <motion.div
+                key={seller.seller_id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.03 + idx * 0.03 }}
+                className="bg-[#1a2234] rounded-2xl p-4 border border-[#4ade80]/20 relative overflow-hidden"
+              >
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#4ade80]/5 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="flex items-center justify-between mb-4 relative z-10">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-[#4ade80]/15 flex items-center justify-center">
+                      <MapPin className="w-3.5 h-3.5 text-[#4ade80]" />
+                    </div>
+                    <h3 className="text-white font-semibold text-sm">
+                      Pickup {pickups.length > 1 ? `${idx + 1}/${pickups.length}` : "(Seller)"}
+                    </h3>
                   </div>
-                  <h3 className="text-white font-semibold text-sm">Pickup (Seller)</h3>
+                  {seller.phone && (
+                    <a
+                      href={`tel:${seller.phone}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4ade80]/15 text-[#4ade80] rounded-lg text-xs font-semibold hover:bg-[#4ade80]/25 transition-colors"
+                    >
+                      <Phone className="w-3.5 h-3.5" /> Call Seller
+                    </a>
+                  )}
                 </div>
-                {seller.phone && (
-                  <a
-                    href={`tel:${seller.phone}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4ade80]/15 text-[#4ade80] rounded-lg text-xs font-semibold hover:bg-[#4ade80]/25 transition-colors"
-                  >
-                    <Phone className="w-3.5 h-3.5" /> Call Seller
-                  </a>
-                )}
-              </div>
-              
-              <div className="space-y-3 relative z-10">
-                <div className="flex items-start justify-between">
-                  <span className="text-white/40 text-xs mt-0.5">Store</span>
-                  <span className="text-white text-sm font-semibold text-right max-w-[200px]">
-                    {seller.business_name}
-                  </span>
+
+                <div className="space-y-3 relative z-10">
+                  <div className="flex items-start justify-between">
+                    <span className="text-white/40 text-xs mt-0.5">Store</span>
+                    <span className="text-white text-sm font-semibold text-right max-w-[200px]">
+                      {seller.business_name || "Seller"}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between">
+                    <span className="text-white/40 text-xs mt-0.5">Address</span>
+                    <span className="text-white/80 text-sm font-medium text-right max-w-[200px]">
+                      {seller.address || "Address not provided"}
+                    </span>
+                  </div>
+                  {seller.phone && (
+                    <div className="flex items-start justify-between">
+                      <span className="text-white/40 text-xs mt-0.5">Phone</span>
+                      <span className="text-white/80 text-sm font-medium text-right">{seller.phone}</span>
+                    </div>
+                  )}
+                  {seller.email && (
+                    <div className="flex items-start justify-between">
+                      <span className="text-white/40 text-xs mt-0.5">Email</span>
+                      <span className="text-white/60 text-xs text-right break-all max-w-[200px]">{seller.email}</span>
+                    </div>
+                  )}
+
+                  {seller.address && (
+                    <button
+                      onClick={() => {
+                        const addr = encodeURIComponent(seller.address!);
+                        window.open(`https://www.google.com/maps/search/?api=1&query=${addr}`, "_blank");
+                      }}
+                      className="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-xs font-semibold hover:bg-white/10 transition-all"
+                    >
+                      <Navigation className="w-3.5 h-3.5" /> Navigate to Pickup
+                    </button>
+                  )}
                 </div>
-                <div className="flex items-start justify-between">
-                  <span className="text-white/40 text-xs mt-0.5">Address</span>
-                  <span className="text-white/80 text-sm font-medium text-right max-w-[200px]">
-                    {seller.business_address || seller.address || "Address not provided"}
-                  </span>
-                </div>
-                
-                <button
-                  onClick={() => {
-                    const addr = encodeURIComponent(seller.business_address || seller.address || seller.business_name);
-                    window.open(`https://www.google.com/maps/search/?api=1&query=${addr}`, "_blank");
-                  }}
-                  className="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-xs font-semibold hover:bg-white/10 transition-all"
-                >
-                  <Navigation className="w-3.5 h-3.5" /> Navigate to Pickup
-                </button>
-              </div>
-            </motion.div>
+              </motion.div>
+            ))
           ) : (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -264,7 +282,7 @@ const RiderOrderDetail = () => {
                 <h3 className="text-white font-semibold text-sm">Pickup (Unknown Seller)</h3>
               </div>
               <p className="text-white/50 text-xs">
-                The seller for this item hasn't set up their business profile yet, so pickup details are unavailable.
+                No seller is linked to the items in this order, so pickup details are unavailable.
               </p>
             </motion.div>
           )}
