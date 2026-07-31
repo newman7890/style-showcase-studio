@@ -34,11 +34,13 @@ interface Order {
   payment_method: string;
 }
 
-interface SellerProfile {
-  business_name: string;
-  business_address: string | null;
+interface PickupInfo {
+  seller_id: string;
+  business_name: string | null;
   address: string | null;
   phone: string | null;
+  email: string | null;
+  item_count: number;
 }
 
 const STATUS_STYLE: Record<string, { bg: string; text: string; dot: string }> = {
