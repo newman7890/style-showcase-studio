@@ -54,7 +54,7 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; dot: string }> = 
 const RiderOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
-  const [seller, setSeller] = useState<SellerProfile | null>(null);
+  const [pickups, setPickups] = useState<PickupInfo[]>([]);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
