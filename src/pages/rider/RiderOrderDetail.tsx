@@ -82,21 +82,14 @@ const RiderOrderDetail = () => {
       }));
       setItems(processedItems);
 
-      // Fetch seller profile based on the first product's seller_id
-      const firstProduct = processedItems[0]?.products;
+      // Fetch pickup info for every seller in this order
+      const { data: pickupData, error: pickupError } = await (supabase as any)
+        .rpc("get_order_pickup_info", { _order_id: id! });
 
-      if (firstProduct?.seller_id) {
-        const { data: sellerData, error: sellerError } = await (supabase as any)
-          .rpc("get_public_seller_info", { seller_uuid: firstProduct.seller_id })
-          .maybeSingle();
-
-        if (sellerError) {
-          console.error("Failed to load seller info:", sellerError.message);
-        }
-        if (sellerData) {
-          setSeller(sellerData as any as SellerProfile);
-        }
+      if (pickupError) {
+        console.error("Failed to load pickup info:", pickupError.message);
       }
+      setPickups((pickupData as PickupInfo[]) || []);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
