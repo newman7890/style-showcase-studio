@@ -159,17 +159,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     const chargeStatus = data?.data?.status as string | undefined;
     const displayText = data?.data?.display_text as string | undefined;
-    const gatewayMessage = data?.message || data?.data?.gateway_response || "Failed to initiate mobile money charge";
+    // Paystack puts the real reason in data.data.message (e.g. test-mode decline)
+    const detailMessage = data?.data?.message as string | undefined;
+    const gatewayMessage =
+      detailMessage || data?.data?.gateway_response || data?.message || "Failed to initiate mobile money charge";
 
     if (!data.status) {
+      const isTestModeDecline = /test mobile money number/i.test(gatewayMessage);
       return buildErrorResponse(400, {
         error: gatewayMessage,
-        userMessage: "We couldn't send the Mobile Money approval prompt. Please confirm the wallet number and try again.",
-        errorCode: "CHARGE_FAILED",
+        userMessage: isTestModeDecline
+          ? "Paystack is in test mode, so only test wallet numbers work. Use 0551234987 (MTN) to simulate a successful payment."
+          : gatewayMessage,
+        errorCode: isTestModeDecline ? "TEST_MODE_NUMBER_REQUIRED" : "CHARGE_FAILED",
         fallback: true,
         promptSent: false,
       });
     }
+
 
     if (chargeStatus === "failed" || chargeStatus === "timeout") {
       return buildErrorResponse(400, {
