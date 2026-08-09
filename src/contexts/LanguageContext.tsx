@@ -135,7 +135,7 @@ const translations = {
     searchExample: "Example: I need a casual outfit for a summer party",
     
     // Brand & Navigation
-    logo: "JOYCE'S FASHION ENTERPRISE",
+    logo: "Cynt",
     fashion: "Fashion",
     gadgets: "Gadgets",
     other: "Other",
@@ -285,7 +285,7 @@ const translations = {
     searchExample: "Ejemplo: Necesito un atuendo casual para una fiesta de verano",
     
     // Brand & Navigation
-    logo: "EMPRESA DE MODA DE JOYCE",
+    logo: "Cynt",
     fashion: "Moda",
     gadgets: "Accesorios",
     other: "Otros",
@@ -408,7 +408,7 @@ const translations = {
     generating: "Génération...",
     
     // Brand & Navigation
-    logo: "ENTREPRISE DE MODE DE JOYCE",
+    logo: "Cynt",
     fashion: "Mode",
     gadgets: "Gadgets",
     other: "Autre",
@@ -531,7 +531,7 @@ const translations = {
     generating: "Generieren...",
     
     // Brand & Navigation
-    logo: "JOYCE'S FASHION ENTERPRISE",
+    logo: "Cynt",
     fashion: "Mode",
     gadgets: "Gadgets",
     other: "Andere",
@@ -654,7 +654,7 @@ const translations = {
     generating: "生成中...",
     
     // Brand & Navigation
-    logo: "JOYCE的时尚企业",
+    logo: "Cynt",
     fashion: "时尚",
     gadgets: "数码配件",
     other: "其他",
@@ -777,7 +777,7 @@ const translations = {
     generating: "生成中...",
     
     // Brand & Navigation
-    logo: "JOYCE的時尚企業",
+    logo: "Cynt",
     fashion: "時尚",
     gadgets: "數碼配件",
     other: "其他",

@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import { BottomNav } from "@/components/BottomNav";
+import { Header } from "@/components/Header";
 import { Testimonials } from "@/components/home/Testimonials";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -190,19 +191,7 @@ const Home = () => {
     <div className="min-h-screen bg-background font-inter antialiased">
       
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 flex items-center justify-between w-full bg-[#f8f9fa] px-4 md:px-6 py-4 border-b border-border/40 shadow-sm">
-        <a href="/" className="hover:opacity-80 transition-opacity">
-          <h1 className="text-[14px] md:text-base font-medium tracking-wide text-[#1c1c1c]">
-            JOYCE'S FASHION ENTERPRISE
-          </h1>
-        </a>
-        <Link 
-          to="/favorites"
-          className="text-[#1c1c1c] hover:opacity-70 transition-opacity active:scale-95"
-        >
-          <Heart className="w-[22px] h-[22px]" />
-        </Link>
-      </header>
+      <Header />
 
       {/* ── Department nav (visible on mobile + desktop) ───────────────────── */}
       <nav className="sticky top-[57px] z-40 bg-[#f8f9fa]/95 backdrop-blur-sm border-b border-border/40">

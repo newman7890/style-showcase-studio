@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,7 @@ const SellerDashboard = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [processingBg, setProcessingBg] = useState(false);
 
   const load = async () => {
     if (!user) return;
@@ -102,12 +103,42 @@ const SellerDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Auto-save form draft to localStorage when creating a new product
+  useEffect(() => {
+    if (!editing && (form.name || form.price || form.description || form.category || imagePreview)) {
+      localStorage.setItem("seller_product_draft", JSON.stringify({ form, imagePreview }));
+    }
+  }, [form, imagePreview, editing]);
+
   const resetForm = () => {
     setEditing(null);
     setForm(emptyForm);
     setErrors({});
     setImageFile(null);
     setImagePreview("");
+    localStorage.removeItem("seller_product_draft");
+  };
+
+  const handleOpenAddDialog = () => {
+    setEditing(null);
+    const savedDraft = localStorage.getItem("seller_product_draft");
+    if (savedDraft) {
+      try {
+        const { form: draftForm, imagePreview: draftPreview } = JSON.parse(savedDraft);
+        if (draftForm) setForm(draftForm);
+        if (draftPreview) setImagePreview(draftPreview);
+        toast({
+          title: "Draft Restored",
+          description: "Restored your unsaved product details.",
+        });
+      } catch (e) {
+        console.error("Failed to parse draft", e);
+      }
+    } else {
+      setForm(emptyForm);
+      setImagePreview("");
+    }
+    setDialogOpen(true);
   };
 
   const openEdit = (p: Product) => {
@@ -132,6 +163,41 @@ const SellerDashboard = () => {
     const r = new FileReader();
     r.onloadend = () => setImagePreview(r.result as string);
     r.readAsDataURL(f);
+  };
+
+  const handleRemoveBackground = async () => {
+    const source = imageFile || imagePreview;
+    if (!source) return;
+    setProcessingBg(true);
+    toast({
+      title: "AI Enhancing Image...",
+      description: "Removing background to create studio quality. Please wait...",
+    });
+    try {
+      const imgly = await import("@imgly/background-removal");
+      const removeBgFn = imgly.removeBackground || (imgly as any).default;
+      if (typeof removeBgFn !== "function") {
+        throw new Error("Background removal function could not be loaded.");
+      }
+      const blob = await removeBgFn(source);
+      const newFile = new File([blob], "studio-product.png", { type: "image/png" });
+      setImageFile(newFile);
+      const url = URL.createObjectURL(blob);
+      setImagePreview(url);
+      toast({
+        title: "Studio Image Ready!",
+        description: "Background successfully removed.",
+      });
+    } catch (err: any) {
+      console.error("Background removal error:", err);
+      toast({
+        title: "Processing Error",
+        description: err.message || "Failed to remove background.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingBg(false);
+    }
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -186,6 +252,7 @@ const SellerDashboard = () => {
         if (error) throw error;
         toast({ title: "Product submitted", description: "Awaiting admin approval." });
       }
+      localStorage.removeItem("seller_product_draft");
       setDialogOpen(false);
       resetForm();
       load();
@@ -262,9 +329,9 @@ const SellerDashboard = () => {
                 <div className="text-sm text-muted-foreground">
                   {products.length} product{products.length === 1 ? "" : "s"}
                 </div>
-                <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+                <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o && editing) resetForm(); }}>
                   <DialogTrigger asChild>
-                    <Button><Plus className="w-4 h-4 mr-2" />Add product</Button>
+                    <Button onClick={handleOpenAddDialog}><Plus className="w-4 h-4 mr-2" />Add product</Button>
                   </DialogTrigger>
                   <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
@@ -280,7 +347,37 @@ const SellerDashboard = () => {
                         <Label htmlFor="image">Image</Label>
                         <Input id="image" type="file" accept="image/*" onChange={handleImage} />
                         {imagePreview && (
-                          <img src={imagePreview} alt="preview" className="mt-2 w-32 h-32 object-cover rounded" />
+                          <div className="mt-3 flex flex-col gap-2 items-start">
+                            <div className="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                              <img src={imagePreview} alt="preview" className="w-36 h-36 object-contain p-1" />
+                              {processingBg && (
+                                <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center text-xs gap-2 p-2 text-center font-medium">
+                                  <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+                                  <span>AI Removing Background...</span>
+                                </div>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={processingBg}
+                              onClick={handleRemoveBackground}
+                              className="gap-2 text-xs font-semibold border-purple-200 hover:bg-purple-50 text-purple-700"
+                            >
+                              {processingBg ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                <>
+                                  <Wand2 className="w-3.5 h-3.5 text-purple-600" />
+                                  Magic Studio Background (AI)
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         )}
                         {errors.image && <p className="text-sm text-destructive">{errors.image}</p>}
                       </div>

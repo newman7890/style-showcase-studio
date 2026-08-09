@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCart } from "@/hooks/useCart";
@@ -35,8 +36,13 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [hoveredColor, setHoveredColor] = useState<string | null>(null);
+  
+  // Mock UI state for new design
+  const [selectedColor, setSelectedColor] = useState("Charcoal Gray");
+  const [selectedSize, setSelectedSize] = useState("M");
+  const [activeTab, setActiveTab] = useState("Details");
 
   const { addToCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -116,6 +122,12 @@ const ProductDetail = () => {
   const displayPrice = isOnSale ? product.sale_price! : product.price;
 
 
+  const displayColor = hoveredColor || selectedColor;
+  const activeColorIndex = colors.findIndex(c => c.name === displayColor);
+  const previewImageIndex = activeColorIndex >= 0 && productImages.length > 1 
+    ? activeColorIndex % productImages.length 
+    : currentImageIndex;
+
   return (
     <main className="min-h-screen bg-white font-sans text-black pb-20">
       
@@ -124,14 +136,12 @@ const ProductDetail = () => {
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <Link to="/products" className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-black transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back</span>
+            Back
           </Link>
         </div>
       </header>
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8">
-        
-        {/* ── Top Section: Gallery & Info ── */}
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
         <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-12 lg:gap-16 mb-20">
           
           {/* LEFT: Vertical Gallery */}
@@ -143,7 +153,7 @@ const ProductDetail = () => {
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
                   className={`flex-shrink-0 aspect-[4/5] rounded-xl overflow-hidden border-2 transition-all duration-200 ${
-                    index === currentImageIndex
+                    index === previewImageIndex
                       ? "border-black"
                       : "border-transparent opacity-60 hover:opacity-100"
                   }`}
@@ -161,19 +171,33 @@ const ProductDetail = () => {
             <div className="flex-1 relative rounded-3xl overflow-hidden bg-gray-50">
               <AnimatePresence mode="wait">
                 <motion.img
-                  key={currentImageIndex}
+                  key={previewImageIndex}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  src={productImages[currentImageIndex]}
+                  src={productImages[previewImageIndex]}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-all duration-300"
                 />
               </AnimatePresence>
-              <button className="absolute bottom-6 right-6 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
-                <Search className="w-5 h-5 text-black" />
-              </button>
+              <Dialog open={isZoomOpen} onOpenChange={setIsZoomOpen}>
+                <DialogTrigger asChild>
+                  <button 
+                    onMouseEnter={() => setIsZoomOpen(true)}
+                    className="absolute bottom-6 right-6 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+                  >
+                    <Search className="w-5 h-5 text-black" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-5xl p-0 overflow-hidden bg-transparent border-none shadow-none [&>button]:bg-white [&>button]:text-black [&>button]:p-2 [&>button]:rounded-full [&>button]:opacity-100 [&>button]:right-2 [&>button]:top-2 [&>button]:focus:ring-0 [&>button_svg]:w-5 [&>button_svg]:h-5">
+                  <img 
+                    src={productImages[previewImageIndex]} 
+                    alt={product.name} 
+                    className="w-full h-auto max-h-[90vh] object-contain rounded-xl transition-all duration-300" 
+                  />
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
@@ -227,21 +251,49 @@ const ProductDetail = () => {
 
             {/* Quantity */}
             <div className="mb-8">
-              <p className="text-sm font-bold text-black mb-3">Quantity</p>
-              <div className="flex items-center gap-4 w-fit border border-gray-200 rounded-xl px-3 h-12">
-                <button
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="w-8 h-8 text-lg font-bold text-black disabled:opacity-30"
-                  disabled={quantity <= 1}
-                >
-                  −
-                </button>
-                <span className="w-8 text-center text-sm font-bold">{quantity}</span>
-                <button
-                  onClick={() => setQuantity((q) => q + 1)}
-                  className="w-8 h-8 text-lg font-bold text-black"
-                >
-                  +
+              <p className="text-sm font-bold text-black mb-3">
+                Color: <span className="font-medium text-gray-600">{displayColor}</span>
+              </p>
+              <div className="flex gap-3 flex-wrap">
+                {colors.map((c, idx) => {
+                  const swatchImage = productImages.length > 1 ? productImages[idx % productImages.length] : product.image;
+                  const isSelected = selectedColor === c.name;
+                  return (
+                    <button
+                      key={c.name}
+                      onMouseEnter={() => setHoveredColor(c.name)}
+                      onMouseLeave={() => setHoveredColor(null)}
+                      onClick={() => {
+                        setSelectedColor(c.name);
+                        if (productImages.length > 1) {
+                          setCurrentImageIndex(idx % productImages.length);
+                        }
+                      }}
+                      className={`relative w-16 h-20 rounded-md overflow-hidden border-2 transition-all p-0.5 ${
+                        isSelected ? "border-orange-500 shadow-sm" : "border-gray-200 hover:border-gray-400"
+                      }`}
+                    >
+                      <div className="w-full h-full rounded-sm overflow-hidden bg-gray-100">
+                        <img 
+                          src={swatchImage} 
+                          alt={c.name} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Size Selector */}
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-3">
+                <p className="text-sm font-bold text-black">
+                  Size: <span className="font-medium text-gray-600">{selectedSize}</span>
+                </p>
+                <button className="text-sm font-medium text-gray-500 hover:text-black underline flex items-center gap-1">
+                  <span className="text-lg leading-none mb-1">📐</span> Size Guide
                 </button>
               </div>
             </div>
@@ -299,13 +351,85 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* ── Middle Section: Product description ── */}
-        {product.description && (
-          <div className="max-w-3xl mb-24">
-            <h2 className="text-2xl font-bold text-black mb-4">Product Details</h2>
-            <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
-              {product.description}
-            </p>
+        {/* ── Middle Section: Tabs & Detail Image ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 mb-24">
+          
+          {/* Tabs & Content */}
+          <div>
+            <div className="flex gap-6 sm:gap-8 border-b border-gray-200 mb-8 overflow-x-auto hide-scrollbar">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`pb-4 text-sm font-bold whitespace-nowrap transition-colors relative ${
+                    activeTab === tab ? "text-black" : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  {tab}
+                  {activeTab === tab && (
+                    <motion.div 
+                      layoutId="tabIndicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-black"
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === "Details" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div className="text-gray-600 text-sm leading-relaxed mb-8">
+                  {product.description || "Crafted from high-quality heavyweight cotton, this hoodie delivers unmatched comfort and durability. The oversized fit and minimal design make it a versatile staple for any wardrobe."}
+                </div>
+
+                <ul className="space-y-4">
+                  <li className="flex items-center gap-3 text-sm font-medium text-black">
+                    <ShoppingBag className="w-5 h-5 text-gray-400" /> Oversized fit
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-medium text-black">
+                    <Hexagon className="w-5 h-5 text-gray-400" /> Soft & heavyweight fabric
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-medium text-black">
+                    <Settings className="w-5 h-5 text-gray-400" /> Adjustable drawstring hood
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-medium text-black">
+                    <CheckCircle2 className="w-5 h-5 text-gray-400" /> Ribbed cuffs and hem
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-medium text-black">
+                    <Users className="w-5 h-5 text-gray-400" /> Unisex style
+                  </li>
+                </ul>
+              </motion.div>
+            )}
+
+            {activeTab === "Materials" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8 space-y-4">
+                <p><strong>Composition:</strong> 100% Premium Organic Cotton</p>
+                <p><strong>Weight:</strong> 450gsm heavyweight fleece</p>
+                <p><strong>Care Instructions:</strong></p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Machine wash cold inside out</li>
+                  <li>Do not bleach</li>
+                  <li>Tumble dry low or hang dry</li>
+                  <li>Do not iron graphic</li>
+                </ul>
+              </motion.div>
+            )}
+
+            {activeTab === "Size & Fit" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8 space-y-4">
+                <p><strong>Fit:</strong> Intentionally oversized. We recommend taking your normal size for a baggy fit, or sizing down for a more standard fit.</p>
+                <p><strong>Model:</strong> Our model is 6'1" (185cm) and wears a size Large.</p>
+              </motion.div>
+            )}
+
+            {activeTab === "Shipping & Returns" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8 space-y-4">
+                <p><strong>Standard Shipping:</strong> 3-5 business days (Free over GH₵500)</p>
+                <p><strong>Express Shipping:</strong> 1-2 business days (GH₵50 flat rate)</p>
+                <p><strong>Returns:</strong> We accept returns within 30 days of delivery. Items must be unworn, unwashed, and have original tags attached.</p>
+              </motion.div>
+            )}
           </div>
         )}
 

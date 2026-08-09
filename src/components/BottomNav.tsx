@@ -18,7 +18,7 @@ export const BottomNav = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-around">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {navItems.map(({ icon: Icon, path, labelKey }) => (
           <NavLink
             key={path}

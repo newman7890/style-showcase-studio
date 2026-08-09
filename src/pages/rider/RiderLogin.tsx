@@ -93,7 +93,7 @@ const RiderLogin = () => {
             className="text-center relative z-10"
           >
             <h1 className="text-2xl font-bold text-white tracking-tight">Rider Portal</h1>
-            <p className="text-white/50 text-sm mt-1">Joyce's Fashion Enterprise</p>
+            <p className="text-white/50 text-sm mt-1">Cynt</p>
           </motion.div>
         </div>
 
