@@ -8,6 +8,7 @@ interface OrderItem {
   product_id: string;
   quantity: number;
   price: number;
+  selected_color?: { name: string; hex: string; image: string | null } | null;
 }
 
 interface Order {
@@ -49,7 +50,8 @@ export const useOrders = () => {
             id,
             product_id,
             quantity,
-            price
+            price,
+            selected_color
           )
         `)
         .eq("user_id", user.id)
@@ -87,6 +89,7 @@ export const useOrders = () => {
       product_id: string;
       quantity: number;
       price: number;
+      selected_color?: { name: string; hex: string; image: string | null } | null;
     }>
   ) => {
     if (!user) {
@@ -114,6 +117,7 @@ export const useOrders = () => {
         product_id: item.product_id,
         quantity: item.quantity,
         price: item.price,
+        selected_color: item.selected_color || null,
       }));
 
       const { error: itemsError } = await supabase

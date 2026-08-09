@@ -50,6 +50,7 @@ interface Product {
   low_stock_threshold: number;
   description?: string;
   department?: string;
+  colors?: { name: string; hex: string; image: string | null }[];
 }
 
 const DEPARTMENTS = [
@@ -78,6 +79,7 @@ export const ProductManagement = () => {
     description: "",
     sale_price: "",
     sale_ends_at: "",
+    colors: [] as { name: string; hex: string; image: string | null; file?: File | null }[],
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -156,6 +158,29 @@ export const ProductManagement = () => {
 
       const mainImage = finalImages.length > 0 ? finalImages[0] : formData.image;
 
+      const finalColors = [];
+      for (const color of formData.colors) {
+        if (color.file) {
+          const fileExt = color.file.name.split('.').pop();
+          const fileName = `${Math.random()}.${fileExt}`;
+          const filePath = `${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('product-images')
+            .upload(filePath, color.file);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath);
+
+          finalColors.push({ name: color.name, hex: color.hex, image: publicUrl });
+        } else {
+          finalColors.push({ name: color.name, hex: color.hex, image: color.image });
+        }
+      }
+
       if (editingProduct) {
         const { error } = await supabase
           .from("products")
@@ -171,6 +196,7 @@ export const ProductManagement = () => {
             description: formData.description || null,
             sale_price: formData.sale_price ? parseFloat(formData.sale_price) : null,
             sale_ends_at: formData.sale_ends_at || null,
+            colors: finalColors,
             ...(isAdmin && { status: 'approved' }),
           })
           .eq("id", editingProduct.id);
@@ -190,6 +216,7 @@ export const ProductManagement = () => {
           description: formData.description || null,
           sale_price: formData.sale_price ? parseFloat(formData.sale_price) : null,
           sale_ends_at: formData.sale_ends_at || null,
+          colors: finalColors,
           status: isAdmin ? 'approved' : 'pending',
         });
 
@@ -240,6 +267,7 @@ export const ProductManagement = () => {
       description: product.description || "",
       sale_price: (product as any).sale_price?.toString() || "",
       sale_ends_at: (product as any).sale_ends_at || "",
+      colors: product.colors ? product.colors.map((c: any) => ({ ...c, file: null })) : [],
     });
     const existingImages = (product as any).images || [product.image];
     setImagePreviews(existingImages);
@@ -278,13 +306,13 @@ export const ProductManagement = () => {
     e.preventDefault();
     setIsDragging(false);
     
-    const files = Array.from(e.dataTransfer.files).filter((file) =>
+    const files = Array.from(e.dataTransfer.files).filter((file: any) =>
       file.type.startsWith('image/')
     );
     
     if (files.length > 0) {
       setImageFiles(files);
-      const readers = files.map((file) => {
+      const readers = files.map((file: any) => {
         return new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
@@ -298,6 +326,40 @@ export const ProductManagement = () => {
     }
   };
 
+  const addColor = () => {
+    setFormData((prev) => ({
+      ...prev,
+      colors: [...prev.colors, { name: "", hex: "#000000", image: null, file: null }],
+    }));
+  };
+
+  const updateColor = (index: number, field: string, value: any) => {
+    setFormData((prev) => {
+      const newColors = [...prev.colors];
+      newColors[index] = { ...newColors[index], [field]: value };
+      return { ...prev, colors: newColors };
+    });
+  };
+
+  const removeColor = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      colors: prev.colors.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleColorImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      updateColor(index, "file", file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateColor(index, "image", reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const removeImage = (index: number) => {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
@@ -305,7 +367,7 @@ export const ProductManagement = () => {
 
   const resetForm = () => {
     setEditingProduct(null);
-    setFormData({ name: "", price: "", image: "", category: "", department: "fashion", stock: "0", low_stock_threshold: "5", description: "", sale_price: "", sale_ends_at: "" });
+    setFormData({ name: "", price: "", image: "", category: "", department: "fashion", stock: "0", low_stock_threshold: "5", description: "", sale_price: "", sale_ends_at: "", colors: [] });
     setFormErrors({});
     setImageFiles([]);
     setImagePreviews([]);
@@ -656,6 +718,69 @@ export const ProductManagement = () => {
                     className="min-h-[80px]"
                   />
                 </div>
+                {/* Color Variants Fields */}
+                <div className="border-t pt-4 mt-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      🎨 Color Variants (Optional)
+                    </h4>
+                    <Button type="button" variant="outline" size="sm" onClick={addColor}>
+                      <Plus className="w-3 h-3 mr-1" /> Add Color
+                    </Button>
+                  </div>
+                  {formData.colors.map((color, index) => (
+                    <div key={index} className="flex flex-col gap-2 p-3 border rounded-md relative">
+                      <button
+                        type="button"
+                        onClick={() => removeColor(index)}
+                        className="absolute top-2 right-2 text-destructive hover:text-destructive/80"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <div className="grid grid-cols-2 gap-3 mr-6">
+                        <div>
+                          <Label>Color Name</Label>
+                          <Input
+                            placeholder="e.g. Navy Blue"
+                            value={color.name}
+                            onChange={(e) => updateColor(index, "name", e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label>Color Hex</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="color"
+                              value={color.hex}
+                              onChange={(e) => updateColor(index, "hex", e.target.value)}
+                              className="w-12 h-10 p-1 cursor-pointer"
+                            />
+                            <Input
+                              value={color.hex}
+                              onChange={(e) => updateColor(index, "hex", e.target.value)}
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <Label>Specific Image for this color (Optional)</Label>
+                        <div className="flex items-center gap-3 mt-1">
+                          {color.image && (
+                            <img src={color.image} alt={color.name} className="w-10 h-10 object-cover rounded border" />
+                          )}
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleColorImageChange(index, e)}
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 {/* Flash Sale Fields */}
                 <div className="border-t pt-4 mt-2">
                   <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">

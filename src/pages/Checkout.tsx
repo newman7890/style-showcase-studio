@@ -374,7 +374,7 @@ const Checkout = () => {
 
     setSubmitting(true);
     try {
-      const orderItems = cartItems.map((item) => ({ product_id: item.product_id, quantity: item.quantity, price: item.products.price }));
+      const orderItems = cartItems.map((item) => ({ product_id: item.product_id, quantity: item.quantity, price: item.products.price, selected_color: (item as any).selected_color || null }));
       const orderId = await createOrder({
         total_amount: finalTotal, shipping_name: formData.shipping_name, shipping_email: formData.shipping_email,
         shipping_phone: formData.shipping_phone, shipping_address: formData.shipping_address, shipping_city: formData.shipping_city,

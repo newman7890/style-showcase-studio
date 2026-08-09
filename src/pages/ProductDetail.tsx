@@ -28,6 +28,7 @@ interface Product {
   sale_price?: number | null;
   sale_ends_at?: string | null;
   stock?: number;
+  colors?: { name: string; hex: string; image: string | null }[];
 }
 
 const ProductDetail = () => {
@@ -41,7 +42,7 @@ const ProductDetail = () => {
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
   
   // Mock UI state for new design
-  const [selectedColor, setSelectedColor] = useState("Charcoal Gray");
+  const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("M");
   const [activeTab, setActiveTab] = useState("Details");
 
@@ -66,6 +67,10 @@ const ProductDetail = () => {
 
       if (productError) throw productError;
       setProduct(productData);
+      
+      if (productData.colors && productData.colors.length > 0) {
+        setSelectedColor(productData.colors[0].name);
+      }
 
       if (productData) {
         const { data: relatedData } = await supabase
@@ -87,7 +92,9 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product.id, quantity);
+      const colors = product.colors || [];
+      const colorObj = colors.find(c => c.name === selectedColor) || null;
+      addToCart(product.id, quantity, colorObj);
     }
   };
 
@@ -114,16 +121,10 @@ const ProductDetail = () => {
     );
   }
 
-  const productImages = product.images && product.images.length > 0
     ? product.images
     : [product.image];
 
-  const colors = [
-    { name: "Charcoal Gray" },
-    { name: "Black" },
-    { name: "Navy Blue" },
-    { name: "Olive Green" },
-  ];
+  const colors = product.colors || [];
 
   const tabs = ["Details", "Materials", "Size & Fit", "Shipping & Returns"];
 
@@ -134,9 +135,8 @@ const ProductDetail = () => {
 
   const displayColor = hoveredColor || selectedColor;
   const activeColorIndex = colors.findIndex(c => c.name === displayColor);
-  const previewImageIndex = activeColorIndex >= 0 && productImages.length > 1 
-    ? activeColorIndex % productImages.length 
-    : currentImageIndex;
+  const activeColor = colors[activeColorIndex];
+  const previewImageIndex = currentImageIndex;
 
   return (
     <main className="min-h-screen bg-white font-sans text-black pb-20">
@@ -186,7 +186,7 @@ const ProductDetail = () => {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  src={productImages[previewImageIndex]}
+                  src={activeColor?.image || productImages[previewImageIndex]}
                   alt={product.name}
                   className="w-full h-full object-cover transition-all duration-300"
                 />
@@ -202,7 +202,7 @@ const ProductDetail = () => {
                 </DialogTrigger>
                 <DialogContent className="max-w-5xl p-0 overflow-hidden bg-transparent border-none shadow-none [&>button]:bg-white [&>button]:text-black [&>button]:p-2 [&>button]:rounded-full [&>button]:opacity-100 [&>button]:right-2 [&>button]:top-2 [&>button]:focus:ring-0 [&>button_svg]:w-5 [&>button_svg]:h-5">
                   <img 
-                    src={productImages[previewImageIndex]} 
+                    src={activeColor?.image || productImages[previewImageIndex]} 
                     alt={product.name} 
                     className="w-full h-auto max-h-[90vh] object-contain rounded-xl transition-all duration-300" 
                   />
@@ -259,42 +259,46 @@ const ProductDetail = () => {
 
             <Separator className="mb-8" />
 
-            {/* Quantity */}
-            <div className="mb-8">
-              <p className="text-sm font-bold text-black mb-3">
-                Color: <span className="font-medium text-gray-600">{displayColor}</span>
-              </p>
-              <div className="flex gap-3 flex-wrap">
-                {colors.map((c, idx) => {
-                  const swatchImage = productImages.length > 1 ? productImages[idx % productImages.length] : product.image;
-                  const isSelected = selectedColor === c.name;
-                  return (
-                    <button
-                      key={c.name}
-                      onMouseEnter={() => setHoveredColor(c.name)}
-                      onMouseLeave={() => setHoveredColor(null)}
-                      onClick={() => {
-                        setSelectedColor(c.name);
-                        if (productImages.length > 1) {
-                          setCurrentImageIndex(idx % productImages.length);
-                        }
-                      }}
-                      className={`relative w-16 h-20 rounded-md overflow-hidden border-2 transition-all p-0.5 ${
-                        isSelected ? "border-orange-500 shadow-sm" : "border-gray-200 hover:border-gray-400"
-                      }`}
-                    >
-                      <div className="w-full h-full rounded-sm overflow-hidden bg-gray-100">
-                        <img 
-                          src={swatchImage} 
-                          alt={c.name} 
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </button>
-                  );
-                })}
+            {/* Colors */}
+            {colors.length > 0 && (
+              <div className="mb-8">
+                <p className="text-sm font-bold text-black mb-3">
+                  Color: <span className="font-medium text-gray-600">{displayColor}</span>
+                </p>
+                <div className="flex gap-3 flex-wrap">
+                  {colors.map((c, idx) => {
+                    const isSelected = selectedColor === c.name;
+                    return (
+                      <button
+                        key={c.name}
+                        onMouseEnter={() => setHoveredColor(c.name)}
+                        onMouseLeave={() => setHoveredColor(null)}
+                        onClick={() => setSelectedColor(c.name)}
+                        className={`relative w-12 h-12 rounded-full overflow-hidden border-2 transition-all p-0.5 ${
+                          isSelected ? "border-orange-500 shadow-sm" : "border-gray-200 hover:border-gray-400"
+                        }`}
+                        title={c.name}
+                      >
+                        {c.image ? (
+                          <div className="w-full h-full rounded-full overflow-hidden bg-gray-100">
+                            <img 
+                              src={c.image} 
+                              alt={c.name} 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div 
+                            className="w-full h-full rounded-full border border-gray-100" 
+                            style={{ backgroundColor: c.hex || "#cccccc" }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Size Selector */}
             <div className="mb-8">

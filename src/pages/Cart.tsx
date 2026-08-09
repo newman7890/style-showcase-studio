@@ -108,6 +108,15 @@ const Cart = () => {
                         <div>
                           <h3 className="font-semibold text-base group-hover:underline">{item.products.name}</h3>
                           <p className="text-sm text-muted-foreground mt-1">{item.products.category}</p>
+                          {item.selected_color && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span
+                                className="w-4 h-4 rounded-full border border-gray-300 inline-block"
+                                style={{ backgroundColor: (item.selected_color as any).hex || '#ccc' }}
+                              />
+                              <span className="text-xs text-muted-foreground">{(item.selected_color as any).name}</span>
+                            </div>
+                          )}
                         </div>
                       </Link>
 
@@ -155,6 +164,15 @@ const Cart = () => {
                           <div>
                             <h3 className="font-semibold text-sm">{item.products.name}</h3>
                             <p className="text-xs text-muted-foreground mt-0.5">{item.products.category}</p>
+                            {item.selected_color && (
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <span
+                                  className="w-3 h-3 rounded-full border border-gray-300 inline-block"
+                                  style={{ backgroundColor: (item.selected_color as any).hex || '#ccc' }}
+                                />
+                                <span className="text-xs text-muted-foreground">{(item.selected_color as any).name}</span>
+                              </div>
+                            )}
                           </div>
                           <button onClick={() => removeFromCart(item.id)} className="text-muted-foreground">
                             <X className="w-4 h-4" />

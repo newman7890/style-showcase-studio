@@ -20,6 +20,7 @@ export type Database = {
           id: string
           product_id: string
           quantity: number
+          selected_color: Json | null
           updated_at: string | null
           user_id: string
         }
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           product_id: string
           quantity?: number
+          selected_color?: Json | null
           updated_at?: string | null
           user_id: string
         }
@@ -36,6 +38,7 @@ export type Database = {
           id?: string
           product_id?: string
           quantity?: number
+          selected_color?: Json | null
           updated_at?: string | null
           user_id?: string
         }
@@ -321,6 +324,7 @@ export type Database = {
           seller_earnings: number | null
           seller_id: string | null
           unit_price: number | null
+          selected_color: Json | null
         }
         Insert: {
           commission_amount?: number | null
@@ -334,6 +338,7 @@ export type Database = {
           seller_earnings?: number | null
           seller_id?: string | null
           unit_price?: number | null
+          selected_color?: Json | null
         }
         Update: {
           commission_amount?: number | null
@@ -347,6 +352,7 @@ export type Database = {
           seller_earnings?: number | null
           seller_id?: string | null
           unit_price?: number | null
+          selected_color?: Json | null
         }
         Relationships: [
           {
@@ -544,6 +550,7 @@ export type Database = {
       products: {
         Row: {
           category: string
+          colors: Json | null
           created_at: string | null
           department: string
           description: string | null
@@ -563,6 +570,7 @@ export type Database = {
         }
         Insert: {
           category: string
+          colors?: Json | null
           created_at?: string | null
           department?: string
           description?: string | null
@@ -582,6 +590,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          colors?: Json | null
           created_at?: string | null
           department?: string
           description?: string | null
