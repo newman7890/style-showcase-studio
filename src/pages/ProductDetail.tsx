@@ -3,7 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Heart, ShoppingBag, 
-  Search, Truck, RotateCcw, Lock
+  Search, Truck, RotateCcw, Lock,
+  Hexagon, Settings, CheckCircle2, Users
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -116,6 +117,15 @@ const ProductDetail = () => {
   const productImages = product.images && product.images.length > 0
     ? product.images
     : [product.image];
+
+  const colors = [
+    { name: "Charcoal Gray" },
+    { name: "Black" },
+    { name: "Navy Blue" },
+    { name: "Olive Green" },
+  ];
+
+  const tabs = ["Details", "Materials", "Size & Fit", "Shipping & Returns"];
 
 
   const isOnSale = product.sale_price != null && product.sale_ends_at && new Date(product.sale_ends_at) > new Date();
@@ -431,7 +441,7 @@ const ProductDetail = () => {
               </motion.div>
             )}
           </div>
-        )}
+        </div>
 
 
         {/* ── Customer Reviews ── */}
