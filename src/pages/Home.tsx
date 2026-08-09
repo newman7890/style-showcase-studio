@@ -35,6 +35,8 @@ import {
   Mail,
   ShoppingBag,
   Footprints,
+  Pocket,
+  Layers,
 } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -59,10 +61,10 @@ interface Product {
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   fashion: Shirt,
   clothing: Shirt,
-  jeans: Shirt,
+  jeans: Pocket,
   "t-shirts": Shirt,
   tshirts: Shirt,
-  jackets: Shirt,
+  jackets: Layers,
   shoes: Footprints,
   bags: ShoppingBag,
   electronics: Laptop,
