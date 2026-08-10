@@ -90,6 +90,24 @@ const SellerDashboard = () => {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [processingBg, setProcessingBg] = useState(false);
+  const [colors, setColors] = useState<ColorRow[]>([]);
+
+  const addColor = () =>
+    setColors((prev) => [...prev, { name: "", hex: "#000000", image: null, stock: 0, file: null }]);
+
+  const updateColor = (index: number, field: keyof ColorRow, value: any) =>
+    setColors((prev) => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
+
+  const removeColor = (index: number) => setColors((prev) => prev.filter((_, i) => i !== index));
+
+  const handleColorImage = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    updateColor(index, "file", file);
+    const reader = new FileReader();
+    reader.onloadend = () => updateColor(index, "image", reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const load = async () => {
     if (!user) return;
