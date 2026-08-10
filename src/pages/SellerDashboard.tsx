@@ -268,16 +268,41 @@ const SellerDashboard = () => {
         if (up.error) throw up.error;
         imageUrl = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
       }
+      // Upload any new per-color images and build the variant list
+      const finalColors: ColorVariant[] = [];
+      for (const c of colors) {
+        if (!c.name.trim()) continue;
+        let colorImage = c.image;
+        if (c.file) {
+          const cExt = c.file.name.split(".").pop();
+          const cPath = `${user.id}/color-${Date.now()}-${Math.random().toString(36).slice(2)}.${cExt}`;
+          const cUp = await supabase.storage.from("product-images").upload(cPath, c.file);
+          if (cUp.error) throw cUp.error;
+          colorImage = supabase.storage.from("product-images").getPublicUrl(cPath).data.publicUrl;
+        }
+        finalColors.push({
+          name: c.name.trim(),
+          hex: c.hex,
+          image: colorImage,
+          stock: Math.max(0, Number(c.stock) || 0),
+        });
+      }
+
+      const totalStock = finalColors.length
+        ? finalColors.reduce((sum, c) => sum + c.stock, 0)
+        : parseInt(form.stock);
+
       const payload = {
         name: form.name,
         price: parseFloat(form.price),
         image: imageUrl,
-        images: [imageUrl],
+        images: [imageUrl, ...finalColors.map((c) => c.image).filter(Boolean) as string[]],
         category: form.category,
         department: form.department,
-        stock: parseInt(form.stock),
+        stock: totalStock,
         low_stock_threshold: parseInt(form.low_stock_threshold),
         description: form.description || null,
+        colors: finalColors as any,
       };
       if (editing) {
         const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
