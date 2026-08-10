@@ -121,6 +121,7 @@ const ProductDetail = () => {
     );
   }
 
+  const productImages = product.images && product.images.length > 0
     ? product.images
     : [product.image];
 
