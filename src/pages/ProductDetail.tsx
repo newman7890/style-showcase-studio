@@ -324,9 +324,56 @@ const ProductDetail = () => {
                 <p className="text-sm font-bold text-black">
                   Size: <span className="font-medium text-gray-600">{selectedSize}</span>
                 </p>
-                <button className="text-sm font-medium text-gray-500 hover:text-black underline flex items-center gap-1">
-                  <span className="text-lg leading-none mb-1">📐</span> Size Guide
-                </button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="text-sm font-medium text-gray-500 hover:text-black underline flex items-center gap-1">
+                      <span className="text-lg leading-none mb-1">📐</span> Size Guide
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md sm:max-w-lg">
+                    <div className="p-2 sm:p-4">
+                      <h2 className="text-2xl font-bold mb-4 text-center">Size Guide</h2>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm border-collapse border border-gray-200 text-center">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="border border-gray-200 p-3">Size</th>
+                              <th className="border border-gray-200 p-3">Chest (in)</th>
+                              <th className="border border-gray-200 p-3">Waist (in)</th>
+                              <th className="border border-gray-200 p-3">Hips (in)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="border border-gray-200 p-3 font-bold">S</td>
+                              <td className="border border-gray-200 p-3">34-36</td>
+                              <td className="border border-gray-200 p-3">28-30</td>
+                              <td className="border border-gray-200 p-3">35-37</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-gray-200 p-3 font-bold">M</td>
+                              <td className="border border-gray-200 p-3">38-40</td>
+                              <td className="border border-gray-200 p-3">32-34</td>
+                              <td className="border border-gray-200 p-3">39-41</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-gray-200 p-3 font-bold">L</td>
+                              <td className="border border-gray-200 p-3">42-44</td>
+                              <td className="border border-gray-200 p-3">36-38</td>
+                              <td className="border border-gray-200 p-3">43-45</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-gray-200 p-3 font-bold">XL</td>
+                              <td className="border border-gray-200 p-3">46-48</td>
+                              <td className="border border-gray-200 p-3">40-42</td>
+                              <td className="border border-gray-200 p-3">47-49</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
 
