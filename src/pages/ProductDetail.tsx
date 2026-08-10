@@ -334,11 +334,11 @@ const ProductDetail = () => {
             <div className="flex gap-4 mb-8">
               <Button
                 onClick={handleAddToCart}
-                disabled={product.stock === 0}
+                disabled={isSoldOut}
                 className="flex-1 h-14 bg-black hover:bg-black/90 text-white rounded-xl font-bold text-base gap-3"
               >
                 <ShoppingBag className="w-5 h-5" />
-                Add to Cart
+                {isSoldOut ? "Out of stock" : "Add to Cart"}
               </Button>
               <button
                 onClick={handleToggleFavorite}
