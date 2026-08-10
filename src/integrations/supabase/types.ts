@@ -321,10 +321,10 @@ export type Database = {
           price: number
           product_id: string
           quantity: number
+          selected_color: Json | null
           seller_earnings: number | null
           seller_id: string | null
           unit_price: number | null
-          selected_color: Json | null
         }
         Insert: {
           commission_amount?: number | null
@@ -335,10 +335,10 @@ export type Database = {
           price: number
           product_id: string
           quantity: number
+          selected_color?: Json | null
           seller_earnings?: number | null
           seller_id?: string | null
           unit_price?: number | null
-          selected_color?: Json | null
         }
         Update: {
           commission_amount?: number | null
@@ -349,10 +349,10 @@ export type Database = {
           price?: number
           product_id?: string
           quantity?: number
+          selected_color?: Json | null
           seller_earnings?: number | null
           seller_id?: string | null
           unit_price?: number | null
-          selected_color?: Json | null
         }
         Relationships: [
           {
