@@ -280,6 +280,7 @@ const ProductDetail = () => {
                 <div className="flex gap-3 flex-wrap">
                   {colors.map((c, idx) => {
                     const isSelected = selectedColor === c.name;
+                    const outOfStock = hasColorStock && Number(c.stock ?? 0) <= 0;
                     return (
                       <button
                         key={c.name}
@@ -288,8 +289,8 @@ const ProductDetail = () => {
                         onClick={() => setSelectedColor(c.name)}
                         className={`relative w-12 h-12 rounded-full overflow-hidden border-2 transition-all p-0.5 ${
                           isSelected ? "border-orange-500 shadow-sm" : "border-gray-200 hover:border-gray-400"
-                        }`}
-                        title={c.name}
+                        } ${outOfStock ? "opacity-40" : ""}`}
+                        title={outOfStock ? `${c.name} — out of stock` : c.name}
                       >
                         {c.image ? (
                           <div className="w-full h-full rounded-full overflow-hidden bg-gray-100">
@@ -304,6 +305,11 @@ const ProductDetail = () => {
                             className="w-full h-full rounded-full border border-gray-100" 
                             style={{ backgroundColor: c.hex || "#cccccc" }}
                           />
+                        )}
+                        {outOfStock && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="w-full h-[2px] bg-gray-500 rotate-45" />
+                          </span>
                         )}
                       </button>
                     );
