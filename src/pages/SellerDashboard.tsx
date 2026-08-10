@@ -168,6 +168,7 @@ const SellerDashboard = () => {
     } else {
       setForm(emptyForm);
       setImagePreview("");
+      setColors([]);
     }
     setDialogOpen(true);
   };
@@ -184,6 +185,15 @@ const SellerDashboard = () => {
       description: p.description ?? "",
     });
     setImagePreview(p.image);
+    setColors(
+      (p.colors ?? []).map((c) => ({
+        name: c.name,
+        hex: c.hex,
+        image: c.image,
+        stock: Number(c.stock ?? 0),
+        file: null,
+      }))
+    );
     setDialogOpen(true);
   };
 
