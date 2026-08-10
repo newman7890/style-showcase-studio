@@ -105,7 +105,7 @@ export const ProductManagement = () => {
     const { data, error } = await query;
 
     if (!error && data) {
-      setProducts(data);
+      setProducts(data as any);
     }
   };
 
