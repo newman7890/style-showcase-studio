@@ -146,6 +146,7 @@ const SellerDashboard = () => {
     setErrors({});
     setImageFile(null);
     setImagePreview("");
+    setColors([]);
     localStorage.removeItem("seller_product_draft");
   };
 
