@@ -455,8 +455,18 @@ const SellerDashboard = () => {
                         </div>
                         <div>
                           <Label htmlFor="stock">Stock</Label>
-                          <Input id="stock" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
-                          {errors.stock && <p className="text-sm text-destructive">{errors.stock}</p>}
+                          <Input
+                            id="stock"
+                            type="number"
+                            disabled={colors.length > 0}
+                            value={colors.length > 0 ? String(colors.reduce((s, c) => s + (Number(c.stock) || 0), 0)) : form.stock}
+                            onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                          />
+                          {colors.length > 0 ? (
+                            <p className="text-xs text-muted-foreground mt-1">Auto-calculated from your colour stock</p>
+                          ) : (
+                            errors.stock && <p className="text-sm text-destructive">{errors.stock}</p>
+                          )}
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
