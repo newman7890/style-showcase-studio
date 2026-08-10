@@ -40,6 +40,7 @@ interface ColorVariant {
 
 interface ColorRow extends ColorVariant {
   file?: File | null;
+  processingBg?: boolean;
 }
 
 interface Product {
@@ -238,6 +239,43 @@ const SellerDashboard = () => {
       });
     } finally {
       setProcessingBg(false);
+    }
+  };
+
+  const handleRemoveColorBackground = async (index: number) => {
+    const color = colors[index];
+    const source = color.file || color.image;
+    if (!source) return;
+    updateColor(index, "processingBg", true);
+    toast({
+      title: "AI Enhancing Image...",
+      description: `Removing background for color "${color.name || 'variant'}". Please wait...`,
+    });
+    try {
+      const imgly = await import("@imgly/background-removal");
+      const removeBgFn = imgly.removeBackground || (imgly as any).default;
+      if (typeof removeBgFn !== "function") {
+        throw new Error("Background removal function could not be loaded.");
+      }
+      const blob = await removeBgFn(source);
+      const newFile = new File([blob], `color-${index}.png`, { type: "image/png" });
+      const url = URL.createObjectURL(blob);
+      setColors((prev) =>
+        prev.map((c, i) => (i === index ? { ...c, file: newFile, image: url } : c))
+      );
+      toast({
+        title: "Studio Image Ready!",
+        description: "Background successfully removed for this color.",
+      });
+    } catch (err: any) {
+      console.error("Background removal error for color:", err);
+      toast({
+        title: "Processing Error",
+        description: err.message || "Failed to remove background.",
+        variant: "destructive",
+      });
+    } finally {
+      updateColor(index, "processingBg", false);
     }
   };
 
@@ -550,11 +588,42 @@ const SellerDashboard = () => {
                               </div>
                               <div>
                                 <Label>Photo for this colour</Label>
-                                <div className="flex items-center gap-2 mt-1">
-                                  {c.image && (
-                                    <img src={c.image} alt={c.name} className="w-10 h-10 rounded border object-cover" />
+                                <div className="space-y-2 mt-1">
+                                  <div className="flex items-center gap-2">
+                                    {c.image && (
+                                      <div className="relative w-10 h-10 flex-shrink-0">
+                                        <img src={c.image} alt={c.name} className="w-full h-full rounded border object-cover" />
+                                        {c.processingBg && (
+                                          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center">
+                                            <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    <Input type="file" accept="image/*" onChange={(e) => handleColorImage(i, e)} className="flex-1" />
+                                  </div>
+                                  {(c.file || c.image) && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={c.processingBg}
+                                      onClick={() => handleRemoveColorBackground(i)}
+                                      className="w-full gap-2 text-xs font-semibold border-purple-200 hover:bg-purple-50 text-purple-700 h-8"
+                                    >
+                                      {c.processingBg ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 animate-spin" />
+                                          Processing...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Wand2 className="w-3 h-3 text-purple-600" />
+                                          Remove Background (AI)
+                                        </>
+                                      )}
+                                    </Button>
                                   )}
-                                  <Input type="file" accept="image/*" onChange={(e) => handleColorImage(i, e)} className="flex-1" />
                                 </div>
                               </div>
                             </div>
