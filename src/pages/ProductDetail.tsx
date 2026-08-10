@@ -28,7 +28,7 @@ interface Product {
   sale_price?: number | null;
   sale_ends_at?: string | null;
   stock?: number;
-  colors?: { name: string; hex: string; image: string | null }[];
+  colors?: { name: string; hex: string; image: string | null; stock?: number }[];
 }
 
 const ProductDetail = () => {
@@ -140,6 +140,13 @@ const ProductDetail = () => {
   const activeColor = colors[activeColorIndex];
   const previewImageIndex = currentImageIndex;
 
+  const selectedColorObj = colors.find((c) => c.name === selectedColor) || null;
+  const hasColorStock = colors.length > 0 && colors.some((c) => typeof c.stock === "number");
+  const availableStock = hasColorStock
+    ? Number(selectedColorObj?.stock ?? 0)
+    : (product.stock ?? 0);
+  const isSoldOut = typeof product.stock === "number" || hasColorStock ? availableStock <= 0 : false;
+
   return (
     <main className="min-h-screen bg-white font-sans text-black pb-20">
       
@@ -247,14 +254,17 @@ const ProductDetail = () => {
               </p>
             )}
 
-            {typeof product.stock === "number" && (
+            {(typeof product.stock === "number" || hasColorStock) && (
               <p className="text-sm font-medium mb-6">
-                {product.stock > 0 ? (
+                {availableStock > 0 ? (
                   <span className="text-gray-600">
-                    {product.stock <= 5 ? `Only ${product.stock} left in stock` : `${product.stock} in stock`}
+                    {availableStock <= 5 ? `Only ${availableStock} left` : `${availableStock} in stock`}
+                    {hasColorStock ? ` in ${selectedColor}` : ""}
                   </span>
                 ) : (
-                  <span className="text-red-600">Out of stock</span>
+                  <span className="text-red-600">
+                    {hasColorStock ? `${selectedColor} is out of stock` : "Out of stock"}
+                  </span>
                 )}
               </p>
             )}
@@ -270,6 +280,7 @@ const ProductDetail = () => {
                 <div className="flex gap-3 flex-wrap">
                   {colors.map((c, idx) => {
                     const isSelected = selectedColor === c.name;
+                    const outOfStock = hasColorStock && Number(c.stock ?? 0) <= 0;
                     return (
                       <button
                         key={c.name}
@@ -278,8 +289,8 @@ const ProductDetail = () => {
                         onClick={() => setSelectedColor(c.name)}
                         className={`relative w-12 h-12 rounded-full overflow-hidden border-2 transition-all p-0.5 ${
                           isSelected ? "border-orange-500 shadow-sm" : "border-gray-200 hover:border-gray-400"
-                        }`}
-                        title={c.name}
+                        } ${outOfStock ? "opacity-40" : ""}`}
+                        title={outOfStock ? `${c.name} — out of stock` : c.name}
                       >
                         {c.image ? (
                           <div className="w-full h-full rounded-full overflow-hidden bg-gray-100">
@@ -294,6 +305,11 @@ const ProductDetail = () => {
                             className="w-full h-full rounded-full border border-gray-100" 
                             style={{ backgroundColor: c.hex || "#cccccc" }}
                           />
+                        )}
+                        {outOfStock && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="w-full h-[2px] bg-gray-500 rotate-45" />
+                          </span>
                         )}
                       </button>
                     );
@@ -318,11 +334,11 @@ const ProductDetail = () => {
             <div className="flex gap-4 mb-8">
               <Button
                 onClick={handleAddToCart}
-                disabled={product.stock === 0}
+                disabled={isSoldOut}
                 className="flex-1 h-14 bg-black hover:bg-black/90 text-white rounded-xl font-bold text-base gap-3"
               >
                 <ShoppingBag className="w-5 h-5" />
-                Add to Cart
+                {isSoldOut ? "Out of stock" : "Add to Cart"}
               </Button>
               <button
                 onClick={handleToggleFavorite}

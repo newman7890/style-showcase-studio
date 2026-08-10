@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,17 @@ const DEPARTMENTS = [
   { value: "other", label: "Other" },
 ];
 
+interface ColorVariant {
+  name: string;
+  hex: string;
+  image: string | null;
+  stock: number;
+}
+
+interface ColorRow extends ColorVariant {
+  file?: File | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -44,6 +55,7 @@ interface Product {
   status: "pending" | "approved" | "rejected" | "hidden";
   rejection_reason: string | null;
   created_at: string;
+  colors?: ColorVariant[] | null;
 }
 
 const emptyForm = {
@@ -78,6 +90,24 @@ const SellerDashboard = () => {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [processingBg, setProcessingBg] = useState(false);
+  const [colors, setColors] = useState<ColorRow[]>([]);
+
+  const addColor = () =>
+    setColors((prev) => [...prev, { name: "", hex: "#000000", image: null, stock: 0, file: null }]);
+
+  const updateColor = (index: number, field: keyof ColorRow, value: any) =>
+    setColors((prev) => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
+
+  const removeColor = (index: number) => setColors((prev) => prev.filter((_, i) => i !== index));
+
+  const handleColorImage = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    updateColor(index, "file", file);
+    const reader = new FileReader();
+    reader.onloadend = () => updateColor(index, "image", reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const load = async () => {
     if (!user) return;
@@ -116,6 +146,7 @@ const SellerDashboard = () => {
     setErrors({});
     setImageFile(null);
     setImagePreview("");
+    setColors([]);
     localStorage.removeItem("seller_product_draft");
   };
 
@@ -137,6 +168,7 @@ const SellerDashboard = () => {
     } else {
       setForm(emptyForm);
       setImagePreview("");
+      setColors([]);
     }
     setDialogOpen(true);
   };
@@ -153,6 +185,15 @@ const SellerDashboard = () => {
       description: p.description ?? "",
     });
     setImagePreview(p.image);
+    setColors(
+      (p.colors ?? []).map((c) => ({
+        name: c.name,
+        hex: c.hex,
+        image: c.image,
+        stock: Number(c.stock ?? 0),
+        file: null,
+      }))
+    );
     setDialogOpen(true);
   };
 
@@ -227,16 +268,41 @@ const SellerDashboard = () => {
         if (up.error) throw up.error;
         imageUrl = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
       }
+      // Upload any new per-color images and build the variant list
+      const finalColors: ColorVariant[] = [];
+      for (const c of colors) {
+        if (!c.name.trim()) continue;
+        let colorImage = c.image;
+        if (c.file) {
+          const cExt = c.file.name.split(".").pop();
+          const cPath = `${user.id}/color-${Date.now()}-${Math.random().toString(36).slice(2)}.${cExt}`;
+          const cUp = await supabase.storage.from("product-images").upload(cPath, c.file);
+          if (cUp.error) throw cUp.error;
+          colorImage = supabase.storage.from("product-images").getPublicUrl(cPath).data.publicUrl;
+        }
+        finalColors.push({
+          name: c.name.trim(),
+          hex: c.hex,
+          image: colorImage,
+          stock: Math.max(0, Number(c.stock) || 0),
+        });
+      }
+
+      const totalStock = finalColors.length
+        ? finalColors.reduce((sum, c) => sum + c.stock, 0)
+        : parseInt(form.stock);
+
       const payload = {
         name: form.name,
         price: parseFloat(form.price),
         image: imageUrl,
-        images: [imageUrl],
+        images: [imageUrl, ...finalColors.map((c) => c.image).filter(Boolean) as string[]],
         category: form.category,
         department: form.department,
-        stock: parseInt(form.stock),
+        stock: totalStock,
         low_stock_threshold: parseInt(form.low_stock_threshold),
         description: form.description || null,
+        colors: finalColors as any,
       };
       if (editing) {
         const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
@@ -389,8 +455,18 @@ const SellerDashboard = () => {
                         </div>
                         <div>
                           <Label htmlFor="stock">Stock</Label>
-                          <Input id="stock" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
-                          {errors.stock && <p className="text-sm text-destructive">{errors.stock}</p>}
+                          <Input
+                            id="stock"
+                            type="number"
+                            disabled={colors.length > 0}
+                            value={colors.length > 0 ? String(colors.reduce((s, c) => s + (Number(c.stock) || 0), 0)) : form.stock}
+                            onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                          />
+                          {colors.length > 0 ? (
+                            <p className="text-xs text-muted-foreground mt-1">Auto-calculated from your colour stock</p>
+                          ) : (
+                            errors.stock && <p className="text-sm text-destructive">{errors.stock}</p>
+                          )}
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
@@ -415,6 +491,77 @@ const SellerDashboard = () => {
                         <Label htmlFor="description">Description</Label>
                         <Textarea id="description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                       </div>
+
+                      {/* Colour variants */}
+                      <div className="border-t pt-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="flex items-center gap-2"><Palette className="w-4 h-4" /> Colours (optional)</Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Add a photo and stock for each colour. Customers can switch between them.
+                            </p>
+                          </div>
+                          <Button type="button" variant="outline" size="sm" onClick={addColor}>
+                            <Plus className="w-3 h-3 mr-1" /> Add colour
+                          </Button>
+                        </div>
+
+                        {colors.map((c, i) => (
+                          <div key={i} className="relative border rounded-lg p-3 space-y-3">
+                            <button
+                              type="button"
+                              onClick={() => removeColor(i)}
+                              className="absolute top-2 right-2 text-destructive"
+                              aria-label="Remove colour"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <div className="grid grid-cols-2 gap-3 mr-6">
+                              <div>
+                                <Label>Colour name</Label>
+                                <Input
+                                  placeholder="e.g. Navy Blue"
+                                  value={c.name}
+                                  onChange={(e) => updateColor(i, "name", e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label>Stock</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={c.stock}
+                                  onChange={(e) => updateColor(i, "stock", e.target.value === "" ? 0 : parseInt(e.target.value))}
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Swatch colour</Label>
+                                <div className="flex gap-2">
+                                  <Input
+                                    type="color"
+                                    value={c.hex}
+                                    onChange={(e) => updateColor(i, "hex", e.target.value)}
+                                    className="w-12 h-10 p-1 cursor-pointer"
+                                  />
+                                  <Input value={c.hex} onChange={(e) => updateColor(i, "hex", e.target.value)} className="flex-1" />
+                                </div>
+                              </div>
+                              <div>
+                                <Label>Photo for this colour</Label>
+                                <div className="flex items-center gap-2 mt-1">
+                                  {c.image && (
+                                    <img src={c.image} alt={c.name} className="w-10 h-10 rounded border object-cover" />
+                                  )}
+                                  <Input type="file" accept="image/*" onChange={(e) => handleColorImage(i, e)} className="flex-1" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
                       <Button type="submit" className="w-full" disabled={submitting}>
                         {submitting ? "Saving..." : editing ? "Update" : "Submit for review"}
                       </Button>
