@@ -29,6 +29,7 @@ interface Product {
   sale_ends_at?: string | null;
   stock?: number;
   colors?: { name: string; hex: string; image: string | null; stock?: number }[];
+  sizes?: string[];
 }
 
 const ProductDetail = () => {
@@ -94,7 +95,7 @@ const ProductDetail = () => {
   const handleAddToCart = () => {
     if (product) {
       if (product.sizes && product.sizes.length > 0 && !selectedSize) {
-        toast.error(t("Please select a size first") || "Please select a size first");
+        toast.error("Please select a size first");
         return;
       }
       const colors = product.colors || [];
