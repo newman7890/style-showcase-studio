@@ -346,7 +346,7 @@ const SellerDashboard = () => {
         name: form.name,
         price: parseFloat(form.price),
         image: imageUrl,
-        images: [imageUrl, ...finalColors.map((c) => c.image).filter(Boolean) as string[]],
+        images: Array.from(new Set([imageUrl, ...finalColors.map((c) => c.image).filter(Boolean) as string[]])),
         category: form.category,
         department: form.department,
         stock: totalStock,
