@@ -66,10 +66,11 @@ const ProductDetail = () => {
         .single();
 
       if (productError) throw productError;
-      setProduct(productData);
+      setProduct(productData as any);
       
-      if (productData.colors && productData.colors.length > 0) {
-        setSelectedColor(productData.colors[0].name);
+      const pColors = (productData as any).colors as Product["colors"] | null;
+      if (pColors && pColors.length > 0) {
+        setSelectedColor(pColors[0].name);
       }
 
       if (productData) {
@@ -80,7 +81,7 @@ const ProductDetail = () => {
           .neq("id", id)
           .limit(4);
 
-        setRelatedProducts(relatedData || []);
+        setRelatedProducts((relatedData as any) || []);
       }
     } catch (error) {
       console.error("Error fetching product:", error);

@@ -48,7 +48,7 @@ export const useCart = () => {
         .eq("user_id", user.id);
 
       if (error) throw error;
-      setCartItems(data || []);
+      setCartItems((data as any) || []);
     } catch (error) {
       console.error("Error fetching cart:", error);
       toast.error("Failed to load cart");
