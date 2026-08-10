@@ -292,8 +292,9 @@ const SellerDashboard = () => {
       return;
     }
     if (!user) return;
-    if (!editing && !imageFile) {
-      setErrors({ image: "Image required" });
+    const hasColorImage = colors.some(c => c.file || c.image);
+    if (!editing && !imageFile && !hasColorImage) {
+      setErrors({ image: "Main image or at least one colour image is required" });
       return;
     }
     setSubmitting(true);
@@ -324,6 +325,17 @@ const SellerDashboard = () => {
           image: colorImage,
           stock: Math.max(0, Number(c.stock) || 0),
         });
+      }
+
+      if (!imageUrl && finalColors.length > 0) {
+        const firstColorWithImg = finalColors.find(c => c.image);
+        if (firstColorWithImg) {
+          imageUrl = firstColorWithImg.image as string;
+        }
+      }
+
+      if (!imageUrl) {
+        throw new Error("A product image is required. Please upload a main image or a photo for a colour variant.");
       }
 
       const totalStock = finalColors.length
