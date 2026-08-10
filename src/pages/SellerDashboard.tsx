@@ -491,6 +491,77 @@ const SellerDashboard = () => {
                         <Label htmlFor="description">Description</Label>
                         <Textarea id="description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                       </div>
+
+                      {/* Colour variants */}
+                      <div className="border-t pt-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="flex items-center gap-2"><Palette className="w-4 h-4" /> Colours (optional)</Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Add a photo and stock for each colour. Customers can switch between them.
+                            </p>
+                          </div>
+                          <Button type="button" variant="outline" size="sm" onClick={addColor}>
+                            <Plus className="w-3 h-3 mr-1" /> Add colour
+                          </Button>
+                        </div>
+
+                        {colors.map((c, i) => (
+                          <div key={i} className="relative border rounded-lg p-3 space-y-3">
+                            <button
+                              type="button"
+                              onClick={() => removeColor(i)}
+                              className="absolute top-2 right-2 text-destructive"
+                              aria-label="Remove colour"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <div className="grid grid-cols-2 gap-3 mr-6">
+                              <div>
+                                <Label>Colour name</Label>
+                                <Input
+                                  placeholder="e.g. Navy Blue"
+                                  value={c.name}
+                                  onChange={(e) => updateColor(i, "name", e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label>Stock</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={c.stock}
+                                  onChange={(e) => updateColor(i, "stock", e.target.value === "" ? 0 : parseInt(e.target.value))}
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Swatch colour</Label>
+                                <div className="flex gap-2">
+                                  <Input
+                                    type="color"
+                                    value={c.hex}
+                                    onChange={(e) => updateColor(i, "hex", e.target.value)}
+                                    className="w-12 h-10 p-1 cursor-pointer"
+                                  />
+                                  <Input value={c.hex} onChange={(e) => updateColor(i, "hex", e.target.value)} className="flex-1" />
+                                </div>
+                              </div>
+                              <div>
+                                <Label>Photo for this colour</Label>
+                                <div className="flex items-center gap-2 mt-1">
+                                  {c.image && (
+                                    <img src={c.image} alt={c.name} className="w-10 h-10 rounded border object-cover" />
+                                  )}
+                                  <Input type="file" accept="image/*" onChange={(e) => handleColorImage(i, e)} className="flex-1" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
                       <Button type="submit" className="w-full" disabled={submitting}>
                         {submitting ? "Saving..." : editing ? "Update" : "Submit for review"}
                       </Button>
