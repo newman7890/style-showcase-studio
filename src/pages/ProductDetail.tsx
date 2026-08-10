@@ -28,7 +28,7 @@ interface Product {
   sale_price?: number | null;
   sale_ends_at?: string | null;
   stock?: number;
-  colors?: { name: string; hex: string; image: string | null }[];
+  colors?: { name: string; hex: string; image: string | null; stock?: number }[];
 }
 
 const ProductDetail = () => {
@@ -140,6 +140,13 @@ const ProductDetail = () => {
   const activeColor = colors[activeColorIndex];
   const previewImageIndex = currentImageIndex;
 
+  const selectedColorObj = colors.find((c) => c.name === selectedColor) || null;
+  const hasColorStock = colors.length > 0 && colors.some((c) => typeof c.stock === "number");
+  const availableStock = hasColorStock
+    ? Number(selectedColorObj?.stock ?? 0)
+    : (product.stock ?? 0);
+  const isSoldOut = typeof product.stock === "number" || hasColorStock ? availableStock <= 0 : false;
+
   return (
     <main className="min-h-screen bg-white font-sans text-black pb-20">
       
@@ -247,14 +254,17 @@ const ProductDetail = () => {
               </p>
             )}
 
-            {typeof product.stock === "number" && (
+            {(typeof product.stock === "number" || hasColorStock) && (
               <p className="text-sm font-medium mb-6">
-                {product.stock > 0 ? (
+                {availableStock > 0 ? (
                   <span className="text-gray-600">
-                    {product.stock <= 5 ? `Only ${product.stock} left in stock` : `${product.stock} in stock`}
+                    {availableStock <= 5 ? `Only ${availableStock} left` : `${availableStock} in stock`}
+                    {hasColorStock ? ` in ${selectedColor}` : ""}
                   </span>
                 ) : (
-                  <span className="text-red-600">Out of stock</span>
+                  <span className="text-red-600">
+                    {hasColorStock ? `${selectedColor} is out of stock` : "Out of stock"}
+                  </span>
                 )}
               </p>
             )}
