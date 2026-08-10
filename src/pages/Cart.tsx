@@ -117,6 +117,9 @@ const Cart = () => {
                               <span className="text-xs text-muted-foreground">{(item.selected_color as any).name}</span>
                             </div>
                           )}
+                          {item.selected_size && (
+                            <p className="text-xs text-muted-foreground mt-1">Size: {item.selected_size}</p>
+                          )}
                         </div>
                       </Link>
 
@@ -172,6 +175,9 @@ const Cart = () => {
                                 />
                                 <span className="text-xs text-muted-foreground">{(item.selected_color as any).name}</span>
                               </div>
+                            )}
+                            {item.selected_size && (
+                              <p className="text-xs text-muted-foreground mt-1">Size: {item.selected_size}</p>
                             )}
                           </div>
                           <button onClick={() => removeFromCart(item.id)} className="text-muted-foreground">

@@ -8,6 +8,7 @@ interface CartItem {
   product_id: string;
   quantity: number;
   selected_color: { name: string; hex: string; image: string | null } | null;
+  selected_size: string | null;
   products: {
     id: string;
     name: string;
@@ -37,6 +38,7 @@ export const useCart = () => {
           product_id,
           quantity,
           selected_color,
+          selected_size,
           products (
             id,
             name,
@@ -61,25 +63,31 @@ export const useCart = () => {
     fetchCart();
   }, [user]);
 
-  const addToCart = async (productId: string, quantity: number = 1, selectedColor?: { name: string; hex: string; image: string | null } | null) => {
+  const addToCart = async (
+    productId: string, 
+    quantity: number = 1, 
+    selectedColor: { name: string; hex: string; image: string | null } | null = null,
+    selectedSize: string | null = null
+  ) => {
     if (!user) {
       toast.error("Please sign in to add items to cart");
       return;
     }
 
     try {
-      // Check if item already exists in cart with the same color
+      // Check if item already exists in cart with the same color and size
       const { data: existingItems } = await supabase
         .from("cart_items")
-        .select("id, quantity, selected_color")
+        .select("id, quantity, selected_color, selected_size")
         .eq("user_id", user.id)
         .eq("product_id", productId);
 
       const existing = existingItems?.find((item) => {
         const itemColor = item.selected_color as any;
-        if (!selectedColor && !itemColor) return true;
-        if (selectedColor && itemColor && selectedColor.name === itemColor.name) return true;
-        return false;
+        const sameColor = (!selectedColor && !itemColor) || 
+                          (selectedColor && itemColor && selectedColor.name === itemColor.name);
+        const sameSize = item.selected_size === selectedSize;
+        return sameColor && sameSize;
       });
 
       if (existing) {
@@ -99,6 +107,7 @@ export const useCart = () => {
             product_id: productId,
             quantity,
             selected_color: selectedColor || null,
+            selected_size: selectedSize,
           });
 
         if (error) throw error;

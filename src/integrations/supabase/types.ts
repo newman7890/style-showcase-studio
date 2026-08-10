@@ -21,6 +21,7 @@ export type Database = {
           product_id: string
           quantity: number
           selected_color: Json | null
+          selected_size: string | null
           updated_at: string | null
           user_id: string
         }
@@ -30,6 +31,7 @@ export type Database = {
           product_id: string
           quantity?: number
           selected_color?: Json | null
+          selected_size?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -39,6 +41,7 @@ export type Database = {
           product_id?: string
           quantity?: number
           selected_color?: Json | null
+          selected_size?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -564,6 +567,7 @@ export type Database = {
           sale_ends_at: string | null
           sale_price: number | null
           seller_id: string | null
+          sizes: string[] | null
           status: Database["public"]["Enums"]["product_status"]
           stock: number
           updated_at: string | null
@@ -584,6 +588,7 @@ export type Database = {
           sale_ends_at?: string | null
           sale_price?: number | null
           seller_id?: string | null
+          sizes?: string[] | null
           status?: Database["public"]["Enums"]["product_status"]
           stock?: number
           updated_at?: string | null
@@ -604,6 +609,7 @@ export type Database = {
           sale_ends_at?: string | null
           sale_price?: number | null
           seller_id?: string | null
+          sizes?: string[] | null
           status?: Database["public"]["Enums"]["product_status"]
           stock?: number
           updated_at?: string | null

@@ -9,6 +9,7 @@ interface OrderItem {
   quantity: number;
   price: number;
   selected_color?: { name: string; hex: string; image: string | null } | null;
+  selected_size?: string | null;
 }
 
 interface Order {

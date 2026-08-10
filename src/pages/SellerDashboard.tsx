@@ -57,6 +57,7 @@ interface Product {
   rejection_reason: string | null;
   created_at: string;
   colors?: ColorVariant[] | null;
+  sizes?: string[] | null;
 }
 
 const emptyForm = {
@@ -67,6 +68,7 @@ const emptyForm = {
   stock: "0",
   low_stock_threshold: "5",
   description: "",
+  sizes: "",
 };
 
 const StatusBadge = ({ status }: { status: Product["status"] }) => {
@@ -184,6 +186,7 @@ const SellerDashboard = () => {
       stock: String(p.stock),
       low_stock_threshold: String(p.low_stock_threshold),
       description: p.description ?? "",
+      sizes: (p.sizes ?? []).join(", "),
     });
     setImagePreview(p.image);
     setColors(
@@ -353,6 +356,7 @@ const SellerDashboard = () => {
         low_stock_threshold: parseInt(form.low_stock_threshold),
         description: form.description || null,
         colors: finalColors as any,
+        sizes: form.sizes.split(",").map(s => s.trim()).filter(Boolean),
       };
       if (editing) {
         const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
@@ -540,6 +544,19 @@ const SellerDashboard = () => {
                       <div>
                         <Label htmlFor="description">Description</Label>
                         <Textarea id="description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                      </div>
+                      
+                      <div className="border-t pt-4">
+                        <Label htmlFor="sizes" className="flex items-center gap-2">Sizes (optional)</Label>
+                        <p className="text-xs text-muted-foreground mt-1 mb-2">
+                          Enter available sizes separated by commas (e.g., S, M, L, XL or 38, 40, 42).
+                        </p>
+                        <Input 
+                          id="sizes" 
+                          placeholder="S, M, L, XL" 
+                          value={form.sizes} 
+                          onChange={(e) => setForm({ ...form, sizes: e.target.value })} 
+                        />
                       </div>
 
                       {/* Colour variants */}
