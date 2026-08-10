@@ -31,6 +31,17 @@ const DEPARTMENTS = [
   { value: "other", label: "Other" },
 ];
 
+interface ColorVariant {
+  name: string;
+  hex: string;
+  image: string | null;
+  stock: number;
+}
+
+interface ColorRow extends ColorVariant {
+  file?: File | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -44,6 +55,7 @@ interface Product {
   status: "pending" | "approved" | "rejected" | "hidden";
   rejection_reason: string | null;
   created_at: string;
+  colors?: ColorVariant[] | null;
 }
 
 const emptyForm = {
