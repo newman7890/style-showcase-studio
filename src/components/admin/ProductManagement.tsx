@@ -375,7 +375,7 @@ export const ProductManagement = () => {
 
   const resetForm = () => {
     setEditingProduct(null);
-    setFormData({ name: "", price: "", image: "", category: "", department: "fashion", stock: "0", low_stock_threshold: "5", description: "", sale_price: "", sale_ends_at: "", colors: [] });
+    setFormData({ name: "", price: "", image: "", category: "", department: "fashion", stock: "0", low_stock_threshold: "5", description: "", features: "", materials_info: "", size_fit_info: "", shipping_returns_info: "", sale_price: "", sale_ends_at: "", colors: [] });
     setFormErrors({});
     setImageFiles([]);
     setImagePreviews([]);
