@@ -379,6 +379,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          assigned_rider_id: string | null
           created_at: string | null
           currency: string
           delivery_fee: number
@@ -399,6 +400,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_rider_id?: string | null
           created_at?: string | null
           currency?: string
           delivery_fee?: number
@@ -419,6 +421,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_rider_id?: string | null
           created_at?: string | null
           currency?: string
           delivery_fee?: number
@@ -1009,7 +1012,21 @@ export type Database = {
       }
     }
     Functions: {
+      claim_delivery: { Args: { _order_id: string }; Returns: boolean }
       generate_tracking_code: { Args: never; Returns: string }
+      get_available_deliveries: {
+        Args: never
+        Returns: {
+          created_at: string
+          currency: string
+          id: string
+          shipping_city: string
+          shipping_region: string
+          status: string
+          total_amount: number
+          tracking_code: string
+        }[]
+      }
       get_order_by_tracking_code: {
         Args: { _tracking_code: string }
         Returns: {
