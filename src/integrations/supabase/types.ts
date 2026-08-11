@@ -563,16 +563,20 @@ export type Database = {
           created_at: string | null
           department: string
           description: string | null
+          features: string[] | null
           id: string
           image: string
           images: string[] | null
           low_stock_threshold: number
+          materials_info: string | null
           name: string
           price: number
           rejection_reason: string | null
           sale_ends_at: string | null
           sale_price: number | null
           seller_id: string | null
+          shipping_returns_info: string | null
+          size_fit_info: string | null
           sizes: Json | null
           status: Database["public"]["Enums"]["product_status"]
           stock: number
@@ -584,16 +588,20 @@ export type Database = {
           created_at?: string | null
           department?: string
           description?: string | null
+          features?: string[] | null
           id?: string
           image: string
           images?: string[] | null
           low_stock_threshold?: number
+          materials_info?: string | null
           name: string
           price: number
           rejection_reason?: string | null
           sale_ends_at?: string | null
           sale_price?: number | null
           seller_id?: string | null
+          shipping_returns_info?: string | null
+          size_fit_info?: string | null
           sizes?: Json | null
           status?: Database["public"]["Enums"]["product_status"]
           stock?: number
@@ -605,16 +613,20 @@ export type Database = {
           created_at?: string | null
           department?: string
           description?: string | null
+          features?: string[] | null
           id?: string
           image?: string
           images?: string[] | null
           low_stock_threshold?: number
+          materials_info?: string | null
           name?: string
           price?: number
           rejection_reason?: string | null
           sale_ends_at?: string | null
           sale_price?: number | null
           seller_id?: string | null
+          shipping_returns_info?: string | null
+          size_fit_info?: string | null
           sizes?: Json | null
           status?: Database["public"]["Enums"]["product_status"]
           stock?: number

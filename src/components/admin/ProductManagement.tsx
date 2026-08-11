@@ -77,6 +77,10 @@ export const ProductManagement = () => {
     stock: "0",
     low_stock_threshold: "5",
     description: "",
+    features: "",
+    materials_info: "",
+    size_fit_info: "",
+    shipping_returns_info: "",
     sale_price: "",
     sale_ends_at: "",
     colors: [] as { name: string; hex: string; image: string | null; file?: File | null }[],
@@ -194,6 +198,10 @@ export const ProductManagement = () => {
             stock: parseInt(formData.stock),
             low_stock_threshold: parseInt(formData.low_stock_threshold),
             description: formData.description || null,
+            features: formData.features.split("\n").map((s) => s.trim()).filter(Boolean),
+            materials_info: formData.materials_info || null,
+            size_fit_info: formData.size_fit_info || null,
+            shipping_returns_info: formData.shipping_returns_info || null,
             sale_price: formData.sale_price ? parseFloat(formData.sale_price) : null,
             sale_ends_at: formData.sale_ends_at || null,
             colors: finalColors,
@@ -214,6 +222,10 @@ export const ProductManagement = () => {
           stock: parseInt(formData.stock),
           low_stock_threshold: parseInt(formData.low_stock_threshold),
           description: formData.description || null,
+          features: formData.features.split("\n").map((s) => s.trim()).filter(Boolean),
+          materials_info: formData.materials_info || null,
+          size_fit_info: formData.size_fit_info || null,
+          shipping_returns_info: formData.shipping_returns_info || null,
           sale_price: formData.sale_price ? parseFloat(formData.sale_price) : null,
           sale_ends_at: formData.sale_ends_at || null,
           colors: finalColors,
@@ -265,6 +277,10 @@ export const ProductManagement = () => {
       stock: product.stock.toString(),
       low_stock_threshold: product.low_stock_threshold.toString(),
       description: product.description || "",
+      features: ((product as any).features || []).join("\n"),
+      materials_info: (product as any).materials_info || "",
+      size_fit_info: (product as any).size_fit_info || "",
+      shipping_returns_info: (product as any).shipping_returns_info || "",
       sale_price: (product as any).sale_price?.toString() || "",
       sale_ends_at: (product as any).sale_ends_at || "",
       colors: product.colors ? product.colors.map((c: any) => ({ ...c, file: null })) : [],
@@ -367,7 +383,7 @@ export const ProductManagement = () => {
 
   const resetForm = () => {
     setEditingProduct(null);
-    setFormData({ name: "", price: "", image: "", category: "", department: "fashion", stock: "0", low_stock_threshold: "5", description: "", sale_price: "", sale_ends_at: "", colors: [] });
+    setFormData({ name: "", price: "", image: "", category: "", department: "fashion", stock: "0", low_stock_threshold: "5", description: "", features: "", materials_info: "", size_fit_info: "", shipping_returns_info: "", sale_price: "", sale_ends_at: "", colors: [] });
     setFormErrors({});
     setImageFiles([]);
     setImagePreviews([]);
@@ -717,6 +733,25 @@ export const ProductManagement = () => {
                     placeholder="Enter product description or generate with AI..."
                     className="min-h-[80px]"
                   />
+                </div>
+                <div className="border-t pt-4 mt-2 space-y-4">
+                  <h4 className="text-sm font-semibold">Product information tabs</h4>
+                  <div>
+                    <Label htmlFor="features">Key highlights (one per line)</Label>
+                    <Textarea id="features" value={formData.features} onChange={(e) => setFormData({ ...formData, features: e.target.value })} placeholder={"Oversized fit\nSoft & heavyweight fabric"} className="min-h-[80px]" />
+                  </div>
+                  <div>
+                    <Label htmlFor="materials_info">Materials & care</Label>
+                    <Textarea id="materials_info" value={formData.materials_info} onChange={(e) => setFormData({ ...formData, materials_info: e.target.value })} placeholder={"Composition: 100% cotton\nMachine wash cold"} className="min-h-[80px]" />
+                  </div>
+                  <div>
+                    <Label htmlFor="size_fit_info">Size & fit</Label>
+                    <Textarea id="size_fit_info" value={formData.size_fit_info} onChange={(e) => setFormData({ ...formData, size_fit_info: e.target.value })} placeholder="Fit: true to size. Model is 185cm wearing Large." className="min-h-[60px]" />
+                  </div>
+                  <div>
+                    <Label htmlFor="shipping_returns_info">Shipping & returns</Label>
+                    <Textarea id="shipping_returns_info" value={formData.shipping_returns_info} onChange={(e) => setFormData({ ...formData, shipping_returns_info: e.target.value })} placeholder="Delivery in 3-5 business days. Returns within 30 days." className="min-h-[60px]" />
+                  </div>
                 </div>
                 {/* Color Variants Fields */}
                 <div className="border-t pt-4 mt-2 space-y-4">

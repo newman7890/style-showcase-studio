@@ -133,7 +133,23 @@ const ProductDetail = () => {
 
   const colors = product.colors || [];
 
-  const tabs = ["Details", "Materials", "Size & Fit", "Shipping & Returns"];
+  const features: string[] = ((product as any).features || []).filter(Boolean);
+  const materialsInfo: string = (product as any).materials_info || "";
+  const sizeFitInfo: string = (product as any).size_fit_info || "";
+  const shippingInfo: string = (product as any).shipping_returns_info || "";
+
+  const tabs = [
+    "Details",
+    ...(materialsInfo ? ["Materials"] : []),
+    ...(sizeFitInfo ? ["Size & Fit"] : []),
+    ...(shippingInfo ? ["Shipping & Returns"] : []),
+  ];
+  const currentTab = tabs.includes(activeTab) ? activeTab : tabs[0];
+  const renderLines = (text: string) => (
+    <div className="space-y-2">
+      {text.split("\n").map((line, i) => line.trim() ? <p key={i}>{line}</p> : null)}
+    </div>
+  );
 
 
   const isOnSale = product.sale_price != null && product.sale_ends_at && new Date(product.sale_ends_at) > new Date();
@@ -413,11 +429,11 @@ const ProductDetail = () => {
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`pb-4 text-sm font-bold whitespace-nowrap transition-colors relative ${
-                    activeTab === tab ? "text-black" : "text-gray-400 hover:text-gray-600"
+                    currentTab === tab ? "text-black" : "text-gray-400 hover:text-gray-600"
                   }`}
                 >
                   {tab}
-                  {activeTab === tab && (
+                  {currentTab === tab && (
                     <motion.div 
                       layoutId="tabIndicator"
                       className="absolute bottom-0 left-0 right-0 h-0.5 bg-black"
@@ -427,58 +443,39 @@ const ProductDetail = () => {
               ))}
             </div>
 
-            {activeTab === "Details" && (
+            {currentTab === "Details" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <div className="text-gray-600 text-sm leading-relaxed mb-8">
-                  {product.description || "Crafted from high-quality heavyweight cotton, this hoodie delivers unmatched comfort and durability. The oversized fit and minimal design make it a versatile staple for any wardrobe."}
+                  {product.description || "No description provided for this product yet."}
                 </div>
 
-                <ul className="space-y-4">
-                  <li className="flex items-center gap-3 text-sm font-medium text-black">
-                    <ShoppingBag className="w-5 h-5 text-gray-400" /> Oversized fit
-                  </li>
-                  <li className="flex items-center gap-3 text-sm font-medium text-black">
-                    <Hexagon className="w-5 h-5 text-gray-400" /> Soft & heavyweight fabric
-                  </li>
-                  <li className="flex items-center gap-3 text-sm font-medium text-black">
-                    <Settings className="w-5 h-5 text-gray-400" /> Adjustable drawstring hood
-                  </li>
-                  <li className="flex items-center gap-3 text-sm font-medium text-black">
-                    <CheckCircle2 className="w-5 h-5 text-gray-400" /> Ribbed cuffs and hem
-                  </li>
-                  <li className="flex items-center gap-3 text-sm font-medium text-black">
-                    <Users className="w-5 h-5 text-gray-400" /> Unisex style
-                  </li>
-                </ul>
+                {features.length > 0 && (
+                  <ul className="space-y-4">
+                    {features.map((f, i) => (
+                      <li key={i} className="flex items-center gap-3 text-sm font-medium text-black">
+                        <CheckCircle2 className="w-5 h-5 text-gray-400" /> {f}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </motion.div>
             )}
 
-            {activeTab === "Materials" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8 space-y-4">
-                <p><strong>Composition:</strong> 100% Premium Organic Cotton</p>
-                <p><strong>Weight:</strong> 450gsm heavyweight fleece</p>
-                <p><strong>Care Instructions:</strong></p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>Machine wash cold inside out</li>
-                  <li>Do not bleach</li>
-                  <li>Tumble dry low or hang dry</li>
-                  <li>Do not iron graphic</li>
-                </ul>
+            {currentTab === "Materials" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8">
+                {renderLines(materialsInfo)}
               </motion.div>
             )}
 
-            {activeTab === "Size & Fit" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8 space-y-4">
-                <p><strong>Fit:</strong> Intentionally oversized. We recommend taking your normal size for a baggy fit, or sizing down for a more standard fit.</p>
-                <p><strong>Model:</strong> Our model is 6'1" (185cm) and wears a size Large.</p>
+            {currentTab === "Size & Fit" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8">
+                {renderLines(sizeFitInfo)}
               </motion.div>
             )}
 
-            {activeTab === "Shipping & Returns" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8 space-y-4">
-                <p><strong>Standard Shipping:</strong> 3-5 business days (Free over GH₵500)</p>
-                <p><strong>Express Shipping:</strong> 1-2 business days (GH₵50 flat rate)</p>
-                <p><strong>Returns:</strong> We accept returns within 30 days of delivery. Items must be unworn, unwashed, and have original tags attached.</p>
+            {currentTab === "Shipping & Returns" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8">
+                {renderLines(shippingInfo)}
               </motion.div>
             )}
           </div>
