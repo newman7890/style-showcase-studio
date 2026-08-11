@@ -33,11 +33,23 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; dot: string }> = 
   cancelled:  { bg: "bg-red-400/15",    text: "text-red-400",    dot: "bg-red-400"    },
 };
 
+interface AvailableDelivery {
+  id: string;
+  tracking_code: string | null;
+  status: string;
+  shipping_city: string;
+  shipping_region: string;
+  total_amount: number;
+  currency: string;
+  created_at: string | null;
+}
+
 const RiderDashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [available, setAvailable] = useState<AvailableDelivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<"active" | "delivered" | "all">("active");
+  const [filter, setFilter] = useState<"active" | "available" | "delivered" | "all">("active");
   const [activeTab, setActiveTab] = useState<"orders" | "profile">("orders");
   const { user } = useAuth();
   const { toast } = useToast();
@@ -54,12 +66,13 @@ const RiderDashboard = () => {
 
   const fetchOrders = async () => {
     try {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [{ data, error }, avail] = await Promise.all([
+        supabase.from("orders").select("*").order("created_at", { ascending: false }),
+        supabase.rpc("get_available_deliveries"),
+      ]);
       if (error) throw error;
       setOrders(data || []);
+      setAvailable(((avail.data as any) || []) as AvailableDelivery[]);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -69,6 +82,22 @@ const RiderDashboard = () => {
   };
 
   const handleRefresh = () => { setRefreshing(true); fetchOrders(); };
+
+  const handleClaim = async (orderId: string) => {
+    try {
+      const { data, error } = await supabase.rpc("claim_delivery", { _order_id: orderId });
+      if (error) throw error;
+      if (!data) {
+        toast({ title: "Already taken", description: "Another rider claimed this delivery.", variant: "destructive" });
+      } else {
+        toast({ title: "Delivery claimed 🚴" });
+        setFilter("active");
+      }
+      fetchOrders();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -90,11 +119,12 @@ const RiderDashboard = () => {
     }
   };
 
-  const filteredOrders = orders.filter((o) => {
+  const filteredOrders = filter === "available" ? [] : orders.filter((o) => {
     if (filter === "active") return o.status !== "delivered" && o.status !== "cancelled";
     if (filter === "delivered") return o.status === "delivered";
     return true;
   });
+
 
   const activeCount = orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled").length;
   const deliveredCount = orders.filter((o) => o.status === "delivered").length;
@@ -179,7 +209,7 @@ const RiderDashboard = () => {
 
             {/* Filter pills */}
             <div className="flex gap-2 px-6 mb-4 flex-shrink-0">
-              {(["active", "delivered", "all"] as const).map((f) => (
+              {(["active", "available", "delivered", "all"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -196,8 +226,37 @@ const RiderDashboard = () => {
 
             {/* Orders list — scrollable */}
             <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-3">
+              {filter === "available" && (
+                available.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center mx-auto mb-4">
+                      <Package className="w-8 h-8 text-white/20" />
+                    </div>
+                    <p className="text-white/30 text-sm">No unclaimed deliveries</p>
+                  </div>
+                ) : (
+                  available.map((o) => (
+                    <div key={o.id} className="bg-[#1a2234] rounded-2xl p-4 border border-white/5">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-white/35 text-xs font-mono">#{o.tracking_code || o.id.slice(0, 8).toUpperCase()}</p>
+                        <span className="text-white font-bold text-sm">{o.currency} {Number(o.total_amount).toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-start gap-2 mb-3">
+                        <MapPin className="w-3.5 h-3.5 text-white/30 mt-0.5 flex-shrink-0" />
+                        <p className="text-white/50 text-xs">{o.shipping_city}, {o.shipping_region}</p>
+                      </div>
+                      <button
+                        onClick={() => handleClaim(o.id)}
+                        className="w-full py-2 bg-gradient-to-r from-[#4ade80] to-[#16a34a] text-white rounded-xl text-xs font-bold"
+                      >
+                        Claim Delivery
+                      </button>
+                    </div>
+                  ))
+                )
+              )}
               <AnimatePresence>
-                {filteredOrders.length === 0 ? (
+                {filter !== "available" && filteredOrders.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

@@ -325,6 +325,7 @@ export type Database = {
           product_id: string
           quantity: number
           selected_color: Json | null
+          selected_size: string | null
           seller_earnings: number | null
           seller_id: string | null
           unit_price: number | null
@@ -339,6 +340,7 @@ export type Database = {
           product_id: string
           quantity: number
           selected_color?: Json | null
+          selected_size?: string | null
           seller_earnings?: number | null
           seller_id?: string | null
           unit_price?: number | null
@@ -353,6 +355,7 @@ export type Database = {
           product_id?: string
           quantity?: number
           selected_color?: Json | null
+          selected_size?: string | null
           seller_earnings?: number | null
           seller_id?: string | null
           unit_price?: number | null
@@ -376,6 +379,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          assigned_rider_id: string | null
           created_at: string | null
           currency: string
           delivery_fee: number
@@ -396,6 +400,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_rider_id?: string | null
           created_at?: string | null
           currency?: string
           delivery_fee?: number
@@ -416,6 +421,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_rider_id?: string | null
           created_at?: string | null
           currency?: string
           delivery_fee?: number
@@ -567,7 +573,7 @@ export type Database = {
           sale_ends_at: string | null
           sale_price: number | null
           seller_id: string | null
-          sizes: string[] | null
+          sizes: Json | null
           status: Database["public"]["Enums"]["product_status"]
           stock: number
           updated_at: string | null
@@ -588,7 +594,7 @@ export type Database = {
           sale_ends_at?: string | null
           sale_price?: number | null
           seller_id?: string | null
-          sizes?: string[] | null
+          sizes?: Json | null
           status?: Database["public"]["Enums"]["product_status"]
           stock?: number
           updated_at?: string | null
@@ -609,7 +615,7 @@ export type Database = {
           sale_ends_at?: string | null
           sale_price?: number | null
           seller_id?: string | null
-          sizes?: string[] | null
+          sizes?: Json | null
           status?: Database["public"]["Enums"]["product_status"]
           stock?: number
           updated_at?: string | null
@@ -1006,7 +1012,21 @@ export type Database = {
       }
     }
     Functions: {
+      claim_delivery: { Args: { _order_id: string }; Returns: boolean }
       generate_tracking_code: { Args: never; Returns: string }
+      get_available_deliveries: {
+        Args: never
+        Returns: {
+          created_at: string
+          currency: string
+          id: string
+          shipping_city: string
+          shipping_region: string
+          status: string
+          total_amount: number
+          tracking_code: string
+        }[]
+      }
       get_order_by_tracking_code: {
         Args: { _tracking_code: string }
         Returns: {
