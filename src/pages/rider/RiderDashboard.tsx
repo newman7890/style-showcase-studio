@@ -226,8 +226,37 @@ const RiderDashboard = () => {
 
             {/* Orders list — scrollable */}
             <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-3">
+              {filter === "available" && (
+                available.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center mx-auto mb-4">
+                      <Package className="w-8 h-8 text-white/20" />
+                    </div>
+                    <p className="text-white/30 text-sm">No unclaimed deliveries</p>
+                  </div>
+                ) : (
+                  available.map((o) => (
+                    <div key={o.id} className="bg-[#1a2234] rounded-2xl p-4 border border-white/5">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-white/35 text-xs font-mono">#{o.tracking_code || o.id.slice(0, 8).toUpperCase()}</p>
+                        <span className="text-white font-bold text-sm">{o.currency} {Number(o.total_amount).toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-start gap-2 mb-3">
+                        <MapPin className="w-3.5 h-3.5 text-white/30 mt-0.5 flex-shrink-0" />
+                        <p className="text-white/50 text-xs">{o.shipping_city}, {o.shipping_region}</p>
+                      </div>
+                      <button
+                        onClick={() => handleClaim(o.id)}
+                        className="w-full py-2 bg-gradient-to-r from-[#4ade80] to-[#16a34a] text-white rounded-xl text-xs font-bold"
+                      >
+                        Claim Delivery
+                      </button>
+                    </div>
+                  ))
+                )
+              )}
               <AnimatePresence>
-                {filteredOrders.length === 0 ? (
+                {filter !== "available" && filteredOrders.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
