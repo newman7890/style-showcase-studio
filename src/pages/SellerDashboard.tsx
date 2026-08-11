@@ -102,6 +102,44 @@ const SellerDashboard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [processingBg, setProcessingBg] = useState(false);
   const [colors, setColors] = useState<ColorRow[]>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  const handleAiAutoFill = async () => {
+    if (!form.name || !form.category) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter a product name and category first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-generate-product-details", {
+        body: { productName: form.name, category: form.category },
+      });
+      if (error) throw error;
+      if (data) {
+        setForm({
+          ...form,
+          description: data.description || form.description,
+          sizes: data.sizes || form.sizes,
+          features: data.features || form.features,
+          materials_info: data.materials_info || form.materials_info,
+          size_fit_info: data.size_fit_info || form.size_fit_info,
+        });
+        toast({ title: "Success", description: "Product details generated successfully!" });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate details",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   const addColor = () =>
     setColors((prev) => [...prev, { name: "", hex: "#000000", image: null, stock: 0, file: null }]);
@@ -558,7 +596,24 @@ const SellerDashboard = () => {
                         </div>
                       </div>
                       <div>
-                        <Label htmlFor="description">Description</Label>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label htmlFor="description">Description</Label>
+                          <Button 
+                            type="button" 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={handleAiAutoFill}
+                            disabled={isAiLoading || !form.name || !form.category}
+                            className="h-8 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200"
+                          >
+                            {isAiLoading ? (
+                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                            )}
+                            Auto-fill details with AI
+                          </Button>
+                        </div>
                         <Textarea id="description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                       </div>
                       
@@ -589,10 +644,7 @@ const SellerDashboard = () => {
                           <Label htmlFor="size_fit_info">Size & fit (optional)</Label>
                           <Textarea id="size_fit_info" rows={3} placeholder="Fit: true to size. Model is 185cm wearing Large." value={form.size_fit_info} onChange={(e) => setForm({ ...form, size_fit_info: e.target.value })} />
                         </div>
-                        <div>
-                          <Label htmlFor="shipping_returns_info">Shipping & returns (optional)</Label>
-                          <Textarea id="shipping_returns_info" rows={3} placeholder="Delivery in 3-5 business days. Returns accepted within 30 days." value={form.shipping_returns_info} onChange={(e) => setForm({ ...form, shipping_returns_info: e.target.value })} />
-                        </div>
+
                       </div>
 
 

@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.check-charge-status]
 verify_jwt = false
+
+[functions.ai-generate-product-details]
+verify_jwt = false
