@@ -33,11 +33,23 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; dot: string }> = 
   cancelled:  { bg: "bg-red-400/15",    text: "text-red-400",    dot: "bg-red-400"    },
 };
 
+interface AvailableDelivery {
+  id: string;
+  tracking_code: string | null;
+  status: string;
+  shipping_city: string;
+  shipping_region: string;
+  total_amount: number;
+  currency: string;
+  created_at: string | null;
+}
+
 const RiderDashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [available, setAvailable] = useState<AvailableDelivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<"active" | "delivered" | "all">("active");
+  const [filter, setFilter] = useState<"active" | "available" | "delivered" | "all">("active");
   const [activeTab, setActiveTab] = useState<"orders" | "profile">("orders");
   const { user } = useAuth();
   const { toast } = useToast();
@@ -54,12 +66,13 @@ const RiderDashboard = () => {
 
   const fetchOrders = async () => {
     try {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [{ data, error }, avail] = await Promise.all([
+        supabase.from("orders").select("*").order("created_at", { ascending: false }),
+        supabase.rpc("get_available_deliveries"),
+      ]);
       if (error) throw error;
       setOrders(data || []);
+      setAvailable(((avail.data as any) || []) as AvailableDelivery[]);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -69,6 +82,22 @@ const RiderDashboard = () => {
   };
 
   const handleRefresh = () => { setRefreshing(true); fetchOrders(); };
+
+  const handleClaim = async (orderId: string) => {
+    try {
+      const { data, error } = await supabase.rpc("claim_delivery", { _order_id: orderId });
+      if (error) throw error;
+      if (!data) {
+        toast({ title: "Already taken", description: "Another rider claimed this delivery.", variant: "destructive" });
+      } else {
+        toast({ title: "Delivery claimed 🚴" });
+        setFilter("active");
+      }
+      fetchOrders();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -90,11 +119,12 @@ const RiderDashboard = () => {
     }
   };
 
-  const filteredOrders = orders.filter((o) => {
+  const filteredOrders = filter === "available" ? [] : orders.filter((o) => {
     if (filter === "active") return o.status !== "delivered" && o.status !== "cancelled";
     if (filter === "delivered") return o.status === "delivered";
     return true;
   });
+
 
   const activeCount = orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled").length;
   const deliveredCount = orders.filter((o) => o.status === "delivered").length;
