@@ -209,7 +209,7 @@ const RiderDashboard = () => {
 
             {/* Filter pills */}
             <div className="flex gap-2 px-6 mb-4 flex-shrink-0">
-              {(["active", "delivered", "all"] as const).map((f) => (
+              {(["active", "available", "delivered", "all"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
