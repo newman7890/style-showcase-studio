@@ -53,6 +53,10 @@ interface Product {
   stock: number;
   low_stock_threshold: number;
   description: string | null;
+  features?: string[] | null;
+  materials_info?: string | null;
+  size_fit_info?: string | null;
+  shipping_returns_info?: string | null;
   status: "pending" | "approved" | "rejected" | "hidden";
   rejection_reason: string | null;
   created_at: string;
@@ -69,6 +73,10 @@ const emptyForm = {
   low_stock_threshold: "5",
   description: "",
   sizes: "",
+  features: "",
+  materials_info: "",
+  size_fit_info: "",
+  shipping_returns_info: "",
 };
 
 const StatusBadge = ({ status }: { status: Product["status"] }) => {
