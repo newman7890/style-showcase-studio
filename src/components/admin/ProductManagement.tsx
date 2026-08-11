@@ -734,6 +734,25 @@ export const ProductManagement = () => {
                     className="min-h-[80px]"
                   />
                 </div>
+                <div className="border-t pt-4 mt-2 space-y-4">
+                  <h4 className="text-sm font-semibold">Product information tabs</h4>
+                  <div>
+                    <Label htmlFor="features">Key highlights (one per line)</Label>
+                    <Textarea id="features" value={formData.features} onChange={(e) => setFormData({ ...formData, features: e.target.value })} placeholder={"Oversized fit\nSoft & heavyweight fabric"} className="min-h-[80px]" />
+                  </div>
+                  <div>
+                    <Label htmlFor="materials_info">Materials & care</Label>
+                    <Textarea id="materials_info" value={formData.materials_info} onChange={(e) => setFormData({ ...formData, materials_info: e.target.value })} placeholder={"Composition: 100% cotton\nMachine wash cold"} className="min-h-[80px]" />
+                  </div>
+                  <div>
+                    <Label htmlFor="size_fit_info">Size & fit</Label>
+                    <Textarea id="size_fit_info" value={formData.size_fit_info} onChange={(e) => setFormData({ ...formData, size_fit_info: e.target.value })} placeholder="Fit: true to size. Model is 185cm wearing Large." className="min-h-[60px]" />
+                  </div>
+                  <div>
+                    <Label htmlFor="shipping_returns_info">Shipping & returns</Label>
+                    <Textarea id="shipping_returns_info" value={formData.shipping_returns_info} onChange={(e) => setFormData({ ...formData, shipping_returns_info: e.target.value })} placeholder="Delivery in 3-5 business days. Returns within 30 days." className="min-h-[60px]" />
+                  </div>
+                </div>
                 {/* Color Variants Fields */}
                 <div className="border-t pt-4 mt-2 space-y-4">
                   <div className="flex items-center justify-between">
