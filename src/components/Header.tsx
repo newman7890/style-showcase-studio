@@ -3,6 +3,7 @@ import { Link, NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useLocation } from "react-router-dom";
 
 const DEPARTMENTS = [
   { slug: "fashion" },
@@ -14,6 +15,8 @@ const DEPARTMENTS = [
 export const Header = () => {
   const { favorites } = useFavorites();
   const { t } = useLanguage();
+  const location = useLocation();
+  const showCategories = location.pathname === "/products" || location.pathname.startsWith("/department");
   
   return (
     <motion.header
@@ -26,25 +29,27 @@ export const Header = () => {
           {t("logo")}
         </Link>
 
-
-        <nav className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto md:overflow-visible md:flex-none scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]">
-          {DEPARTMENTS.map((d) => (
-            <NavLink
-              key={d.slug}
-              to={`/department/${d.slug}`}
-              className={({ isActive }) =>
-                `shrink-0 px-2.5 md:px-3 py-1.5 text-[10px] md:text-xs uppercase tracking-wider rounded-full transition-colors ${
-                  isActive
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-                }`
-              }
-            >
-              {t(d.slug)}
-            </NavLink>
-          ))}
-        </nav>
-
+        {showCategories ? (
+          <nav className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto md:overflow-visible md:flex-none scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]">
+            {DEPARTMENTS.map((d) => (
+              <NavLink
+                key={d.slug}
+                to={`/department/${d.slug}`}
+                className={({ isActive }) =>
+                  `shrink-0 px-2.5 md:px-3 py-1.5 text-[10px] md:text-xs uppercase tracking-wider rounded-full transition-colors ${
+                    isActive
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                  }`
+                }
+              >
+                {t(d.slug)}
+              </NavLink>
+            ))}
+          </nav>
+        ) : (
+          <div className="flex-1" />
+        )}
 
         <div className="flex items-center gap-4 shrink-0">
           <Link to="/favorites" className="text-foreground">

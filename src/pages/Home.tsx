@@ -443,12 +443,14 @@ const Home = () => {
               <p className="text-sm text-foreground/80 mt-0.5">
                 Instant digital delivery for any occasion.
               </p>
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                className="mt-3 self-start px-5 py-1.5 bg-foreground text-background rounded-full text-xs font-semibold hover:bg-foreground/90 transition-colors"
-              >
-                Buy Now
-              </motion.button>
+              <Link to="/gift-cards" className="mt-3 self-start">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  className="px-5 py-1.5 bg-foreground text-background rounded-full text-xs font-semibold hover:bg-foreground/90 transition-colors"
+                >
+                  Buy Now
+                </motion.button>
+              </Link>
             </div>
           </motion.div>
         </section>

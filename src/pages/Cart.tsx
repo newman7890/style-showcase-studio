@@ -108,13 +108,19 @@ const Cart = () => {
                         <div>
                           <h3 className="font-semibold text-base group-hover:underline">{item.products.name}</h3>
                           <p className="text-sm text-muted-foreground mt-1">{item.products.category}</p>
-                          {item.selected_color && (
+                          {item.selected_color && !(item.selected_color as any).isGiftCard && (
                             <div className="flex items-center gap-2 mt-1">
                               <span
                                 className="w-4 h-4 rounded-full border border-gray-300 inline-block"
                                 style={{ backgroundColor: (item.selected_color as any).hex || '#ccc' }}
                               />
                               <span className="text-xs text-muted-foreground">{(item.selected_color as any).name}</span>
+                            </div>
+                          )}
+                          {(item.selected_color as any)?.isGiftCard && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              <p>To: {(item.selected_color as any).recipientName} ({(item.selected_color as any).recipientEmail})</p>
+                              {(item.selected_color as any).message && <p className="truncate max-w-[200px]">Message: {(item.selected_color as any).message}</p>}
                             </div>
                           )}
                           {item.selected_size && (
@@ -124,19 +130,25 @@ const Cart = () => {
                       </Link>
 
                       <div className="flex items-center justify-center gap-3">
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary transition-colors"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary transition-colors"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
+                        {!(item.selected_color as any)?.isGiftCard ? (
+                          <>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-sm font-medium text-center px-4 py-1 bg-secondary rounded-full">Digital Item</span>
+                        )}
                       </div>
 
                       <p className="text-right font-semibold">
@@ -167,13 +179,18 @@ const Cart = () => {
                           <div>
                             <h3 className="font-semibold text-sm">{item.products.name}</h3>
                             <p className="text-xs text-muted-foreground mt-0.5">{item.products.category}</p>
-                            {item.selected_color && (
+                            {item.selected_color && !(item.selected_color as any).isGiftCard && (
                               <div className="flex items-center gap-1.5 mt-1">
                                 <span
                                   className="w-3 h-3 rounded-full border border-gray-300 inline-block"
                                   style={{ backgroundColor: (item.selected_color as any).hex || '#ccc' }}
                                 />
                                 <span className="text-xs text-muted-foreground">{(item.selected_color as any).name}</span>
+                              </div>
+                            )}
+                            {(item.selected_color as any)?.isGiftCard && (
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                <p>To: {(item.selected_color as any).recipientName}</p>
                               </div>
                             )}
                             {item.selected_size && (
@@ -186,19 +203,25 @@ const Cart = () => {
                         </div>
                         <div className="flex items-center justify-between mt-3">
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="w-7 h-7 border border-border rounded-full flex items-center justify-center"
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
-                            <button
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="w-7 h-7 border border-border rounded-full flex items-center justify-center"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
+                            {!(item.selected_color as any)?.isGiftCard ? (
+                              <>
+                                <button
+                                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                  className="w-7 h-7 border border-border rounded-full flex items-center justify-center"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
+                                <button
+                                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                  className="w-7 h-7 border border-border rounded-full flex items-center justify-center"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs font-medium px-2 py-0.5 bg-secondary rounded text-muted-foreground">Digital Item</span>
+                            )}
                           </div>
                           <p className="font-semibold text-sm">
                             GH₵{(item.products.price * item.quantity).toFixed(2)}

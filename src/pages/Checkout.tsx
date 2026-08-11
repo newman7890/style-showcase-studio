@@ -708,7 +708,14 @@ const Checkout = () => {
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{item.products.category}</p>
-                        <p className="text-xs text-muted-foreground">Quantity: {item.quantity}</p>
+                        {!(item.selected_color as any)?.isGiftCard ? (
+                          <p className="text-xs text-muted-foreground mt-1">Quantity: {item.quantity}</p>
+                        ) : (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            <p>To: {(item.selected_color as any).recipientName} ({(item.selected_color as any).recipientEmail})</p>
+                            <span className="inline-block mt-1 px-2 py-0.5 bg-secondary rounded text-foreground font-medium">Digital Item</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

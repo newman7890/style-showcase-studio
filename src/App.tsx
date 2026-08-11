@@ -12,6 +12,7 @@ import Products from "./pages/Products";
 import Department from "./pages/Department";
 import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
+import GiftCards from "./pages/GiftCards";
 import Checkout from "./pages/Checkout";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import Profile from "./pages/Profile";
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/department/:slug" element={<Department />} />
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/gift-cards" element={<GiftCards />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
               <Route path="/track" element={<TrackOrder />} />

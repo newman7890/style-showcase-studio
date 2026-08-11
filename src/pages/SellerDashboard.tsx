@@ -115,20 +115,41 @@ const SellerDashboard = () => {
     }
     setIsAiLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-generate-product-details", {
-        body: { productName: form.name, category: form.category },
+      const prompt = `Please act as a professional e-commerce product detail generator. Ignore your usual customer service role.
+Given the product name "${form.name}" and category "${form.category}", generate the product details.
+You MUST output ONLY a valid JSON object with EXACTLY these keys:
+- "description": A short, engaging product description (50-100 words).
+- "sizes": A comma-separated string of typical sizes (e.g., "S, M, L, XL"). If not applicable, return an empty string.
+- "features": A string with 3-4 bullet points highlighting key features, separated by newlines.
+- "materials_info": A short description of typical materials and care (e.g., "Composition: 100% Cotton\\nMachine wash cold").
+- "size_fit_info": A short sentence on size and fit (e.g., "Fit: true to size.").
+
+Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
+
+      const { data, error } = await supabase.functions.invoke("ai-chat", {
+        body: { messages: [{ role: "user", content: prompt }] },
       });
       if (error) throw error;
-      if (data) {
-        setForm({
-          ...form,
-          description: data.description || form.description,
-          sizes: data.sizes || form.sizes,
-          features: data.features || form.features,
-          materials_info: data.materials_info || form.materials_info,
-          size_fit_info: data.size_fit_info || form.size_fit_info,
-        });
-        toast({ title: "Success", description: "Product details generated successfully!" });
+      
+      if (data && data.message) {
+        let content = data.message;
+        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        try {
+          const parsed = JSON.parse(content);
+          setForm({
+            ...form,
+            description: parsed.description || form.description,
+            sizes: parsed.sizes || form.sizes,
+            features: parsed.features || form.features,
+            materials_info: parsed.materials_info || form.materials_info,
+            size_fit_info: parsed.size_fit_info || form.size_fit_info,
+          });
+          toast({ title: "Success", description: "Product details generated successfully!" });
+        } catch (e) {
+          console.error("Failed to parse JSON:", content);
+          throw new Error("Failed to parse the AI response.");
+        }
       }
     } catch (error: any) {
       toast({

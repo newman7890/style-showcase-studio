@@ -92,7 +92,14 @@ const Products = () => {
     .slice(0, 8);
 
   const filteredProducts = products.filter((p) => {
-    const matchesCategory = activeCategory === "all" || p.category === activeCategory;
+    // "new" is a virtual category — show only the newest products
+    if (activeCategory === "new") {
+      const isNewArrival = newArrivals.some(n => n.id === p.id);
+      if (!isNewArrival) return false;
+    } else {
+      const matchesCategory = activeCategory === "all" || p.category === activeCategory;
+      if (!matchesCategory) return false;
+    }
     const matchesSearch =
       searchQuery === "" ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -102,7 +109,7 @@ const Products = () => {
     const matchesSale =
       !showOnSale ||
       (p.sale_price != null && p.sale_ends_at && new Date(p.sale_ends_at) > new Date());
-    return matchesCategory && matchesSearch && matchesPrice && matchesStock && matchesSale;
+    return matchesSearch && matchesPrice && matchesStock && matchesSale;
   });
 
   const activeFilters =
