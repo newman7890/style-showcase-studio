@@ -369,6 +369,10 @@ const SellerDashboard = () => {
         description: form.description || null,
         colors: finalColors as any,
         sizes: form.sizes.split(",").map(s => s.trim()).filter(Boolean),
+        features: form.features.split("\n").map(s => s.trim()).filter(Boolean),
+        materials_info: form.materials_info || null,
+        size_fit_info: form.size_fit_info || null,
+        shipping_returns_info: form.shipping_returns_info || null,
       };
       if (editing) {
         const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
