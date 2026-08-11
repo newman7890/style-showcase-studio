@@ -575,6 +575,28 @@ const SellerDashboard = () => {
                         />
                       </div>
 
+                      <div className="border-t pt-4 space-y-4">
+                        <div>
+                          <Label htmlFor="features">Key highlights (optional)</Label>
+                          <p className="text-xs text-muted-foreground mt-1 mb-2">One per line — shown as bullet points under Details.</p>
+                          <Textarea id="features" rows={4} placeholder={"Oversized fit\nSoft & heavyweight fabric\nUnisex style"} value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label htmlFor="materials_info">Materials & care (optional)</Label>
+                          <Textarea id="materials_info" rows={4} placeholder={"Composition: 100% cotton\nWeight: 450gsm\nMachine wash cold"} value={form.materials_info} onChange={(e) => setForm({ ...form, materials_info: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label htmlFor="size_fit_info">Size & fit (optional)</Label>
+                          <Textarea id="size_fit_info" rows={3} placeholder="Fit: true to size. Model is 185cm wearing Large." value={form.size_fit_info} onChange={(e) => setForm({ ...form, size_fit_info: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label htmlFor="shipping_returns_info">Shipping & returns (optional)</Label>
+                          <Textarea id="shipping_returns_info" rows={3} placeholder="Delivery in 3-5 business days. Returns accepted within 30 days." value={form.shipping_returns_info} onChange={(e) => setForm({ ...form, shipping_returns_info: e.target.value })} />
+                        </div>
+                      </div>
+
+
+
                       {/* Colour variants */}
                       <div className="border-t pt-4 space-y-3">
                         <div className="flex items-center justify-between">
