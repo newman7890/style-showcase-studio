@@ -195,6 +195,10 @@ const SellerDashboard = () => {
       low_stock_threshold: String(p.low_stock_threshold),
       description: p.description ?? "",
       sizes: (p.sizes ?? []).join(", "),
+      features: (p.features ?? []).join("\n"),
+      materials_info: p.materials_info ?? "",
+      size_fit_info: p.size_fit_info ?? "",
+      shipping_returns_info: p.shipping_returns_info ?? "",
     });
     setImagePreview(p.image);
     setColors(
