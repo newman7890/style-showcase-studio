@@ -133,7 +133,23 @@ const ProductDetail = () => {
 
   const colors = product.colors || [];
 
-  const tabs = ["Details", "Materials", "Size & Fit", "Shipping & Returns"];
+  const features: string[] = ((product as any).features || []).filter(Boolean);
+  const materialsInfo: string = (product as any).materials_info || "";
+  const sizeFitInfo: string = (product as any).size_fit_info || "";
+  const shippingInfo: string = (product as any).shipping_returns_info || "";
+
+  const tabs = [
+    "Details",
+    ...(materialsInfo ? ["Materials"] : []),
+    ...(sizeFitInfo ? ["Size & Fit"] : []),
+    ...(shippingInfo ? ["Shipping & Returns"] : []),
+  ];
+  const currentTab = tabs.includes(activeTab) ? activeTab : tabs[0];
+  const renderLines = (text: string) => (
+    <div className="space-y-2">
+      {text.split("\n").map((line, i) => line.trim() ? <p key={i}>{line}</p> : null)}
+    </div>
+  );
 
 
   const isOnSale = product.sale_price != null && product.sale_ends_at && new Date(product.sale_ends_at) > new Date();
