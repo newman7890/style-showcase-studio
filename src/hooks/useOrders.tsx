@@ -52,7 +52,8 @@ export const useOrders = () => {
             product_id,
             quantity,
             price,
-            selected_color
+            selected_color,
+            selected_size
           )
         `)
         .eq("user_id", user.id)
@@ -91,6 +92,7 @@ export const useOrders = () => {
       quantity: number;
       price: number;
       selected_color?: { name: string; hex: string; image: string | null } | null;
+      selected_size?: string | null;
     }>
   ) => {
     if (!user) {
@@ -119,6 +121,7 @@ export const useOrders = () => {
         quantity: item.quantity,
         price: item.price,
         selected_color: item.selected_color || null,
+        selected_size: item.selected_size || null,
       }));
 
       const { error: itemsError } = await supabase
