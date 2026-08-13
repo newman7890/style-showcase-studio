@@ -14,7 +14,6 @@ class OrderDetailScreen extends StatefulWidget {
 
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Map<String, dynamic>? _order;
-  Map<String, dynamic>? _seller;
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   bool _updating = false;
@@ -51,17 +50,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _order = order;
         _items = processedItems;
       });
-
-      // Fetch seller info from first product
-      if (processedItems.isNotEmpty) {
-        final firstProduct = processedItems[0]['products'];
-        if (firstProduct != null && firstProduct['seller_id'] != null) {
-          final sellerData = await SupabaseService.fetchSellerInfo(firstProduct['seller_id']);
-          if (mounted && sellerData != null) {
-            setState(() => _seller = sellerData);
-          }
-        }
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -283,93 +271,57 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _buildPickupSection() {
-    if (_seller != null) {
-      final seller = _seller!;
-      return _buildSectionCard(
-        borderColor: AppTheme.primary.withValues(alpha: 0.2),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -40, right: -40,
-              child: Container(
-                width: 128, height: 128,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.primary.withValues(alpha: 0.05),
-                ),
+    return _buildSectionCard(
+      borderColor: AppTheme.primary.withValues(alpha: 0.2),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -40, right: -40,
+            child: Container(
+              width: 128, height: 128,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.primary.withValues(alpha: 0.05),
               ),
             ),
-            Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildSectionHeader('Pickup (Seller)', LucideIcons.mapPin, AppTheme.primary),
-                    if (seller['phone'] != null)
-                      GestureDetector(
-                        onTap: () => _makeCall(seller['phone']),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(LucideIcons.phone, size: 14, color: AppTheme.primary),
-                              const SizedBox(width: 6),
-                              const Text('Call Seller', style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildInfoRow('Store', seller['business_name'] ?? ''),
-                const SizedBox(height: 12),
-                _buildInfoRow('Address', seller['business_address'] ?? seller['address'] ?? 'Address not provided'),
-                const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: () => _openInMaps(seller['business_address'] ?? seller['address'] ?? seller['business_name'] ?? ''),
-                  child: Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(LucideIcons.navigation, size: 14, color: Colors.white.withValues(alpha: 0.8)),
-                        const SizedBox(width: 8),
-                        Text('Navigate to Pickup', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
+          ),
+          Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildSectionHeader('Pickup (Hub)', LucideIcons.mapPin, AppTheme.primary),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildInfoRow('Location', 'Central Processing Hub'),
+              const SizedBox(height: 12),
+              _buildInfoRow('Address', 'Accra Central, Ghana'),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => _openInMaps('Accra Central, Ghana'),
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(LucideIcons.navigation, size: 14, color: Colors.white.withValues(alpha: 0.8)),
+                      const SizedBox(width: 8),
+                      Text('Navigate to Hub', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600)),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
-      );
-    } else {
-      return _buildSectionCard(
-        borderColor: Colors.orange.withValues(alpha: 0.2),
-        child: Column(
-          children: [
-            _buildSectionHeader('Pickup (Unknown Seller)', LucideIcons.mapPin, Colors.orange),
-            const SizedBox(height: 8),
-            Text(
-              "The seller for this item hasn't set up their business profile yet, so pickup details are unavailable.",
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
-            ),
-          ],
-        ),
-      );
-    }
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDeliveryAddress(Map<String, dynamic> order) {

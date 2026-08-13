@@ -207,7 +207,7 @@ const GiftCards = () => {
 
   const handleAddToCart = async () => {
     if (amount < 10) {
-      toast.error("Minimum gift card amount is GH₵10");
+      toast.error("Minimum gift card amount is $10");
       return;
     }
     if (!recipientName.trim() || !recipientEmail.trim()) {
@@ -292,7 +292,7 @@ const GiftCards = () => {
                 Add to Cart
               </Button>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-gray-900">GH₵ 100+</span>
+                <span className="text-xl font-bold text-gray-900">$ 100+</span>
                 <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-flex w-fit mt-1">
                   Instant Delivery
                 </span>
@@ -360,7 +360,7 @@ const GiftCards = () => {
                 <span className="text-xs text-gray-500 font-medium">Price</span>
                 <div className="flex items-center gap-2">
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">GH₵</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">$</span>
                     <input 
                       type="number"
                       value={minPrice}
@@ -371,7 +371,7 @@ const GiftCards = () => {
                   </div>
                   <span className="text-xs text-gray-400">to</span>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">GH₵</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">$</span>
                     <input 
                       type="number"
                       value={maxPrice}
@@ -483,8 +483,8 @@ const GiftCards = () => {
 
                     <div className="flex items-end justify-between mt-6">
                       <div>
-                        <span className="text-xs text-gray-400 line-through font-medium block">GH₵{card.originalPrice}</span>
-                        <span className="text-2xl font-bold text-gray-900 tracking-tight">GH₵{card.price}</span>
+                        <span className="text-xs text-gray-400 line-through font-medium block">${card.originalPrice}</span>
+                        <span className="text-2xl font-bold text-gray-900 tracking-tight">${card.price}</span>
                       </div>
                       <Button 
                         onClick={() => handleOpenDialog(card)}
@@ -541,7 +541,7 @@ const GiftCards = () => {
             {/* Amount Selection inside dialog if no specific card selected */}
             {!selectedCard && (
               <div className="space-y-3">
-                <Label className="text-xs uppercase tracking-wider font-bold text-gray-500">Amount (GH₵)</Label>
+                <Label className="text-xs uppercase tracking-wider font-bold text-gray-500">Amount ($)</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {[50, 100, 200].map((preset) => (
                     <button
@@ -558,7 +558,7 @@ const GiftCards = () => {
                   ))}
                 </div>
                 <div className="relative mt-2">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">GH₵</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
                   <Input
                     value={customAmount}
                     onChange={handleCustomAmountChange}
@@ -628,7 +628,7 @@ const GiftCards = () => {
                 disabled={isAdding || amount < 10}
                 className="flex-[2] h-12 rounded-xl bg-gray-900 text-white hover:bg-gray-800 font-semibold shadow-lg shadow-gray-900/10"
               >
-                {isAdding ? <Loader2 className="w-5 h-5 animate-spin" /> : `Add - GH₵${amount || 0}`}
+                {isAdding ? <Loader2 className="w-5 h-5 animate-spin" /> : `Add - $${amount || 0}`}
               </Button>
             </div>
           </div>

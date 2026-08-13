@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent } from "lucide-react";
+import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
@@ -20,6 +20,7 @@ import { DeliveryFeeManagement } from "@/components/admin/DeliveryFeeManagement"
 import { SellerApprovalsManagement } from "@/components/admin/SellerApprovalsManagement";
 import { ProductApprovalsManagement } from "@/components/admin/ProductApprovalsManagement";
 import { PlatformSettingsManagement } from "@/components/admin/PlatformSettingsManagement";
+import { HubManagement } from "@/components/admin/HubManagement";
 
 const Admin = () => {
   const { user, isAdmin, isSeller, loading } = useAuth();
@@ -79,6 +80,10 @@ const Admin = () => {
                     <PackageCheck className="w-4 h-4" />
                     <span className="hidden sm:inline">Approvals</span>
                   </TabsTrigger>
+                  <TabsTrigger value="hubs" className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Hubs & Logistics</span>
+                  </TabsTrigger>
                   <TabsTrigger value="platform" className="flex items-center gap-2">
                     <Percent className="w-4 h-4" />
                     <span className="hidden sm:inline">Commission</span>
@@ -131,6 +136,7 @@ const Admin = () => {
 
             <TabsContent value="seller-apps"><SellerApprovalsManagement /></TabsContent>
             <TabsContent value="product-approvals"><ProductApprovalsManagement /></TabsContent>
+            <TabsContent value="hubs"><HubManagement /></TabsContent>
             <TabsContent value="platform"><PlatformSettingsManagement /></TabsContent>
 
 

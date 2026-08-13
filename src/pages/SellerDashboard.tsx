@@ -92,6 +92,8 @@ const SellerDashboard = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
+  const [dropoffs, setDropoffs] = useState<any[]>([]);
+  const [hubs, setHubs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -182,7 +184,7 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const [p, oi, s] = await Promise.all([
+    const [p, oi, s, hubsRes, dropoffsRes] = await Promise.all([
       supabase.from("products").select("*").eq("seller_id", user.id).order("created_at", { ascending: false }),
       supabase
         .from("order_items")
@@ -191,10 +193,14 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
         .order("created_at", { ascending: false })
         .limit(50),
       supabase.rpc("get_seller_earnings_summary", { _seller_id: user.id }),
+      supabase.from("hubs").select("*").eq("is_active", true),
+      supabase.from("seller_dropoffs").select("*, hubs(name)").eq("seller_id", user.id).order("created_at", { ascending: false })
     ]);
     setProducts((p.data as any) ?? []);
     setOrderItems((oi.data as any) ?? []);
     setSummary(Array.isArray(s.data) ? s.data[0] : s.data);
+    setHubs((hubsRes.data as any) ?? []);
+    setDropoffs((dropoffsRes.data as any) ?? []);
     setLoading(false);
   };
 
@@ -517,6 +523,7 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
               <TabsTrigger value="products"><Package className="w-4 h-4 mr-2" />Products</TabsTrigger>
               <TabsTrigger value="orders"><ShoppingBag className="w-4 h-4 mr-2" />Orders</TabsTrigger>
               <TabsTrigger value="earnings"><DollarSign className="w-4 h-4 mr-2" />Earnings</TabsTrigger>
+              <TabsTrigger value="dropoffs"><Package className="w-4 h-4 mr-2" />Drop-offs</TabsTrigger>
             </TabsList>
 
             <TabsContent value="products">
@@ -857,6 +864,39 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
               <p className="text-xs text-muted-foreground mt-4">
                 Payouts are processed by the platform. Automated Paystack split payouts are coming soon.
               </p>
+            </TabsContent>
+
+            <TabsContent value="dropoffs">
+              <div className="flex justify-between items-center mb-4">
+                <div className="text-sm text-muted-foreground">
+                  {dropoffs.length} drop-off request{dropoffs.length === 1 ? "" : "s"}
+                </div>
+                <Button onClick={() => {
+                  toast({ title: "Coming Soon", description: "Scheduling drop-offs will be available shortly." });
+                }}><Plus className="w-4 h-4 mr-2" />Schedule Drop-off</Button>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
+              ) : dropoffs.length === 0 ? (
+                <Card><CardContent className="pt-6 text-center text-muted-foreground">No drop-off requests yet.</CardContent></Card>
+              ) : (
+                <div className="space-y-3">
+                  {dropoffs.map((d) => (
+                    <Card key={d.id}>
+                      <CardContent className="pt-4 flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">Drop-off to {d.hubs?.name || "Hub"}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(d.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <StatusBadge status={d.status} />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
