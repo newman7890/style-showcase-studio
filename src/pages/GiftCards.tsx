@@ -527,7 +527,7 @@ const GiftCards = () => {
       <BottomNav />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto rounded-[2rem] p-0 border-0 shadow-2xl">
           <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 border-b border-gray-200/50">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-gray-900">
