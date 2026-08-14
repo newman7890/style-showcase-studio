@@ -2,10 +2,12 @@ import { Home, Search, ShoppingBag, User, Shield } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export const BottomNav = () => {
   const { isAdmin } = useAuth();
+  const { itemCount } = useCart();
   const { t } = useLanguage();
 
   const navItems = [
@@ -33,6 +35,11 @@ export const BottomNav = () => {
                   className="relative"
                 >
                   <Icon className="w-5 h-5" />
+                  {path === "/cart" && itemCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 bg-purple-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                      {itemCount}
+                    </span>
+                  )}
                   {isActive && (
                     <motion.div
                       layoutId="activeTab"

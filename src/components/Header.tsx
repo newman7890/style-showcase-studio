@@ -1,7 +1,8 @@
-import { Heart } from "lucide-react";
+import { Heart, ShoppingBag } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useCart } from "@/hooks/useCart";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useLocation } from "react-router-dom";
 
@@ -15,6 +16,7 @@ const DEPARTMENTS = [
 
 export const Header = () => {
   const { favorites } = useFavorites();
+  const { itemCount } = useCart();
   const { t } = useLanguage();
   const location = useLocation();
   const showCategories = location.pathname === "/products" || location.pathname.startsWith("/department");
@@ -52,13 +54,24 @@ export const Header = () => {
           <div className="flex-1" />
         )}
 
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <Link to="/favorites" className="text-foreground">
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative">
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative p-1">
               <Heart className="w-5 h-5" />
               {favorites.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full text-xs flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-accent-foreground rounded-full text-[10px] font-bold flex items-center justify-center">
                   {favorites.length}
+                </span>
+              )}
+            </motion.button>
+          </Link>
+
+          <Link to="/cart" className="text-foreground">
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative p-1">
+              <ShoppingBag className="w-5 h-5" />
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-sm">
+                  {itemCount}
                 </span>
               )}
             </motion.button>
