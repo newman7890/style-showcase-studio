@@ -86,13 +86,13 @@ const GiftCards = () => {
   const { addToCart } = useCart();
   const navigate = useNavigate();
 
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 200;
 
   const mapProducts = (productsArray: any[], startIndex: number) => {
     return productsArray.map((product: any, i: number) => {
       const index = startIndex + i;
       const price = product.denominationType === "FIXED" 
-        ? (product.fixedDenominations?.[0] || 50) 
+        ? (product.fixedDenominations?.[0] || product.fixedRecipientDenominations?.[0] || 50) 
         : (product.minRecipientDenomination || 10);
       
       return {
@@ -104,60 +104,65 @@ const GiftCards = () => {
         gradient: GRADIENTS[index % GRADIENTS.length],
         brand: product.brand?.brandName || "Universal",
         isDigital: true,
-        logo: product.logoUrls?.[0] || null,
+        logo: product.logoUrls?.[0] || product.brand?.logoUrl || null,
         country: product.country?.isoName || "",
       };
     });
   };
 
-  const fetchProducts = async (page: number, append: boolean = false) => {
-    if (append) {
-      setIsLoadingMore(true);
-    } else {
-      setIsLoading(true);
-    }
+  const fetchPage = async (page: number) => {
+    const { data, error } = await supabase.functions.invoke("reloadly-catalog", {
+      body: {
+        page,
+        size: PAGE_SIZE,
+        productName: searchQuery || undefined,
+      },
+    });
+    if (error) throw error;
+    const payload = data?.data ?? {};
+    return {
+      products: payload.content || (Array.isArray(payload) ? payload : []),
+      totalElements: payload.totalElements || 0,
+      totalPages: payload.totalPages || 1,
+    };
+  };
+
+  // Loads the FULL Reloadly catalog: first page renders immediately, then the
+  // remaining pages stream in automatically until every card is on the page.
+  const loadCatalog = async () => {
+    setIsLoading(true);
+    setHasMore(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("reloadly-catalog", {
-        body: {
-          page,
-          size: PAGE_SIZE,
-          productName: searchQuery || undefined,
-        },
-      });
+      const first = await fetchPage(1);
+      let all = mapProducts(first.products, 0);
 
-      if (error) {
-        console.error("Error fetching gift cards:", error);
-        if (!append) {
-          setGiftCards(FALLBACK_GIFT_CARDS);
-          setHasMore(false);
-          setTotalProducts(FALLBACK_GIFT_CARDS.length);
+      setTotalProducts(first.totalElements || all.length);
+      setGiftCards(all.length > 0 ? all : FALLBACK_GIFT_CARDS);
+      setIsLoading(false);
+
+      if (first.totalPages > 1 && all.length > 0) {
+        setIsLoadingMore(true);
+        for (let page = 2; page <= first.totalPages; page++) {
+          try {
+            const next = await fetchPage(page);
+            const mapped = mapProducts(next.products, all.length);
+            if (mapped.length === 0) break;
+            all = [...all, ...mapped];
+            setGiftCards(all);
+          } catch (e) {
+            console.error("Failed loading catalog page", page, e);
+            break;
+          }
         }
-      } else if (data && data.data) {
-        const productsArray = data.data.content || data.data || [];
-        const totalElements = data.data.totalElements || 0;
-        const totalPages = data.data.totalPages || 1;
-
-        setTotalProducts(totalElements);
-        setHasMore(page < totalPages);
-
-        const startIndex = append ? giftCards.length : 0;
-        const mapped = mapProducts(productsArray, startIndex);
-
-        if (append) {
-          setGiftCards(prev => [...prev, ...mapped]);
-        } else {
-          setGiftCards(mapped.length > 0 ? mapped : FALLBACK_GIFT_CARDS);
-        }
+        setIsLoadingMore(false);
       }
+      setHasMore(false);
     } catch (err) {
       console.error("Failed to load Reloadly catalog", err);
-      if (!append) {
-        setGiftCards(FALLBACK_GIFT_CARDS);
-        setHasMore(false);
-        setTotalProducts(FALLBACK_GIFT_CARDS.length);
-      }
-    } finally {
+      setGiftCards(FALLBACK_GIFT_CARDS);
+      setTotalProducts(FALLBACK_GIFT_CARDS.length);
+      setHasMore(false);
       setIsLoading(false);
       setIsLoadingMore(false);
     }
@@ -165,20 +170,14 @@ const GiftCards = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-    setHasMore(true);
-    fetchProducts(1, false);
+    loadCatalog();
   }, [searchQuery]);
-
-  const handleLoadMore = () => {
-    const nextPage = currentPage + 1;
-    setCurrentPage(nextPage);
-    fetchProducts(nextPage, true);
-  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchQuery(searchInput.trim());
   };
+
 
   const handleOpenDialog = (card?: any) => {
     if (card) {
