@@ -229,53 +229,53 @@ const Home = () => {
 
         {/* Hero Section */}
         <section className="px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#f2f4f3] rounded-2xl p-5 md:p-7 lg:p-8 relative overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-[#f2f4f3] rounded-3xl p-6 md:p-10 lg:p-14 relative overflow-hidden">
             {/* Left Content (Text) */}
-            <div className="flex flex-col gap-3.5 z-10 justify-center order-2 md:order-1">
-              <div className="inline-flex items-center gap-1.5 bg-[#9bcdb1] text-white px-2.5 py-1 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest w-max">
+            <div className="flex flex-col gap-5 z-10 justify-center order-2 md:order-1">
+              <div className="inline-flex items-center gap-2 bg-[#9bcdb1] text-white px-3 py-1.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest w-max">
                 <div className="w-1.5 h-1.5 rounded-full bg-white opacity-90" />
                 Spring 2026 Collection
               </div>
               
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-[#1c1c1c] leading-[1.1] tracking-tight">
+              <h2 className="text-5xl md:text-6xl lg:text-7xl font-black text-[#1c1c1c] leading-[1.05] tracking-tight">
                 Wear what defines<br/>you
               </h2>
               
-              <p className="text-[#647187] text-sm md:text-base max-w-md leading-relaxed mt-0.5">
+              <p className="text-[#647187] text-base md:text-lg max-w-md leading-relaxed mt-1">
                 Thoughtfully crafted essentials that blend comfort with contemporary style. Made for people who move.
               </p>
               
-              <div className="flex items-center gap-4 mt-2">
-                <Link to="/products" className="bg-[#2d8a57] hover:bg-[#237046] text-white px-4.5 py-2.5 rounded-full font-semibold flex items-center gap-1.5 transition-colors text-xs sm:text-sm">
-                  Shop Now <ChevronRight className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-5 mt-3">
+                <Link to="/products" className="bg-[#2d8a57] hover:bg-[#237046] text-white px-6 py-3 rounded-full font-semibold flex items-center gap-2 transition-colors text-sm">
+                  Shop Now <ChevronRight className="w-4 h-4" />
                 </Link>
-                <Link to="/products?category=new" className="text-[#647187] hover:text-[#1c1c1c] font-medium flex items-center gap-1 transition-colors text-xs sm:text-sm">
-                  New Arrivals <ChevronRight className="w-3.5 h-3.5" />
+                <Link to="/products?category=new" className="text-[#647187] hover:text-[#1c1c1c] font-medium flex items-center gap-1 transition-colors text-sm">
+                  New Arrivals <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
               
-              <div className="flex items-center gap-6 mt-4 pt-4 border-t border-gray-200/60">
+              <div className="flex items-center gap-8 mt-6 pt-6 border-t border-gray-200/60">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-lg font-bold text-[#1c1c1c]">10K+</span>
-                  <span className="text-[10px] text-[#647187]">Happy Customers</span>
+                  <span className="text-2xl font-bold text-[#1c1c1c]">10K+</span>
+                  <span className="text-[11px] text-[#647187]">Happy Customers</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-lg font-bold text-[#1c1c1c]">500+</span>
-                  <span className="text-[10px] text-[#647187]">Products</span>
+                  <span className="text-2xl font-bold text-[#1c1c1c]">500+</span>
+                  <span className="text-[11px] text-[#647187]">Products</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-lg font-bold text-[#1c1c1c]">4.9</span>
-                  <span className="text-[10px] text-[#647187]">Avg Rating</span>
+                  <span className="text-2xl font-bold text-[#1c1c1c]">4.9</span>
+                  <span className="text-[11px] text-[#647187]">Avg Rating</span>
                 </div>
               </div>
             </div>
             
             {/* Right Image */}
-            <div className="relative h-[220px] md:h-[300px] min-h-[220px] rounded-xl overflow-hidden order-1 md:order-2">
+            <div className="relative h-[300px] md:h-full min-h-[400px] rounded-2xl overflow-hidden order-1 md:order-2">
               <img 
                 src="/hero-image.jpg" 
                 alt="Spring Collection Model" 
-                className="absolute inset-0 w-full h-full object-cover object-top rounded-xl"
+                className="absolute inset-0 w-full h-full object-cover object-top rounded-2xl"
               />
             </div>
           </div>
@@ -283,7 +283,7 @@ const Home = () => {
 
         {/* Category Scroll */}
         <section className="overflow-x-auto hide-scrollbar">
-          <div className="flex gap-3.5 px-4 min-w-max">
+          <div className="flex gap-4 px-4 min-w-max">
             {categoryItems.map(({ id, label, slug, Icon }, idx) => (
               <motion.div
                 key={id}
@@ -293,12 +293,12 @@ const Home = () => {
               >
                 <Link
                   to={slug === "deals" ? "/products" : `/products?category=${slug}`}
-                  className="flex flex-col items-center gap-1 group"
+                  className="flex flex-col items-center gap-1.5 group"
                 >
-                  <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center border border-border group-hover:bg-primary/10 group-active:scale-95 transition-all duration-200">
-                    <Icon className="w-5 h-5 text-primary" />
+                  <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center border border-border group-hover:bg-primary/10 group-active:scale-95 transition-all duration-200">
+                    <Icon className="w-7 h-7 text-primary" />
                   </div>
-                  <span className="text-[11px] font-medium text-foreground whitespace-nowrap">
+                  <span className="text-xs font-medium text-foreground whitespace-nowrap">
                     {label}
                   </span>
                 </Link>
@@ -308,24 +308,24 @@ const Home = () => {
         </section>
 
         {/* Deal of the Day */}
-        <section className="flex flex-col gap-2.5">
+        <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between px-4">
-            <div className="flex items-center gap-1.5">
-              <Flame className="w-4.5 h-4.5 text-primary" />
-              <h2 className="text-base font-semibold text-foreground font-plus-jakarta">
+            <div className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground font-plus-jakarta">
                 Deal of the Day
               </h2>
             </div>
             <Link
               to="/products"
-              className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
+              className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
             >
-              See all <ChevronRight className="w-3.5 h-3.5" />
+              See all <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
           <div className="overflow-x-auto hide-scrollbar">
-            <div className="flex gap-3 px-4 min-w-max">
+            <div className="flex gap-4 px-4 min-w-max">
               {(marketingBanners.length > 0
                 ? marketingBanners.map((b) => ({ id: b.id, badge: b.badge, label: b.label, title: b.title, image: b.image_url, link: b.link_url }))
                 : DEALS.map((d) => ({ ...d, link: "/products" }))
@@ -335,30 +335,30 @@ const Home = () => {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.08 }}
-                  className="w-[200px] bg-card border border-border rounded-lg overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0 cursor-pointer"
+                  className="w-[260px] bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0 cursor-pointer"
                   onClick={() => navigate(deal.link)}
                 >
-                  <div className="h-28 bg-secondary/50 overflow-hidden">
+                  <div className="h-36 bg-secondary/50 overflow-hidden">
                     <img
                       src={deal.image}
                       alt={deal.title}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     />
                   </div>
-                  <div className="p-2.5 flex flex-col gap-1">
-                    <div className="flex gap-1.5 items-center">
+                  <div className="p-3 flex flex-col gap-1.5">
+                    <div className="flex gap-2 items-center">
                       {deal.badge && (
-                        <span className="bg-primary text-primary-foreground text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                        <span className="bg-primary text-primary-foreground text-[11px] font-semibold px-2 py-0.5 rounded">
                           {deal.badge}
                         </span>
                       )}
                       {deal.label && (
-                        <span className="text-primary font-bold text-[10px] uppercase tracking-wide">
+                        <span className="text-primary font-bold text-[11px] uppercase tracking-wide">
                           {deal.label}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-foreground font-medium line-clamp-1">{deal.title}</p>
+                    <p className="text-sm text-foreground font-medium line-clamp-1">{deal.title}</p>
                   </div>
                 </motion.div>
               ))}
@@ -367,20 +367,20 @@ const Home = () => {
         </section>
 
         {/* Recommended For You */}
-        <section className="flex flex-col gap-2.5 px-4">
+        <section className="flex flex-col gap-3 px-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-foreground font-plus-jakarta">
+            <h2 className="text-lg font-semibold text-foreground font-plus-jakarta">
               Recommended for you
             </h2>
             <Link
               to="/products"
-              className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
+              className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
             >
-              View all <ChevronRight className="w-3.5 h-3.5" />
+              View all <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5 md:gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
             {(featuredProducts.length > 0 ? featuredProducts : FALLBACK_PRODUCTS).map(
               (product, i) => {
                 const isOnSale =
@@ -399,7 +399,7 @@ const Home = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.07 }}
-                    className="flex flex-col bg-card border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200"
+                    className="flex flex-col bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200"
                   >
                     <Link to={`/product/${product.id}`}>
                       <div className="aspect-square bg-secondary/50 overflow-hidden relative">
@@ -410,25 +410,25 @@ const Home = () => {
                           loading="lazy"
                         />
                         {isOnSale && (
-                          <div className="absolute top-1.5 left-1.5 bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded">
+                          <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded">
                             SALE
                           </div>
                         )}
                       </div>
                     </Link>
-                    <div className="p-2 flex flex-col gap-1">
+                    <div className="p-2.5 flex flex-col gap-1.5">
                       <Link to={`/product/${product.id}`}>
-                        <p className="text-[11px] text-foreground font-medium line-clamp-2 leading-tight">
+                        <p className="text-xs text-foreground font-medium line-clamp-2 leading-tight">
                           {product.name}
                         </p>
                       </Link>
                       <StarRating rating={rating} count={reviewCount} />
                       <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-bold text-foreground">
+                        <span className="text-base font-bold text-foreground">
                           GH₵{displayPrice.toFixed(2)}
                         </span>
                         {isOnSale && (
-                          <span className="text-[10px] text-muted-foreground line-through">
+                          <span className="text-xs text-muted-foreground line-through">
                             GH₵{product.price.toFixed(2)}
                           </span>
                         )}
@@ -436,7 +436,7 @@ const Home = () => {
                       <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handleAddToCart(product)}
-                        className="w-full py-1.5 rounded-full text-[11px] font-semibold bg-primary text-primary-foreground transition-colors duration-150 active:brightness-90 mt-0.5"
+                        className="w-full py-1.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground transition-colors duration-150 active:brightness-90"
                       >
                         Add to Cart
                       </motion.button>
