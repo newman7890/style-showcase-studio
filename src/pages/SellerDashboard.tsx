@@ -357,49 +357,7 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
     setDialogOpen(true);
   };
 
-  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setImageFile(f);
-    const r = new FileReader();
-    r.onloadend = () => setImagePreview(r.result as string);
-    r.readAsDataURL(f);
-  };
 
-  const handleRemoveBackground = async () => {
-    const source = imageFile || imagePreview;
-    if (!source) return;
-    setProcessingBg(true);
-    toast({
-      title: "AI Enhancing Image...",
-      description: "Removing background to create studio quality. Please wait...",
-    });
-    try {
-      const imgly = await import("@imgly/background-removal");
-      const removeBgFn = imgly.removeBackground || (imgly as any).default;
-      if (typeof removeBgFn !== "function") {
-        throw new Error("Background removal function could not be loaded.");
-      }
-      const blob = await removeBgFn(source);
-      const newFile = new File([blob], "studio-product.png", { type: "image/png" });
-      setImageFile(newFile);
-      const url = URL.createObjectURL(blob);
-      setImagePreview(url);
-      toast({
-        title: "Studio Image Ready!",
-        description: "Background successfully removed.",
-      });
-    } catch (err: any) {
-      console.error("Background removal error:", err);
-      toast({
-        title: "Processing Error",
-        description: err.message || "Failed to remove background.",
-        variant: "destructive",
-      });
-    } finally {
-      setProcessingBg(false);
-    }
-  };
 
   const handleRemoveColorBackground = async (index: number) => {
     const color = colors[index];
