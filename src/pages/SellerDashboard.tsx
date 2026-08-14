@@ -297,10 +297,10 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
 
   // Auto-save form draft to localStorage when creating a new product
   useEffect(() => {
-    if (!editing && (form.name || form.price || form.description || form.category || imagePreview)) {
-      localStorage.setItem("seller_product_draft", JSON.stringify({ form, imagePreview }));
+    if (!editing && (form.name || form.price || form.description || form.category || galleryImages.length > 0)) {
+      localStorage.setItem("seller_product_draft", JSON.stringify({ form }));
     }
-  }, [form, imagePreview, editing]);
+  }, [form, galleryImages, editing]);
 
   const resetForm = () => {
     setEditing(null);
