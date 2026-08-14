@@ -169,14 +169,19 @@ const Home = () => {
   const { data: marketingBanners = [] } = useQuery<{ id: string; title: string; badge: string; label: string; image_url: string; link_url: string }[]>({
     queryKey: ["marketing-banners-home"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("marketing_banners")
-        .select("id, title, badge, label, image_url, link_url")
-        .eq("is_active", true)
-        .order("display_order", { ascending: true });
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await (supabase as any)
+          .from("marketing_banners")
+          .select("id, title, badge, label, image_url, link_url")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true });
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
     },
+    retry: false,
   });
 
   // ── Handlers ──────────────────────────────────────────────────────────────

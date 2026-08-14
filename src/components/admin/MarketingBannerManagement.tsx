@@ -37,15 +37,20 @@ export const MarketingBannerManagement = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [tableMissing, setTableMissing] = useState(false);
 
   const fetchBanners = async () => {
     setLoading(true);
+    setTableMissing(false);
     const { data, error } = await (supabase as any)
       .from("marketing_banners")
       .select("*")
       .order("display_order", { ascending: true });
     if (error) {
       console.error("Error fetching banners:", error);
+      if (error.message?.includes("marketing_banners") || error.code === "PGRST204" || error.code === "42P01") {
+        setTableMissing(true);
+      }
     } else {
       setBanners(data || []);
     }
@@ -213,7 +218,7 @@ export const MarketingBannerManagement = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="banner-badge">Badge Text</Label>
+                  <Label htmlFor="banner-badge">Badge Text <span className="text-muted-foreground font-normal">(Optional)</span></Label>
                   <Input
                     id="banner-badge"
                     value={form.badge}
@@ -222,7 +227,7 @@ export const MarketingBannerManagement = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="banner-label">Label</Label>
+                  <Label htmlFor="banner-label">Label <span className="text-muted-foreground font-normal">(Optional)</span></Label>
                   <Input
                     id="banner-label"
                     value={form.label}
@@ -287,7 +292,46 @@ export const MarketingBannerManagement = () => {
         </Dialog>
       </div>
 
-      {banners.length === 0 ? (
+      {tableMissing ? (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-amber-100 text-amber-800 shrink-0">
+                <ImageIcon className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-amber-900">Database Table Setup Required</h3>
+                <p className="text-sm text-amber-800">
+                  The <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-xs text-amber-900">marketing_banners</code> table has not been created yet in your Supabase project. The website is currently displaying the fallback default deals.
+                </p>
+              </div>
+            </div>
+            <div className="bg-gray-900 text-gray-100 p-4 rounded-xl text-xs font-mono overflow-x-auto space-y-1">
+              <p className="text-gray-400">-- Run this in your Supabase Dashboard SQL Editor:</p>
+              <pre>{`CREATE TABLE IF NOT EXISTS public.marketing_banners (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  badge TEXT NOT NULL DEFAULT '',
+  label TEXT NOT NULL DEFAULT '',
+  image_url TEXT NOT NULL,
+  link_url TEXT DEFAULT '/products',
+  is_active BOOLEAN DEFAULT true,
+  display_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.marketing_banners ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view active marketing banners"
+  ON public.marketing_banners FOR SELECT USING (is_active = true);
+
+CREATE POLICY "Admins can manage marketing banners"
+  ON public.marketing_banners FOR ALL USING (public.has_role(auth.uid(), 'admin'));`}</pre>
+            </div>
+          </CardContent>
+        </Card>
+      ) : banners.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <ImageIcon className="w-12 h-12 text-muted-foreground mb-3" />
