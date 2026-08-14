@@ -1140,6 +1140,45 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_banners: {
+        Row: {
+          id: string
+          title: string
+          badge: string
+          label: string
+          image_url: string
+          link_url: string
+          is_active: boolean
+          display_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          badge?: string
+          label?: string
+          image_url: string
+          link_url?: string
+          is_active?: boolean
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          badge?: string
+          label?: string
+          image_url?: string
+          link_url?: string
+          is_active?: boolean
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null

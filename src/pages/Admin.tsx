@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent, Building2 } from "lucide-react";
+import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent, Building2, Megaphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
@@ -21,6 +21,7 @@ import { SellerApprovalsManagement } from "@/components/admin/SellerApprovalsMan
 import { ProductApprovalsManagement } from "@/components/admin/ProductApprovalsManagement";
 import { PlatformSettingsManagement } from "@/components/admin/PlatformSettingsManagement";
 import { HubManagement } from "@/components/admin/HubManagement";
+import { MarketingBannerManagement } from "@/components/admin/MarketingBannerManagement";
 
 const Admin = () => {
   const { user, isAdmin, isSeller, loading } = useAuth();
@@ -126,6 +127,10 @@ const Admin = () => {
                     <LayoutGrid className="w-4 h-4" />
                     <span className="hidden sm:inline">Categories</span>
                   </TabsTrigger>
+                  <TabsTrigger value="marketing" className="flex items-center gap-2">
+                    <Megaphone className="w-4 h-4" />
+                    <span className="hidden sm:inline">Marketing</span>
+                  </TabsTrigger>
                 </>
               )}
               <TabsTrigger value="analytics" className="flex items-center gap-2">
@@ -171,6 +176,10 @@ const Admin = () => {
 
             <TabsContent value="categories">
               <CategoryManagement />
+            </TabsContent>
+
+            <TabsContent value="marketing">
+              <MarketingBannerManagement />
             </TabsContent>
 
             <TabsContent value="analytics">

@@ -166,6 +166,19 @@ const Home = () => {
     },
   });
 
+  const { data: marketingBanners = [] } = useQuery<{ id: string; title: string; badge: string; label: string; image_url: string; link_url: string }[]>({
+    queryKey: ["marketing-banners-home"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("marketing_banners")
+        .select("id, title, badge, label, image_url, link_url")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAddToCart = async (product: Product) => {
     // useCart.addToCart handles its own success/error toasts (including the
@@ -308,13 +321,17 @@ const Home = () => {
 
           <div className="overflow-x-auto hide-scrollbar">
             <div className="flex gap-4 px-4 min-w-max">
-              {DEALS.map((deal, i) => (
+              {(marketingBanners.length > 0
+                ? marketingBanners.map((b) => ({ id: b.id, badge: b.badge, label: b.label, title: b.title, image: b.image_url, link: b.link_url }))
+                : DEALS.map((d) => ({ ...d, link: "/products" }))
+              ).map((deal, i) => (
                 <motion.div
                   key={deal.id}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.08 }}
-                  className="w-[260px] bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0"
+                  className="w-[260px] bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0 cursor-pointer"
+                  onClick={() => navigate(deal.link)}
                 >
                   <div className="h-36 bg-secondary/50 overflow-hidden">
                     <img
@@ -325,12 +342,16 @@ const Home = () => {
                   </div>
                   <div className="p-3 flex flex-col gap-1.5">
                     <div className="flex gap-2 items-center">
-                      <span className="bg-primary text-primary-foreground text-[11px] font-semibold px-2 py-0.5 rounded">
-                        {deal.badge}
-                      </span>
-                      <span className="text-primary font-bold text-[11px] uppercase tracking-wide">
-                        {deal.label}
-                      </span>
+                      {deal.badge && (
+                        <span className="bg-primary text-primary-foreground text-[11px] font-semibold px-2 py-0.5 rounded">
+                          {deal.badge}
+                        </span>
+                      )}
+                      {deal.label && (
+                        <span className="text-primary font-bold text-[11px] uppercase tracking-wide">
+                          {deal.label}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-foreground font-medium line-clamp-1">{deal.title}</p>
                   </div>
