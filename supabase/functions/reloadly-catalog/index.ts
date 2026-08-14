@@ -87,13 +87,9 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const user = await requireUser(req);
-  if (!user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
-  }
+  // Public, read-only catalog browsing: shoppers must be able to see the gift
+  // cards before signing in. No PII or purchase capability is exposed here.
+
 
   try {
 
