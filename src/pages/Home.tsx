@@ -196,6 +196,24 @@ const Home = () => {
     if (searchQuery.trim()) navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
   };
 
+  const handleDealClick = (rawLink?: string) => {
+    if (!rawLink) {
+      navigate("/products");
+      return;
+    }
+    const target = rawLink.trim();
+    if (!target) {
+      navigate("/products");
+      return;
+    }
+    if (target.startsWith("http://") || target.startsWith("https://")) {
+      window.location.href = target;
+    } else {
+      const route = target.startsWith("/") ? target : `/${target}`;
+      navigate(route);
+    }
+  };
+
   // ── Category pill data (DB or fallback) ──────────────────────────────────
   const categoryItems =
     categories.length > 0
@@ -321,9 +339,6 @@ const Home = () => {
               className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
             >
               See all <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-
           <div className="overflow-x-auto hide-scrollbar">
             <div className="flex gap-4 px-4 min-w-max">
               {(marketingBanners.length > 0
@@ -336,7 +351,7 @@ const Home = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.08 }}
                   className="w-[260px] bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0 cursor-pointer"
-                  onClick={() => navigate(deal.link)}
+                  onClick={() => handleDealClick(deal.link)}
                 >
                   <div className="h-36 bg-secondary/50 overflow-hidden">
                     <img
