@@ -29,14 +29,13 @@ async function requireUser(req: Request) {
 
 // Simple in-memory token cache to avoid re-authenticating on every request
 let cachedToken = null;
+let cachedAudience = null;
 let tokenExpiry = 0;
 
-async function getAccessToken(clientId, clientSecret, audience) {
-  const now = Date.now();
-  if (cachedToken && now < tokenExpiry) {
-    return cachedToken;
-  }
+const SANDBOX_AUDIENCE = "https://giftcards-sandbox.reloadly.com";
+const LIVE_AUDIENCE = "https://giftcards.reloadly.com";
 
+async function requestToken(clientId, clientSecret, audience) {
   const authResponse = await fetch("https://auth.reloadly.com/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -44,21 +43,41 @@ async function getAccessToken(clientId, clientSecret, audience) {
       client_id: clientId,
       client_secret: clientSecret,
       grant_type: "client_credentials",
-      audience: audience,
+      audience,
     }),
   });
 
   if (!authResponse.ok) {
     const errorText = await authResponse.text();
-    console.error("Auth Error:", errorText);
-    throw new Error("Failed to authenticate with Reloadly");
+    console.error(`Auth Error (${audience}):`, errorText);
+    return null;
+  }
+  return await authResponse.json();
+}
+
+// Tries the preferred audience, then falls back to the other environment
+// (Reloadly credentials are environment-specific: sandbox vs live).
+async function getAccessToken(clientId, clientSecret, preferredAudience) {
+  const now = Date.now();
+  if (cachedToken && cachedAudience && now < tokenExpiry) {
+    return { token: cachedToken, audience: cachedAudience };
   }
 
-  const authData = await authResponse.json();
-  cachedToken = authData.access_token;
-  // Cache for slightly less than the token lifetime (default ~5000s)
-  tokenExpiry = now + ((authData.expires_in || 5000) - 60) * 1000;
-  return cachedToken;
+  const candidates = preferredAudience === LIVE_AUDIENCE
+    ? [LIVE_AUDIENCE, SANDBOX_AUDIENCE]
+    : [preferredAudience || SANDBOX_AUDIENCE, LIVE_AUDIENCE];
+
+  for (const audience of candidates) {
+    const authData = await requestToken(clientId, clientSecret, audience);
+    if (authData?.access_token) {
+      cachedToken = authData.access_token;
+      cachedAudience = audience;
+      tokenExpiry = now + ((authData.expires_in || 5000) - 60) * 1000;
+      return { token: cachedToken, audience };
+    }
+  }
+
+  throw new Error("Failed to authenticate with Reloadly");
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -78,10 +97,20 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
 
-    const clientId = Deno.env.get("RELOADLY_CLIENT_ID");
-    const clientSecret = Deno.env.get("RELOADLY_CLIENT_SECRET");
+    const env = Deno.env.toObject();
+    const findEnv = (...cands: string[]) => {
+      for (const c of cands) {
+        const hit = Object.keys(env).find((k) => k.toLowerCase() === c.toLowerCase());
+        if (hit && env[hit]) return env[hit];
+      }
+      return undefined;
+    };
+
+    const clientId = findEnv("RELOADLY_CLIENT_ID", "API_client_ID");
+    const clientSecret = findEnv("RELOADLY_CLIENT_SECRET", "API_client_secret");
 
     if (!clientId || !clientSecret) {
+      console.error("Available env keys:", Object.keys(env).join(","));
       throw new Error("Reloadly credentials not configured");
     }
 
@@ -105,8 +134,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const accessToken = await getAccessToken(clientId, clientSecret, audience);
-    const baseUrl = audience;
+    const { token: accessToken, audience: resolvedAudience } = await getAccessToken(clientId, clientSecret, audience);
+    const baseUrl = resolvedAudience;
 
     // Build the Reloadly products URL with query params
     const params = new URLSearchParams();
