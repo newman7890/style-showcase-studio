@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,13 @@ const DEPARTMENTS = [
   { value: "other", label: "Other" },
 ];
 
+interface ProductImageItem {
+  id: string;
+  file?: File | null;
+  url: string;
+  processingBg?: boolean;
+}
+
 interface ColorVariant {
   name: string;
   hex: string;
@@ -49,6 +56,7 @@ interface Product {
   name: string;
   price: number;
   image: string;
+  images?: string[] | null;
   category: string;
   department: string | null;
   stock: number;
@@ -100,12 +108,89 @@ const SellerDashboard = () => {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>("");
+  const [galleryImages, setGalleryImages] = useState<ProductImageItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [processingBg, setProcessingBg] = useState(false);
   const [colors, setColors] = useState<ColorRow[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+
+  const handleMultipleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setGalleryImages((prev) => [
+          ...prev,
+          {
+            id: `img-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            file,
+            url: reader.result as string,
+            processingBg: false,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeGalleryImage = (index: number) => {
+    setGalleryImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const setPrimaryImage = (index: number) => {
+    setGalleryImages((prev) => {
+      if (index <= 0 || index >= prev.length) return prev;
+      const copy = [...prev];
+      const [selected] = copy.splice(index, 1);
+      return [selected, ...copy];
+    });
+  };
+
+  const handleRemoveGalleryBackground = async (index: number) => {
+    const item = galleryImages[index];
+    const source = item.file || item.url;
+    if (!source) return;
+
+    setGalleryImages((prev) =>
+      prev.map((img, i) => (i === index ? { ...img, processingBg: true } : img))
+    );
+
+    toast({
+      title: "AI Enhancing Image...",
+      description: `Removing background for photo #${index + 1}. Please wait...`,
+    });
+
+    try {
+      const imgly = await import("@imgly/background-removal");
+      const removeBgFn = imgly.removeBackground || (imgly as any).default;
+      if (typeof removeBgFn !== "function") {
+        throw new Error("Background removal function could not be loaded.");
+      }
+      const blob = await removeBgFn(source);
+      const newFile = new File([blob], `studio-photo-${index}.png`, { type: "image/png" });
+      const url = URL.createObjectURL(blob);
+
+      setGalleryImages((prev) =>
+        prev.map((img, i) => (i === index ? { ...img, file: newFile, url, processingBg: false } : img))
+      );
+
+      toast({
+        title: "Studio Image Ready!",
+        description: "Background successfully removed for this photo.",
+      });
+    } catch (err: any) {
+      console.error("Background removal error:", err);
+      toast({
+        title: "Processing Error",
+        description: err.message || "Failed to remove background.",
+        variant: "destructive",
+      });
+      setGalleryImages((prev) =>
+        prev.map((img, i) => (i === index ? { ...img, processingBg: false } : img))
+      );
+    }
+  };
 
   const handleAiAutoFill = async () => {
     if (!form.name || !form.category) {
@@ -221,32 +306,16 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
     setEditing(null);
     setForm(emptyForm);
     setErrors({});
-    setImageFile(null);
-    setImagePreview("");
+    setGalleryImages([]);
     setColors([]);
     localStorage.removeItem("seller_product_draft");
   };
 
   const handleOpenAddDialog = () => {
     setEditing(null);
-    const savedDraft = localStorage.getItem("seller_product_draft");
-    if (savedDraft) {
-      try {
-        const { form: draftForm, imagePreview: draftPreview } = JSON.parse(savedDraft);
-        if (draftForm) setForm(draftForm);
-        if (draftPreview) setImagePreview(draftPreview);
-        toast({
-          title: "Draft Restored",
-          description: "Restored your unsaved product details.",
-        });
-      } catch (e) {
-        console.error("Failed to parse draft", e);
-      }
-    } else {
-      setForm(emptyForm);
-      setImagePreview("");
-      setColors([]);
-    }
+    setForm(emptyForm);
+    setGalleryImages([]);
+    setColors([]);
     setDialogOpen(true);
   };
 
@@ -266,7 +335,16 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
       size_fit_info: p.size_fit_info ?? "",
       shipping_returns_info: p.shipping_returns_info ?? "",
     });
-    setImagePreview(p.image);
+
+    const existingImages = p.images && p.images.length > 0 ? p.images : p.image ? [p.image] : [];
+    setGalleryImages(
+      existingImages.map((imgUrl, i) => ({
+        id: `existing-${i}-${Date.now()}`,
+        url: imgUrl,
+        file: null,
+      }))
+    );
+
     setColors(
       (p.colors ?? []).map((c) => ({
         name: c.name,
@@ -373,22 +451,32 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
       return;
     }
     if (!user) return;
-    const hasColorImage = colors.some(c => c.file || c.image);
-    if (!editing && !imageFile && !hasColorImage) {
-      setErrors({ image: "Main image or at least one colour image is required" });
+
+    const hasColorImage = colors.some((c) => c.file || c.image);
+    if (!editing && galleryImages.length === 0 && !hasColorImage) {
+      setErrors({ image: "At least one product photo or colour variant photo is required." });
       return;
     }
+
     setSubmitting(true);
     try {
-      let imageUrl = editing?.image ?? "";
-      if (imageFile) {
-        const ext = imageFile.name.split(".").pop();
-        const path = `${user.id}/${Date.now()}.${ext}`;
-        const up = await supabase.storage.from("product-images").upload(path, imageFile);
-        if (up.error) throw up.error;
-        imageUrl = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+      // 1. Upload all gallery photos
+      const uploadedGalleryUrls: string[] = [];
+      for (let i = 0; i < galleryImages.length; i++) {
+        const item = galleryImages[i];
+        if (item.file) {
+          const ext = item.file.name.split(".").pop();
+          const path = `${user.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2)}.${ext}`;
+          const up = await supabase.storage.from("product-images").upload(path, item.file);
+          if (up.error) throw up.error;
+          const pubUrl = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+          uploadedGalleryUrls.push(pubUrl);
+        } else if (item.url && !item.url.startsWith("data:")) {
+          uploadedGalleryUrls.push(item.url);
+        }
       }
-      // Upload any new per-color images and build the variant list
+
+      // 2. Upload per-color variant images
       const finalColors: ColorVariant[] = [];
       for (const c of colors) {
         if (!c.name.trim()) continue;
@@ -408,16 +496,19 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
         });
       }
 
-      if (!imageUrl && finalColors.length > 0) {
-        const firstColorWithImg = finalColors.find(c => c.image);
-        if (firstColorWithImg) {
-          imageUrl = firstColorWithImg.image as string;
-        }
+      let primaryUrl = uploadedGalleryUrls[0] || editing?.image || "";
+      if (!primaryUrl && finalColors.length > 0) {
+        const firstColorWithImg = finalColors.find((c) => c.image);
+        if (firstColorWithImg) primaryUrl = firstColorWithImg.image as string;
       }
 
-      if (!imageUrl) {
-        throw new Error("A product image is required. Please upload a main image or a photo for a colour variant.");
+      if (!primaryUrl) {
+        throw new Error("A product image is required. Please upload at least one photo.");
       }
+
+      const allImages = Array.from(
+        new Set([primaryUrl, ...uploadedGalleryUrls, ...finalColors.map((c) => c.image).filter(Boolean) as string[]])
+      );
 
       const totalStock = finalColors.length
         ? finalColors.reduce((sum, c) => sum + c.stock, 0)
@@ -426,26 +517,27 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
       const payload = {
         name: form.name,
         price: parseFloat(form.price),
-        image: imageUrl,
-        images: Array.from(new Set([imageUrl, ...finalColors.map((c) => c.image).filter(Boolean) as string[]])),
+        image: primaryUrl,
+        images: allImages,
         category: form.category,
         department: form.department,
         stock: totalStock,
         low_stock_threshold: parseInt(form.low_stock_threshold),
         description: form.description || null,
         colors: finalColors as any,
-        sizes: form.sizes.split(",").map(s => s.trim()).filter(Boolean),
-        features: form.features.split("\n").map(s => s.trim()).filter(Boolean),
+        sizes: form.sizes.split(",").map((s) => s.trim()).filter(Boolean),
+        features: form.features.split("\n").map((s) => s.trim()).filter(Boolean),
         materials_info: form.materials_info || null,
         size_fit_info: form.size_fit_info || null,
         shipping_returns_info: form.shipping_returns_info || null,
       };
+
       if (editing) {
         const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
         if (error) throw error;
         toast({
           title: "Product updated",
-          description: "Price/name/image changes go back to pending review.",
+          description: "Price/name/image changes submitted for review.",
         });
       } else {
         const { error } = await supabase
@@ -546,40 +638,94 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
                         <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                         {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
                       </div>
-                      <div>
-                        <Label htmlFor="image">Image</Label>
-                        <Input id="image" type="file" accept="image/*" onChange={handleImage} />
-                        {imagePreview && (
-                          <div className="mt-3 flex flex-col gap-2 items-start">
-                            <div className="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                              <img src={imagePreview} alt="preview" className="w-36 h-36 object-contain p-1" />
-                              {processingBg && (
-                                <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center text-xs gap-2 p-2 text-center font-medium">
-                                  <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
-                                  <span>AI Removing Background...</span>
+                      {/* Multiple Product Images Gallery */}
+                      <div className="border border-dashed border-gray-300 rounded-xl p-4 space-y-3 bg-gray-50/50">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label htmlFor="multiple-images" className="font-semibold text-sm flex items-center gap-2">
+                              <ImageIcon className="w-4 h-4 text-purple-600" /> Product Photos ({galleryImages.length})
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Select multiple photos. The first image will be your main cover photo.
+                            </p>
+                          </div>
+                          <Label
+                            htmlFor="multiple-images"
+                            className="cursor-pointer text-xs font-semibold px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <Upload className="w-3.5 h-3.5" /> Select Photos
+                          </Label>
+                          <Input
+                            id="multiple-images"
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={handleMultipleImages}
+                            className="hidden"
+                          />
+                        </div>
+
+                        {galleryImages.length > 0 && (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+                            {galleryImages.map((img, idx) => (
+                              <div
+                                key={img.id || idx}
+                                className={`relative group rounded-xl overflow-hidden border bg-white shadow-sm flex flex-col items-center ${
+                                  idx === 0 ? "border-purple-500 ring-2 ring-purple-500/20" : "border-gray-200"
+                                }`}
+                              >
+                                <div className="relative w-full h-32 bg-gray-100 flex items-center justify-center overflow-hidden">
+                                  <img src={img.url} alt={`preview-${idx}`} className="w-full h-full object-contain p-1" />
+                                  {img.processingBg && (
+                                    <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center text-xs gap-1 text-center font-medium p-1">
+                                      <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                                      <span className="text-[10px]">AI Removing BG...</span>
+                                    </div>
+                                  )}
+                                  {idx === 0 && (
+                                    <span className="absolute top-1.5 left-1.5 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
+                                      Main Cover
+                                    </span>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={processingBg}
-                              onClick={handleRemoveBackground}
-                              className="gap-2 text-xs font-semibold border-purple-200 hover:bg-purple-50 text-purple-700"
-                            >
-                              {processingBg ? (
-                                <>
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  Processing...
-                                </>
-                              ) : (
-                                <>
-                                  <Wand2 className="w-3.5 h-3.5 text-purple-600" />
-                                  Magic Studio Background (AI)
-                                </>
-                              )}
-                            </Button>
+
+                                <div className="w-full p-1 bg-gray-50 border-t flex items-center justify-between gap-1">
+                                  {idx !== 0 && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setPrimaryImage(idx)}
+                                      className="h-7 text-[10px] px-1.5 font-medium text-purple-700 hover:bg-purple-50"
+                                      title="Set as Main Cover Photo"
+                                    >
+                                      <Star className="w-3 h-3 mr-0.5 fill-purple-600" /> Main
+                                    </Button>
+                                  )}
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={img.processingBg}
+                                    onClick={() => handleRemoveGalleryBackground(idx)}
+                                    className="h-7 text-[10px] px-1.5 font-medium text-purple-700 hover:bg-purple-50"
+                                    title="Remove Background with AI"
+                                  >
+                                    <Wand2 className="w-3 h-3 mr-0.5 text-purple-600" /> AI BG
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeGalleryImage(idx)}
+                                    className="h-7 text-[10px] px-1.5 font-medium text-destructive hover:bg-red-50"
+                                    title="Delete Photo"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                         {errors.image && <p className="text-sm text-destructive">{errors.image}</p>}
