@@ -191,9 +191,7 @@ export default function ArtGallery() {
               transition={{ duration: 0.6 }}
               className="max-w-3xl mx-auto text-center space-y-4"
             >
-              <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 px-3 py-1 text-xs uppercase tracking-widest gap-1.5 inline-flex">
-                <Sparkles className="w-3.5 h-3.5" /> Fine Art & Collectibles
-              </Badge>
+
               <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-slate-100 to-purple-200">
                 The Art Showcase & Gallery
               </h1>
