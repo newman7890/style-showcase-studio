@@ -243,8 +243,31 @@ export const MarketingBannerManagement = () => {
                   id="banner-link"
                   value={form.link_url}
                   onChange={(e) => setForm({ ...form, link_url: e.target.value })}
-                  placeholder="/products or /department/gadgets"
+                  placeholder="/art or /products or /department/fashion"
                 />
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <span className="text-[10px] text-muted-foreground self-center mr-1">Quick presets:</span>
+                  {[
+                    { label: "Art Gallery", url: "/art" },
+                    { label: "All Products", url: "/products" },
+                    { label: "Gadgets", url: "/department/gadgets" },
+                    { label: "Fashion", url: "/department/fashion" },
+                    { label: "Home", url: "/department/home" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.url}
+                      type="button"
+                      onClick={() => setForm({ ...form, link_url: preset.url })}
+                      className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                        form.link_url === preset.url
+                          ? "bg-purple-100 border-purple-300 text-purple-800 font-semibold"
+                          : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Image Upload */}

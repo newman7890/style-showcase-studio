@@ -208,10 +208,45 @@ const Home = () => {
     }
     if (target.startsWith("http://") || target.startsWith("https://")) {
       window.location.href = target;
-    } else {
-      const route = target.startsWith("/") ? target : `/${target}`;
-      navigate(route);
+      return;
     }
+
+    const clean = target.toLowerCase().replace(/^\/+/, "").trim();
+
+    // Direct section & category aliases
+    if (clean === "art" || clean === "painted art" || clean === "art gallery" || clean === "art-gallery") {
+      navigate("/art");
+      return;
+    }
+    if (clean === "fashion" || clean === "clothing" || clean === "department/fashion") {
+      navigate("/department/fashion");
+      return;
+    }
+    if (clean === "gadgets" || clean === "electronics" || clean === "department/gadgets") {
+      navigate("/department/gadgets");
+      return;
+    }
+    if (clean === "home" || clean === "kitchen" || clean === "department/home") {
+      navigate("/department/home");
+      return;
+    }
+    if (clean === "other" || clean === "department/other") {
+      navigate("/department/other");
+      return;
+    }
+    if (clean === "products" || clean === "all" || clean === "deals") {
+      navigate("/products");
+      return;
+    }
+
+    // If it's a relative path starting with slash (e.g. /product/123 or /art)
+    if (target.startsWith("/")) {
+      navigate(target);
+      return;
+    }
+
+    // Otherwise, treat as a search query for products matching that title/term!
+    navigate(`/products?search=${encodeURIComponent(target)}`);
   };
 
   // ── Category pill data (DB or fallback) ──────────────────────────────────
