@@ -28,6 +28,7 @@ const DEPARTMENTS = [
   { value: "fashion", label: "Fashion" },
   { value: "gadgets", label: "Gadgets" },
   { value: "home", label: "Home & Living" },
+  { value: "art", label: "Art & Collectibles" },
   { value: "other", label: "Other" },
 ];
 

@@ -30,6 +30,7 @@ const DEPARTMENTS: Record<string, { title: string; tagline: string }> = {
   fashion: { title: "Fashion", tagline: "Apparel, accessories and seasonal essentials." },
   gadgets: { title: "Gadgets", tagline: "Phones, audio, wearables and tech accessories." },
   home: { title: "Home & Living", tagline: "Decor, kitchen, and lifestyle essentials." },
+  art: { title: "Art & Collectibles", tagline: "Original paintings, sculptures, digital prints and handcrafts." },
   other: { title: "Other", tagline: "Everything else worth picking up." },
 };
 

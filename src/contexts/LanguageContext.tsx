@@ -138,6 +138,7 @@ const translations = {
     logo: "Cynt",
     fashion: "Fashion",
     gadgets: "Gadgets",
+    art: "Art",
     other: "Other",
     shop: "Shop",
     admin: "Admin",

@@ -9,6 +9,7 @@ const DEPARTMENTS = [
   { slug: "fashion" },
   { slug: "gadgets" },
   { slug: "home" },
+  { slug: "art" },
   { slug: "other" },
 ] as const;
 
