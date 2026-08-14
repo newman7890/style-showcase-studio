@@ -390,36 +390,7 @@ const ProductDetail = () => {
             </div>
 
 
-            {/* Feature Icons Row */}
-            <div className="bg-gray-50/70 border border-gray-100 rounded-2xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-auto">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center shadow-sm shrink-0">
-                  <Truck className="w-4.5 h-4.5 text-gray-700" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-900 leading-tight">Free Shipping</span>
-                  <span className="text-[10px] text-gray-500 leading-tight mt-0.5">On orders over GH₵500</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center shadow-sm shrink-0">
-                  <RotateCcw className="w-4.5 h-4.5 text-gray-700" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-900 leading-tight">Easy Returns</span>
-                  <span className="text-[10px] text-gray-500 leading-tight mt-0.5">30-day return policy</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center shadow-sm shrink-0">
-                  <Lock className="w-4.5 h-4.5 text-gray-700" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-900 leading-tight">Secure Payment</span>
-                  <span className="text-[10px] text-gray-500 leading-tight mt-0.5">100% secure checkout</span>
-                </div>
-              </div>
-            </div>
+
 
           </div>
         </div>
