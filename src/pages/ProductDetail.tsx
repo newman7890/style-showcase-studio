@@ -391,26 +391,32 @@ const ProductDetail = () => {
 
 
             {/* Feature Icons Row */}
-            <div className="grid grid-cols-3 gap-2 mt-auto">
+            <div className="bg-gray-50/70 border border-gray-100 rounded-2xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-auto">
               <div className="flex items-center gap-3">
-                <Truck className="w-6 h-6 text-black" />
+                <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center shadow-sm shrink-0">
+                  <Truck className="w-4.5 h-4.5 text-gray-700" />
+                </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-bold text-black">Free Shipping</span>
-                  <span className="text-[10px] text-gray-500">On orders over GH₵500</span>
+                  <span className="text-xs font-bold text-gray-900 leading-tight">Free Shipping</span>
+                  <span className="text-[10px] text-gray-500 leading-tight mt-0.5">On orders over GH₵500</span>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <RotateCcw className="w-6 h-6 text-black" />
+                <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center shadow-sm shrink-0">
+                  <RotateCcw className="w-4.5 h-4.5 text-gray-700" />
+                </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-bold text-black">Easy Returns</span>
-                  <span className="text-[10px] text-gray-500">30-day return policy</span>
+                  <span className="text-xs font-bold text-gray-900 leading-tight">Easy Returns</span>
+                  <span className="text-[10px] text-gray-500 leading-tight mt-0.5">30-day return policy</span>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Lock className="w-6 h-6 text-black" />
+                <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center shadow-sm shrink-0">
+                  <Lock className="w-4.5 h-4.5 text-gray-700" />
+                </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-bold text-black">Secure Payment</span>
-                  <span className="text-[10px] text-gray-500">100% secure checkout</span>
+                  <span className="text-xs font-bold text-gray-900 leading-tight">Secure Payment</span>
+                  <span className="text-[10px] text-gray-500 leading-tight mt-0.5">100% secure checkout</span>
                 </div>
               </div>
             </div>
