@@ -142,20 +142,10 @@ export default function ArtGallery() {
     }
   };
 
-  const handleAddToCart = (art: Product) => {
-    addToCart({
-      id: art.id,
-      name: art.name,
-      price: art.price,
-      image: art.image,
-      quantity: 1,
-    });
+  const handleAddToCart = async (art: Product) => {
+    await addToCart(art.id, 1);
     setAddedIds((prev) => ({ ...prev, [art.id]: true }));
     setTimeout(() => setAddedIds((prev) => ({ ...prev, [art.id]: false })), 2000);
-    toast({
-      title: "Artwork Added!",
-      description: `"${art.name}" has been added to your shopping cart.`,
-    });
   };
 
   // Filtering & Sorting
