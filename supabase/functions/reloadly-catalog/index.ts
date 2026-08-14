@@ -134,8 +134,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const accessToken = await getAccessToken(clientId, clientSecret, audience);
-    const baseUrl = audience;
+    const { token: accessToken, audience: resolvedAudience } = await getAccessToken(clientId, clientSecret, audience);
+    const baseUrl = resolvedAudience;
 
     // Build the Reloadly products URL with query params
     const params = new URLSearchParams();
