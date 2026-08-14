@@ -78,8 +78,8 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
 
-    const clientId = Deno.env.get("RELOADLY_CLIENT_ID");
-    const clientSecret = Deno.env.get("RELOADLY_CLIENT_SECRET");
+    const clientId = Deno.env.get("RELOADLY_CLIENT_ID") || Deno.env.get("API_client_ID");
+    const clientSecret = Deno.env.get("RELOADLY_CLIENT_SECRET") || Deno.env.get("API_client_secret");
 
     if (!clientId || !clientSecret) {
       throw new Error("Reloadly credentials not configured");
