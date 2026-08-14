@@ -499,28 +499,19 @@ const GiftCards = () => {
           )}
         </div>
 
-        {/* Load More Button */}
-        {!isLoading && hasMore && (
-          <div className="mt-10 flex justify-center">
-            <Button
-              onClick={handleLoadMore}
-              disabled={isLoadingMore}
-              className="rounded-full bg-gray-900 hover:bg-gray-800 text-white px-10 py-6 text-base font-semibold shadow-xl shadow-gray-900/20 transition-all hover:scale-105 active:scale-95 gap-2"
-            >
-              {isLoadingMore ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Loading more...</>
-              ) : (
-                <>Load More Gift Cards</>
-              )}
-            </Button>
+        {/* Background loading indicator while the rest of the catalog streams in */}
+        {!isLoading && isLoadingMore && (
+          <div className="mt-10 flex justify-center items-center gap-2 text-gray-500 text-sm font-semibold">
+            <Loader2 className="w-5 h-5 animate-spin" /> Loading the rest of the catalog...
           </div>
         )}
 
-        {!isLoading && !hasMore && giftCards.length > 0 && (
+        {!isLoading && !isLoadingMore && giftCards.length > 0 && (
           <div className="mt-10 text-center">
-            <p className="text-sm text-gray-400 font-medium">You've reached the end — {giftCards.length} gift cards loaded</p>
+            <p className="text-sm text-gray-400 font-medium">All {giftCards.length} gift cards loaded</p>
           </div>
         )}
+
       </main>
 
       <BottomNav />
