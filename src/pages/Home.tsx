@@ -339,6 +339,9 @@ const Home = () => {
               className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
             >
               See all <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
           <div className="overflow-x-auto hide-scrollbar">
             <div className="flex gap-4 px-4 min-w-max">
               {(marketingBanners.length > 0
