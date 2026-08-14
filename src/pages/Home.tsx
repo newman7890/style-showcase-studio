@@ -146,7 +146,7 @@ const Home = () => {
       const { data, error } = await supabase
         .from("products")
         .select("id, name, price, image, sale_price, sale_ends_at")
-        .limit(6);
+        .limit(4);
       if (error) throw error;
       return data || [];
     },
@@ -380,8 +380,8 @@ const Home = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
-            {(featuredProducts.length > 0 ? featuredProducts : FALLBACK_PRODUCTS).map(
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            {(featuredProducts.length > 0 ? featuredProducts : FALLBACK_PRODUCTS).slice(0, 4).map(
               (product, i) => {
                 const isOnSale =
                   product.sale_price != null &&
