@@ -78,10 +78,20 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
 
-    const clientId = Deno.env.get("RELOADLY_CLIENT_ID") || Deno.env.get("API_client_ID");
-    const clientSecret = Deno.env.get("RELOADLY_CLIENT_SECRET") || Deno.env.get("API_client_secret");
+    const env = Deno.env.toObject();
+    const findEnv = (...cands: string[]) => {
+      for (const c of cands) {
+        const hit = Object.keys(env).find((k) => k.toLowerCase() === c.toLowerCase());
+        if (hit && env[hit]) return env[hit];
+      }
+      return undefined;
+    };
+
+    const clientId = findEnv("RELOADLY_CLIENT_ID", "API_client_ID");
+    const clientSecret = findEnv("RELOADLY_CLIENT_SECRET", "API_client_secret");
 
     if (!clientId || !clientSecret) {
+      console.error("Available env keys:", Object.keys(env).join(","));
       throw new Error("Reloadly credentials not configured");
     }
 
