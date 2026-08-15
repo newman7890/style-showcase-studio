@@ -32,6 +32,45 @@ const DEPARTMENTS = [
   { value: "other", label: "Other" },
 ];
 
+const CATEGORIES_BY_DEPARTMENT: Record<string, { value: string; label: string }[]> = {
+  fashion: [
+    { value: "mens-clothing", label: "Men's Clothing" },
+    { value: "womens-clothing", label: "Women's Clothing" },
+    { value: "shoes-sneakers", label: "Shoes & Sneakers" },
+    { value: "bags-accessories", label: "Bags & Accessories" },
+    { value: "watches-jewelry", label: "Watches & Jewelry" },
+  ],
+  gadgets: [
+    { value: "phones-tablets", label: "Phones & Tablets" },
+    { value: "audio-headphones", label: "Audio & Headphones" },
+    { value: "wearables", label: "Wearables" },
+    { value: "gadget-accessories", label: "Accessories" },
+    { value: "smart-home", label: "Smart Home" },
+  ],
+  home: [
+    { value: "kitchen-dining", label: "Kitchen & Dining" },
+    { value: "bedroom-bedding", label: "Bedroom & Bedding" },
+    { value: "living-room", label: "Living Room" },
+    { value: "bathroom", label: "Bathroom" },
+    { value: "home-decor", label: "Home Decor" },
+    { value: "storage-organization", label: "Storage & Organization" },
+  ],
+  art: [
+    { value: "paintings", label: "Paintings" },
+    { value: "digital-art", label: "Digital Art" },
+    { value: "sculptures", label: "Sculptures" },
+    { value: "photography", label: "Photography" },
+    { value: "handcrafts", label: "Handcrafts" },
+  ],
+  other: [
+    { value: "books-stationery", label: "Books & Stationery" },
+    { value: "sports-outdoors", label: "Sports & Outdoors" },
+    { value: "toys-games", label: "Toys & Games" },
+    { value: "health-beauty", label: "Health & Beauty" },
+    { value: "groceries", label: "Groceries" },
+  ],
+};
+
 interface ProductImageItem {
   id: string;
   file?: File | null;
@@ -712,20 +751,43 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label htmlFor="category">Category</Label>
-                          <Input id="category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-                          {errors.category && <p className="text-sm text-destructive">{errors.category}</p>}
-                        </div>
-                        <div>
                           <Label htmlFor="department">Department</Label>
-                          <Select value={form.department} onValueChange={(v) => setForm({ ...form, department: v })}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                          <Select 
+                            value={form.department || "fashion"} 
+                            onValueChange={(v) => {
+                              const availCats = CATEGORIES_BY_DEPARTMENT[v] || [];
+                              setForm({ 
+                                ...form, 
+                                department: v,
+                                category: availCats[0]?.value || ""
+                              });
+                            }}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                             <SelectContent>
                               {DEPARTMENTS.map((d) => (
                                 <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="category">Category</Label>
+                          <Select 
+                            value={form.category} 
+                            onValueChange={(v) => setForm({ ...form, category: v })}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                            <SelectContent>
+                              {(CATEGORIES_BY_DEPARTMENT[form.department || "fashion"] || []).map((c) => (
+                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                              ))}
+                              {form.category && !(CATEGORIES_BY_DEPARTMENT[form.department || "fashion"] || []).some(c => c.value === form.category) && (
+                                <SelectItem value={form.category}>{form.category}</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {errors.category && <p className="text-sm text-destructive">{errors.category}</p>}
                         </div>
                       </div>
                       <div>
