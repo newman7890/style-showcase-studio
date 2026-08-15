@@ -433,70 +433,18 @@ const Home = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {(featuredProducts.length > 0 ? featuredProducts : FALLBACK_PRODUCTS).slice(0, 4).map(
-              (product, i) => {
-                const isOnSale =
-                  product.sale_price != null &&
-                  product.sale_ends_at &&
-                  new Date(product.sale_ends_at) > new Date();
-                const displayPrice = isOnSale ? product.sale_price! : product.price;
-                // Deterministic fake rating from product id
-                const ratingBase = product.id.charCodeAt(0) % 5;
-                const rating = 3.5 + (ratingBase / 10);
-                const reviewCount = 500 + (product.id.charCodeAt(1) || 0) * 37;
-
-                return (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.07 }}
-                    className="flex flex-col bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200"
-                  >
-                    <Link to={`/product/${product.id}`}>
-                      <div className="aspect-square bg-secondary/50 overflow-hidden relative">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                          loading="lazy"
-                        />
-                        {isOnSale && (
-                          <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded">
-                            SALE
-                          </div>
-                        )}
-                      </div>
-                    </Link>
-                    <div className="p-2.5 flex flex-col gap-1.5">
-                      <Link to={`/product/${product.id}`}>
-                        <p className="text-xs text-foreground font-medium line-clamp-2 leading-tight">
-                          {product.name}
-                        </p>
-                      </Link>
-                      <StarRating rating={rating} count={reviewCount} />
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-base font-bold text-foreground">
-                          GH₵{displayPrice.toFixed(2)}
-                        </span>
-                        {isOnSale && (
-                          <span className="text-xs text-muted-foreground line-through">
-                            GH₵{product.price.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleAddToCart(product)}
-                        className="w-full py-1.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground transition-colors duration-150 active:brightness-90"
-                      >
-                        Add to Cart
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                );
-              }
+              (product, i) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  <ProductCard {...product} />
+                </motion.div>
+              )
             )}
           </div>
         </section>
