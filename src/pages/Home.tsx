@@ -373,31 +373,7 @@ const Home = () => {
           </div>
         </section>
 
-        {/* Category Scroll */}
-        <section className="overflow-x-auto hide-scrollbar">
-          <div className="flex gap-4 px-4 min-w-max">
-            {categoryItems.map(({ id, label, slug, department, Icon }, idx) => (
-              <motion.div
-                key={id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-              >
-                <Link
-                  to={`/department/${department}?category=${slug}`}
-                  className="flex flex-col items-center gap-1.5 group"
-                >
-                  <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center border border-border group-hover:bg-primary/10 group-active:scale-95 transition-all duration-200">
-                    <Icon className="w-7 h-7 text-primary" />
-                  </div>
-                  <span className="text-xs font-medium text-foreground whitespace-nowrap">
-                    {label}
-                  </span>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </section>
+
 
         {/* Deal of the Day */}
         <section className="flex flex-col gap-3">
