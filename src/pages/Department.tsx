@@ -146,10 +146,15 @@ const Department = () => {
   useEffect(() => {
     setLoading(true);
     (async () => {
-      const [prodRes, catRes] = await Promise.all([
-        supabase.from("products").select("*").eq("department", slug).order("created_at", { ascending: false }),
-        supabase.from("categories").select("id, name, slug, image").eq("department", slug).eq("is_active", true).order("display_order", { ascending: true }),
-      ]);
+      const prodQuery = slug === "home" 
+        ? supabase.from("products").select("*").order("created_at", { ascending: false })
+        : supabase.from("products").select("*").eq("department", slug).order("created_at", { ascending: false });
+
+      const catQuery = slug === "home"
+        ? supabase.from("categories").select("id, name, slug, image").eq("is_active", true).order("display_order", { ascending: true })
+        : supabase.from("categories").select("id, name, slug, image").eq("department", slug).eq("is_active", true).order("display_order", { ascending: true });
+
+      const [prodRes, catRes] = await Promise.all([prodQuery, catQuery]);
       if (!prodRes.error) setProducts((prodRes.data as Product[]) || []);
       if (!catRes.error) setCategories((catRes.data as Category[]) || []);
       setLoading(false);
