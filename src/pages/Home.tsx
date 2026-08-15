@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { Header } from "@/components/Header";
+import { ProductCard } from "@/components/ProductCard";
 import { Testimonials } from "@/components/home/Testimonials";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
