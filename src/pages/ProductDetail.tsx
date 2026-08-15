@@ -128,11 +128,24 @@ const ProductDetail = () => {
     );
   }
 
-  const productImages = product.images && product.images.length > 0
-    ? product.images
-    : [product.image];
-
   const colors = product.colors || [];
+
+  // Deduplicate and combine all product gallery & color images
+  const productImages = useMemo(() => {
+    const list: string[] = [];
+    if (product.image) list.push(product.image);
+    if (Array.isArray(product.images)) {
+      product.images.forEach((img) => {
+        if (img && typeof img === "string" && !list.includes(img)) list.push(img);
+      });
+    }
+    if (Array.isArray(colors)) {
+      colors.forEach((c) => {
+        if (c.image && typeof c.image === "string" && !list.includes(c.image)) list.push(c.image);
+      });
+    }
+    return list.length > 0 ? list : [product.image];
+  }, [product, colors]);
 
   const features: string[] = ((product as any).features || []).filter(Boolean);
   const materialsInfo: string = (product as any).materials_info || "";
@@ -152,15 +165,15 @@ const ProductDetail = () => {
     </div>
   );
 
-
   const isOnSale = product.sale_price != null && product.sale_ends_at && new Date(product.sale_ends_at) > new Date();
   const displayPrice = isOnSale ? product.sale_price! : product.price;
-
 
   const displayColor = hoveredColor || selectedColor;
   const activeColorIndex = colors.findIndex(c => c.name === displayColor);
   const activeColor = colors[activeColorIndex];
-  const previewImageIndex = currentImageIndex;
+
+  // Active main image calculation
+  const activeMainImage = productImages[currentImageIndex] || activeColor?.image || product.image;
 
   const selectedColorObj = colors.find((c) => c.name === selectedColor) || null;
   const hasColorStock = colors.length > 0 && colors.some((c) => typeof c.stock === "number");
@@ -192,12 +205,12 @@ const ProductDetail = () => {
           <div className="flex gap-4 sm:gap-6 h-[500px] sm:h-[650px]">
             {/* Thumbnails (Vertical) */}
             <div className="flex flex-col gap-3 w-16 sm:w-20 overflow-y-auto hide-scrollbar pb-2">
-              {productImages.slice(0, 5).map((img, index) => (
+              {productImages.map((img, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
                   className={`flex-shrink-0 aspect-[4/5] rounded-xl overflow-hidden border-2 transition-all duration-200 ${
-                    index === previewImageIndex
+                    index === currentImageIndex
                       ? "border-black"
                       : "border-transparent opacity-60 hover:opacity-100"
                   }`}
@@ -215,12 +228,12 @@ const ProductDetail = () => {
             <div className="flex-1 relative rounded-3xl overflow-hidden bg-gray-50">
               <AnimatePresence mode="wait">
                 <motion.img
-                  key={previewImageIndex}
+                  key={currentImageIndex}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  src={activeColor?.image || productImages[previewImageIndex]}
+                  src={activeMainImage}
                   alt={product.name}
                   className="w-full h-full object-cover transition-all duration-300"
                 />
@@ -236,7 +249,7 @@ const ProductDetail = () => {
                 </DialogTrigger>
                 <DialogContent className="max-w-5xl p-0 overflow-hidden bg-transparent border-none shadow-none [&>button]:bg-white [&>button]:text-black [&>button]:p-2 [&>button]:rounded-full [&>button]:opacity-100 [&>button]:right-2 [&>button]:top-2 [&>button]:focus:ring-0 [&>button_svg]:w-5 [&>button_svg]:h-5">
                   <img 
-                    src={activeColor?.image || productImages[previewImageIndex]} 
+                    src={activeMainImage} 
                     alt={product.name} 
                     className="w-full h-auto max-h-[90vh] object-contain rounded-xl transition-all duration-300" 
                   />
