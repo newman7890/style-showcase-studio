@@ -99,8 +99,8 @@ export const RiderManagement = () => {
     setLoading(true);
     try {
       const [codesRes, ridersRes] = await Promise.all([
-        supabase.from("rider_access_codes").select("*").order("created_at", { ascending: false }),
-        supabase.from("rider_profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("rider_access_codes" as any).select("*").order("created_at", { ascending: false }),
+        supabase.from("rider_profiles" as any).select("*").order("created_at", { ascending: false }),
       ]);
       if (codesRes.data) setAccessCodes(codesRes.data as any);
       if (ridersRes.data) setRiders(ridersRes.data as any);
@@ -120,10 +120,10 @@ export const RiderManagement = () => {
         ? customCode.trim().toUpperCase()
         : `RIDER-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      const { error } = await supabase.from("rider_access_codes").insert({
+      const { error } = await supabase.from("rider_access_codes" as any).insert({
         code: generatedCode,
         assigned_name: assignedName.trim() || null,
-      });
+      } as any);
 
       if (error) throw error;
 
@@ -159,7 +159,7 @@ export const RiderManagement = () => {
       const { data, error } = await supabase
         .from("orders")
         .select("id, status, created_at, delivery_address, phone, total_amount, profiles(full_name), order_items(id, quantity, unit_price, products(name))")
-        .eq("assigned_rider_id", rider.user_id)
+        .eq("assigned_rider_id" as any, rider.user_id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -175,8 +175,8 @@ export const RiderManagement = () => {
     const nextStatus = currentStatus === "active" ? "suspended" : "active";
     try {
       const { error } = await supabase
-        .from("rider_profiles")
-        .update({ status: nextStatus })
+        .from("rider_profiles" as any)
+        .update({ status: nextStatus } as any)
         .eq("id", riderId);
       if (error) throw error;
 

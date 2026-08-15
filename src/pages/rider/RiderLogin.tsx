@@ -77,8 +77,7 @@ const RiderLogin = () => {
     setLoading(true);
     try {
       // 1. Verify Access Code exists and is not used
-      const { data: codeData, error: codeErr } = await supabase
-        .from("rider_access_codes")
+      const { data: codeData, error: codeErr } = await (supabase.from("rider_access_codes" as any) as any)
         .select("*")
         .eq("code", cleanCode)
         .maybeSingle();
@@ -113,7 +112,7 @@ const RiderLogin = () => {
       if (roleErr && !roleErr.message.includes("duplicate")) throw roleErr;
 
       // 4. Create rider_profiles entry
-      const { error: profileErr } = await supabase.from("rider_profiles").insert({
+      const { error: profileErr } = await (supabase.from("rider_profiles" as any) as any).insert({
         user_id: newUserId,
         full_name: fullName.trim(),
         phone_number: phone.trim(),
@@ -124,8 +123,7 @@ const RiderLogin = () => {
       if (profileErr) throw profileErr;
 
       // 5. Mark Access Code as used
-      await supabase
-        .from("rider_access_codes")
+      await (supabase.from("rider_access_codes" as any) as any)
         .update({
           is_used: true,
           used_by: newUserId,
