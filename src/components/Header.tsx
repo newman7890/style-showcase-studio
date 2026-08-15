@@ -6,7 +6,7 @@ import { useCart } from "@/hooks/useCart";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const DEPARTMENTS = [
-  { slug: "home" },
+  { slug: "home", label: "Shop" },
   { slug: "fashion" },
   { slug: "gadgets" },
   { slug: "art" },
@@ -60,7 +60,7 @@ export const Header = () => {
                   }`
                 }
               >
-                {t(d.slug)}
+                {"label" in d ? d.label : t(d.slug)}
               </NavLink>
             ))}
           </nav>
