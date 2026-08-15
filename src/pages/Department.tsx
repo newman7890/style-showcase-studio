@@ -165,7 +165,7 @@ const Department = () => {
   const [maxPrice, setMaxPrice] = useState(10000);
   const [showInStock, setShowInStock] = useState(false);
   const [showOnSale, setShowOnSale] = useState(false);
-  const [gridCols, setGridCols] = useState<2 | 3>(2);
+  const [gridCols, setGridCols] = useState<2 | 3>(3);
 
   const newArrivalsRef = useRef<HTMLDivElement>(null);
 
