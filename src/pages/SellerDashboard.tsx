@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon, MapPin, ExternalLink, Mail, Phone, Building2, Info } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -1074,10 +1074,13 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
               </p>
             </TabsContent>
 
-            <TabsContent value="dropoffs">
-              <div className="flex justify-between items-center mb-4">
-                <div className="text-sm text-muted-foreground">
-                  {dropoffs.length} drop-off request{dropoffs.length === 1 ? "" : "s"}
+            <TabsContent value="dropoffs" className="space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="font-semibold text-lg">Fulfillment Drop-offs</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Deliver your inventory items to any of our official live hub locations below.
+                  </p>
                 </div>
                 <Dialog open={dropoffModalOpen} onOpenChange={setDropoffModalOpen}>
                   <DialogTrigger asChild>
@@ -1117,10 +1120,55 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
                         const hubObj = hubs.find((h) => h.id === selectedHubId);
                         if (!hubObj) return null;
                         return (
-                          <div className="p-3 bg-gray-50 rounded-lg text-xs space-y-1 text-gray-600 border">
-                            <div className="font-semibold text-gray-900">{hubObj.name}</div>
-                            <div>Address: {hubObj.address}</div>
-                            {hubObj.contact_phone && <div>Phone: {hubObj.contact_phone}</div>}
+                          <div className="p-3 bg-gray-50 border rounded-lg text-xs space-y-2 text-gray-700">
+                            <div className="font-semibold text-sm text-gray-900 flex justify-between items-center">
+                              <span>{hubObj.name}</span>
+                              <Badge variant="outline">{hubObj.region}</Badge>
+                            </div>
+                            <div className="flex items-start gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                              <span>{hubObj.address}</span>
+                            </div>
+                            {hubObj.contact_phone && (
+                              <div className="flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>Phone: </span>
+                                <a href={`tel:${hubObj.contact_phone}`} className="font-medium text-emerald-700 hover:underline">
+                                  {hubObj.contact_phone}
+                                </a>
+                              </div>
+                            )}
+                            {hubObj.contact_email && (
+                              <div className="flex items-center gap-1.5">
+                                <Mail className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <span>Email: </span>
+                                <a href={`mailto:${hubObj.contact_email}`} className="font-medium text-blue-700 hover:underline">
+                                  {hubObj.contact_email}
+                                </a>
+                              </div>
+                            )}
+                            {hubObj.operating_hours && (
+                              <div className="flex items-center gap-1.5 text-amber-700">
+                                <Clock className="w-3.5 h-3.5 shrink-0" />
+                                <span>Hours: {hubObj.operating_hours}</span>
+                              </div>
+                            )}
+                            {hubObj.dropoff_instructions && (
+                              <div className="p-2 bg-blue-50/60 rounded border border-blue-100 text-blue-900 flex items-start gap-1.5 mt-1">
+                                <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                                <span>{hubObj.dropoff_instructions}</span>
+                              </div>
+                            )}
+                            {hubObj.google_maps_url && (
+                              <a
+                                href={hubObj.google_maps_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-primary font-medium hover:underline pt-1"
+                              >
+                                <ExternalLink className="w-3 h-3" /> Get Live Directions on Google Maps
+                              </a>
+                            )}
                           </div>
                         );
                       })()}
@@ -1137,27 +1185,115 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
                 </Dialog>
               </div>
 
-              {loading ? (
-                <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
-              ) : dropoffs.length === 0 ? (
-                <Card><CardContent className="pt-6 text-center text-muted-foreground">No drop-off requests yet. Click "Schedule Drop-off" above to request an inventory drop-off.</CardContent></Card>
-              ) : (
-                <div className="space-y-3">
-                  {dropoffs.map((d) => (
-                    <Card key={d.id}>
-                      <CardContent className="pt-4 flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">Drop-off to {d.hubs?.name || "Hub"}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(d.created_at).toLocaleDateString()}
+              {/* Official Hub Directory Cards */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-primary" /> Active Hub Locations & Support Directory
+                </h3>
+                {hubs.length === 0 ? (
+                  <Card><CardContent className="pt-6 text-center text-xs text-muted-foreground">No hub locations configured yet.</CardContent></Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {hubs.map((hub) => (
+                      <Card key={hub.id} className="border hover:border-primary/40 transition-colors">
+                        <CardContent className="pt-4 space-y-2.5 text-xs">
+                          <div className="flex justify-between items-start">
+                            <h4 className="font-semibold text-sm text-gray-900">{hub.name}</h4>
+                            <Badge variant="outline">{hub.region}</Badge>
                           </div>
-                        </div>
-                        <StatusBadge status={d.status} />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+                          
+                          <div className="flex items-start gap-2 text-gray-700">
+                            <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                            <span>{hub.address}</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                            {hub.contact_phone && (
+                              <div className="flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <a href={`tel:${hub.contact_phone}`} className="font-medium text-emerald-700 hover:underline">
+                                  {hub.contact_phone}
+                                </a>
+                              </div>
+                            )}
+
+                            {hub.contact_email && (
+                              <div className="flex items-center gap-1.5">
+                                <Mail className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <a href={`mailto:${hub.contact_email}`} className="font-medium text-blue-700 hover:underline truncate">
+                                  {hub.contact_email}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+
+                          {hub.operating_hours && (
+                            <div className="flex items-center gap-1.5 text-amber-700 font-medium">
+                              <Clock className="w-3.5 h-3.5 shrink-0" />
+                              <span>{hub.operating_hours}</span>
+                            </div>
+                          )}
+
+                          {hub.dropoff_instructions && (
+                            <div className="p-2 bg-gray-50 rounded border text-gray-600 flex items-start gap-1.5">
+                              <Info className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                              <span>{hub.dropoff_instructions}</span>
+                            </div>
+                          )}
+
+                          {hub.google_maps_url ? (
+                            <a
+                              href={hub.google_maps_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-md font-medium text-xs hover:bg-primary/20 transition-colors w-fit"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" /> Open Live Map Location
+                            </a>
+                          ) : (
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hub.name + " " + hub.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md font-medium text-xs hover:bg-gray-200 transition-colors w-fit"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" /> Search Live Location on Google Maps
+                            </a>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Your Scheduled Drop-offs Section */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
+                  Your Drop-off Requests ({dropoffs.length})
+                </h3>
+                {loading ? (
+                  <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
+                ) : dropoffs.length === 0 ? (
+                  <Card><CardContent className="pt-6 text-center text-xs text-muted-foreground">No drop-off requests yet. Click "Schedule Drop-off" above to submit an inventory drop-off request.</CardContent></Card>
+                ) : (
+                  <div className="space-y-3">
+                    {dropoffs.map((d) => (
+                      <Card key={d.id}>
+                        <CardContent className="pt-4 flex justify-between items-center">
+                          <div>
+                            <div className="font-medium text-sm">Drop-off to {d.hubs?.name || "Hub"}</div>
+                            <div className="text-xs text-muted-foreground">
+                              Requested on {new Date(d.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <StatusBadge status={d.status} />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
         </div>

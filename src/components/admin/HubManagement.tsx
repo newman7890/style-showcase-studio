@@ -3,16 +3,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Plus, Building2, Package, ArrowRightLeft, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Loader2, Plus, Building2, Package, ArrowRightLeft, CheckCircle2, Clock, XCircle, Mail, Phone, MapPin, ExternalLink, Info } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const HubManagement = () => {
   const [hubs, setHubs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newHub, setNewHub] = useState({ name: "", region: "", address: "", contact_phone: "" });
+  const [newHub, setNewHub] = useState({
+    name: "",
+    region: "",
+    address: "",
+    contact_phone: "",
+    contact_email: "",
+    operating_hours: "Mon - Fri: 8:00 AM - 5:00 PM",
+    dropoff_instructions: "",
+    google_maps_url: "",
+  });
   const [dropoffs, setDropoffs] = useState<any[]>([]);
 
   const loadData = async () => {
@@ -63,7 +73,16 @@ export const HubManagement = () => {
       toast.error(error.message);
     } else {
       toast.success("Hub created");
-      setNewHub({ name: "", region: "", address: "", contact_phone: "" });
+      setNewHub({
+        name: "",
+        region: "",
+        address: "",
+        contact_phone: "",
+        contact_email: "",
+        operating_hours: "Mon - Fri: 8:00 AM - 5:00 PM",
+        dropoff_instructions: "",
+        google_maps_url: "",
+      });
       loadData();
     }
   };
@@ -109,40 +128,101 @@ export const HubManagement = () => {
 
         <TabsContent value="hubs" className="space-y-6 mt-6">
           <Card>
-            <CardHeader><CardTitle>Add New Hub</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Add New Fulfillment Hub</CardTitle></CardHeader>
             <CardContent>
-              <form onSubmit={handleCreateHub} className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleCreateHub} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Hub Name</Label>
-                  <Input value={newHub.name} onChange={e => setNewHub({...newHub, name: e.target.value})} required />
-                </div>
-                <div>
-                  <Label>Region</Label>
-                  <Input value={newHub.region} onChange={e => setNewHub({...newHub, region: e.target.value})} required />
-                </div>
-                <div className="col-span-2">
-                  <Label>Address</Label>
-                  <Input value={newHub.address} onChange={e => setNewHub({...newHub, address: e.target.value})} required />
+                  <Label>Hub Name *</Label>
+                  <Input placeholder="e.g. Accra Central Hub" value={newHub.name} onChange={e => setNewHub({...newHub, name: e.target.value})} required />
                 </div>
                 <div>
-                  <Label>Contact Phone</Label>
-                  <Input value={newHub.contact_phone} onChange={e => setNewHub({...newHub, contact_phone: e.target.value})} />
+                  <Label>Region *</Label>
+                  <Input placeholder="e.g. Greater Accra" value={newHub.region} onChange={e => setNewHub({...newHub, region: e.target.value})} required />
                 </div>
-                <Button type="submit" className="w-fit mt-2"><Plus className="w-4 h-4 mr-2" /> Add Hub</Button>
+                <div className="md:col-span-2">
+                  <Label>Physical Address *</Label>
+                  <Input placeholder="e.g. 14 Ring Road Central, Kwame Nkrumah Circle" value={newHub.address} onChange={e => setNewHub({...newHub, address: e.target.value})} required />
+                </div>
+                <div>
+                  <Label>Contact Phone Number</Label>
+                  <Input placeholder="e.g. +233 24 123 4567" value={newHub.contact_phone} onChange={e => setNewHub({...newHub, contact_phone: e.target.value})} />
+                </div>
+                <div>
+                  <Label>Business Support Email</Label>
+                  <Input type="email" placeholder="e.g. accra-hub@store.com" value={newHub.contact_email} onChange={e => setNewHub({...newHub, contact_email: e.target.value})} />
+                </div>
+                <div>
+                  <Label>Operating Hours</Label>
+                  <Input placeholder="e.g. Mon - Fri: 8am - 5pm, Sat: 9am - 1pm" value={newHub.operating_hours} onChange={e => setNewHub({...newHub, operating_hours: e.target.value})} />
+                </div>
+                <div>
+                  <Label>Google Maps Live Location URL</Label>
+                  <Input placeholder="e.g. https://maps.google.com/..." value={newHub.google_maps_url} onChange={e => setNewHub({...newHub, google_maps_url: e.target.value})} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Drop-off Instructions for Sellers</Label>
+                  <Textarea placeholder="Instructions on how sellers should deliver packages (e.g. Present Order ID at Gate 2 loading dock)" value={newHub.dropoff_instructions} onChange={e => setNewHub({...newHub, dropoff_instructions: e.target.value})} rows={2} />
+                </div>
+                <div className="md:col-span-2">
+                  <Button type="submit" className="w-fit"><Plus className="w-4 h-4 mr-2" /> Add Hub</Button>
+                </div>
               </form>
             </CardContent>
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {hubs.map(hub => (
-              <Card key={hub.id}>
-                <CardHeader>
-                  <CardTitle className="text-lg">{hub.name}</CardTitle>
+              <Card key={hub.id} className="relative">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg">{hub.name}</CardTitle>
+                    <Badge variant="outline">{hub.region}</Badge>
+                  </div>
                 </CardHeader>
-                <CardContent className="text-sm space-y-2 text-muted-foreground">
-                  <p><strong>Region:</strong> {hub.region}</p>
-                  <p><strong>Address:</strong> {hub.address}</p>
-                  {hub.contact_phone && <p><strong>Phone:</strong> {hub.contact_phone}</p>}
+                <CardContent className="text-xs space-y-2.5 text-muted-foreground">
+                  <div className="flex items-start gap-2 text-gray-800">
+                    <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <span>{hub.address}</span>
+                  </div>
+
+                  {hub.contact_phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <a href={`tel:${hub.contact_phone}`} className="hover:underline text-emerald-700 font-medium">{hub.contact_phone}</a>
+                    </div>
+                  )}
+
+                  {hub.contact_email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <a href={`mailto:${hub.contact_email}`} className="hover:underline text-blue-700 font-medium">{hub.contact_email}</a>
+                    </div>
+                  )}
+
+                  {hub.operating_hours && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>{hub.operating_hours}</span>
+                    </div>
+                  )}
+
+                  {hub.dropoff_instructions && (
+                    <div className="p-2 bg-gray-50 rounded border text-gray-700 flex items-start gap-1.5 mt-2">
+                      <Info className="w-3.5 h-3.5 text-gray-500 shrink-0 mt-0.5" />
+                      <span>{hub.dropoff_instructions}</span>
+                    </div>
+                  )}
+
+                  {hub.google_maps_url && (
+                    <a
+                      href={hub.google_maps_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary font-medium hover:underline mt-1"
+                    >
+                      <ExternalLink className="w-3 h-3" /> View Live Location on Map
+                    </a>
+                  )}
                 </CardContent>
               </Card>
             ))}
