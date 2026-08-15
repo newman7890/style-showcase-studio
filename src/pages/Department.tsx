@@ -528,40 +528,28 @@ const Department = () => {
                 </p>
                 <button
                   onClick={() => setActiveCategory("all")}
-                  className={`w-full flex items-center justify-between py-2 text-sm font-medium transition-colors ${
+                  className={`w-full flex items-center gap-2 py-2 text-sm font-medium transition-colors text-left ${
                     activeCategory === "all" ? "text-primary font-bold" : "text-foreground/80 hover:text-primary"
                   }`}
                 >
-                  All Products 
-                  <span className="text-xs bg-primary text-primary-foreground rounded-full px-2 py-0.5 font-bold">
-                    {products.length}
-                  </span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeCategory === "all" ? "bg-primary" : "bg-muted-foreground/40"}`} />
+                  All Products
                 </button>
 
                 <div className="h-px bg-border my-2" />
 
-                {categories.map((c) => {
-                  const catCount = products.filter((p) => p.category === c.slug).length;
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => setActiveCategory(c.slug)}
-                      className={`w-full flex items-center justify-between py-2 text-sm transition-colors text-left ${
-                        activeCategory === c.slug ? "text-primary font-bold" : "text-foreground/80 hover:text-primary"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2 truncate">
-                        <span className={`w-1.5 h-1.5 rounded-full ${activeCategory === c.slug ? "bg-primary" : "bg-muted-foreground/40"}`} />
-                        <span className="truncate">{c.name}</span>
-                      </span>
-                      {catCount > 0 && (
-                        <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-full font-medium ml-2">
-                          {catCount}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setActiveCategory(c.slug)}
+                    className={`w-full flex items-center gap-2 py-2 text-sm transition-colors text-left ${
+                      activeCategory === c.slug ? "text-primary font-bold" : "text-foreground/80 hover:text-primary"
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${activeCategory === c.slug ? "bg-primary" : "bg-muted-foreground/40"}`} />
+                    <span className="truncate">{c.name}</span>
+                  </button>
+                ))}
               </div>
             </aside>
 
@@ -587,7 +575,7 @@ const Department = () => {
                     onChange={(e) => setActiveCategory(e.target.value)}
                     className="text-xs bg-secondary border border-border rounded-xl px-3 py-2 text-foreground font-medium outline-none"
                   >
-                    <option value="all">All Categories ({products.length})</option>
+                    <option value="all">All Categories</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.slug}>{c.name}</option>
                     ))}
