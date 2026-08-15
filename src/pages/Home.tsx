@@ -45,6 +45,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  department?: string | null;
   image: string | null;
   display_order: number;
 }
