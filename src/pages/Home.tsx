@@ -81,6 +81,23 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 
 const DEFAULT_CATEGORY_ICONS = [Zap, Laptop, Shirt, HomeIcon, UtensilsCrossed, Puzzle];
 
+// ─── Default fallback category image URLs ─────────────────────────────────────
+const DEFAULT_CATEGORY_IMAGES: Record<string, string> = {
+  paintings: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=800&q=80",
+  "books-stationery": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80",
+  jeans: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&q=80",
+  "phones-tablets": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80",
+  "mens-clothing": "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?w=800&q=80",
+  "womens-clothing": "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&q=80",
+  "shoes-sneakers": "https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&q=80",
+  "kitchen-dining": "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&q=80",
+  "audio-headphones": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80",
+  fashion: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&q=80",
+  gadgets: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&q=80",
+  art: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=800&q=80",
+  home: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&q=80",
+};
+
 // ─── Static deal data ──────────────────────────────────────────────────────────
 const DEALS = [
   {
@@ -510,40 +527,47 @@ const Home = () => {
               Shop by Category
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-              {categories.slice(0, 4).map((cat, i) => (
-                <motion.div
-                  key={cat.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.08 }}
-                >
-                  <Link
-                    to={`/department/${cat.department || "home"}?category=${cat.slug}`}
-                    className="block relative aspect-[4/3] bg-secondary/50 rounded-xl overflow-hidden group"
+              {categories.slice(0, 4).map((cat, i) => {
+                const categoryImg =
+                  cat.image ||
+                  DEFAULT_CATEGORY_IMAGES[cat.slug.toLowerCase()] ||
+                  featuredProducts.find((p) => p.category === cat.slug)?.image;
+
+                return (
+                  <motion.div
+                    key={cat.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.08 }}
                   >
-                    {cat.image ? (
-                      <img
-                        src={cat.image}
-                        alt={cat.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        {(() => {
-                          const Icon =
-                            CATEGORY_ICONS[cat.slug.toLowerCase()] ??
-                            DEFAULT_CATEGORY_ICONS[i % DEFAULT_CATEGORY_ICONS.length];
-                          return <Icon className="w-12 h-12 text-primary opacity-50" />;
-                        })()}
+                    <Link
+                      to={`/department/${cat.department || "home"}?category=${cat.slug}`}
+                      className="block relative aspect-[4/3] bg-secondary/50 rounded-xl overflow-hidden group"
+                    >
+                      {categoryImg ? (
+                        <img
+                          src={categoryImg}
+                          alt={cat.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          {(() => {
+                            const Icon =
+                              CATEGORY_ICONS[cat.slug.toLowerCase()] ??
+                              DEFAULT_CATEGORY_ICONS[i % DEFAULT_CATEGORY_ICONS.length];
+                            return <Icon className="w-12 h-12 text-primary opacity-50" />;
+                          })()}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <p className="text-white text-sm font-semibold">{cat.name}</p>
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-white text-sm font-semibold">{cat.name}</p>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </div>
           </section>
         )}
