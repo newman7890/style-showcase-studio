@@ -198,12 +198,12 @@ const Home = () => {
 
   const handleDealClick = (rawLink?: string) => {
     if (!rawLink) {
-      navigate("/products");
+      navigate("/department/home");
       return;
     }
     const target = rawLink.trim();
     if (!target) {
-      navigate("/products");
+      navigate("/department/home");
       return;
     }
     if (target.startsWith("http://") || target.startsWith("https://")) {
@@ -235,7 +235,7 @@ const Home = () => {
       return;
     }
     if (clean === "products" || clean === "all" || clean === "deals") {
-      navigate("/products");
+      navigate("/department/home");
       return;
     }
 
@@ -246,7 +246,7 @@ const Home = () => {
     }
 
     // Otherwise, treat as a search query for products matching that title/term!
-    navigate(`/products?search=${encodeURIComponent(target)}`);
+    navigate(`/department/home?search=${encodeURIComponent(target)}`);
   };
 
   // ── Category pill data (DB or fallback) ──────────────────────────────────
@@ -256,15 +256,16 @@ const Home = () => {
           id: cat.id,
           label: cat.name,
           slug: cat.slug,
+          department: cat.department || "home",
           Icon: CATEGORY_ICONS[cat.slug.toLowerCase()] ?? DEFAULT_CATEGORY_ICONS[i % DEFAULT_CATEGORY_ICONS.length],
         }))
       : [
-          { id: "deals", label: "Deals", slug: "deals", Icon: Zap },
-          { id: "electronics", label: "Electronics", slug: "electronics", Icon: Laptop },
-          { id: "fashion", label: "Fashion", slug: "fashion", Icon: Shirt },
-          { id: "home", label: "Home", slug: "home", Icon: HomeIcon },
-          { id: "kitchen", label: "Kitchen", slug: "kitchen", Icon: UtensilsCrossed },
-          { id: "toys", label: "Toys", slug: "toys", Icon: Puzzle },
+          { id: "deals", label: "Deals", slug: "deals", department: "home", Icon: Zap },
+          { id: "electronics", label: "Electronics", slug: "electronics", department: "gadgets", Icon: Laptop },
+          { id: "fashion", label: "Fashion", slug: "fashion", department: "fashion", Icon: Shirt },
+          { id: "home", label: "Home", slug: "home", department: "home", Icon: HomeIcon },
+          { id: "kitchen", label: "Kitchen", slug: "kitchen", department: "home", Icon: UtensilsCrossed },
+          { id: "toys", label: "Toys", slug: "toys", department: "other", Icon: Puzzle },
         ];
 
   // ─── Render ───────────────────────────────────────────────────────────────
