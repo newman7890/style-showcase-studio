@@ -66,17 +66,6 @@ export const Header = () => {
               )}
             </motion.button>
           </Link>
-
-          <Link to="/cart" className="text-foreground">
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative p-1">
-              <ShoppingBag className="w-5 h-5" />
-              {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-sm">
-                  {itemCount}
-                </span>
-              )}
-            </motion.button>
-          </Link>
         </div>
       </div>
     </motion.header>
