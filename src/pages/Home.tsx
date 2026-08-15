@@ -302,7 +302,7 @@ const Home = () => {
                 <Link to="/products" className="bg-[#2d8a57] hover:bg-[#237046] text-white px-6 py-3 rounded-full font-semibold flex items-center gap-2 transition-colors text-sm">
                   Shop Now <ChevronRight className="w-4 h-4" />
                 </Link>
-                <Link to="/products?category=new" className="text-[#647187] hover:text-[#1c1c1c] font-medium flex items-center gap-1 transition-colors text-sm">
+                <Link to="/department/home?category=new" className="text-[#647187] hover:text-[#1c1c1c] font-medium flex items-center gap-1 transition-colors text-sm">
                   New Arrivals <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -337,7 +337,7 @@ const Home = () => {
         {/* Category Scroll */}
         <section className="overflow-x-auto hide-scrollbar">
           <div className="flex gap-4 px-4 min-w-max">
-            {categoryItems.map(({ id, label, slug, Icon }, idx) => (
+            {categoryItems.map(({ id, label, slug, department, Icon }, idx) => (
               <motion.div
                 key={id}
                 initial={{ opacity: 0, y: 10 }}
@@ -345,7 +345,7 @@ const Home = () => {
                 transition={{ delay: idx * 0.05 }}
               >
                 <Link
-                  to={slug === "deals" ? "/products" : `/products?category=${slug}`}
+                  to={`/department/${department}?category=${slug}`}
                   className="flex flex-col items-center gap-1.5 group"
                 >
                   <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center border border-border group-hover:bg-primary/10 group-active:scale-95 transition-all duration-200">
@@ -370,7 +370,7 @@ const Home = () => {
               </h2>
             </div>
             <Link
-              to="/products"
+              to="/department/home"
               className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
             >
               See all <ChevronRight className="w-4 h-4" />
@@ -381,7 +381,7 @@ const Home = () => {
             <div className="flex gap-4 px-4 min-w-max">
               {(marketingBanners.length > 0
                 ? marketingBanners.map((b) => ({ id: b.id, badge: b.badge, label: b.label, title: b.title, image: b.image_url, link: b.link_url }))
-                : DEALS.map((d) => ({ ...d, link: "/products" }))
+                : DEALS.map((d) => ({ ...d, link: "/department/home" }))
               ).map((deal, i) => (
                 <motion.div
                   key={deal.id}
@@ -426,7 +426,7 @@ const Home = () => {
               Recommended for you
             </h2>
             <Link
-              to="/products"
+              to="/department/home"
               className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
             >
               View all <ChevronRight className="w-4 h-4" />
@@ -549,7 +549,7 @@ const Home = () => {
                   transition={{ delay: i * 0.08 }}
                 >
                   <Link
-                    to={`/products?category=${cat.slug}`}
+                    to={`/department/${cat.department || "home"}?category=${cat.slug}`}
                     className="block relative aspect-[4/3] bg-secondary/50 rounded-xl overflow-hidden group"
                   >
                     {cat.image ? (
