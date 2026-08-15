@@ -84,7 +84,7 @@ const DEFAULT_CATEGORY_ICONS = [Zap, Laptop, Shirt, HomeIcon, UtensilsCrossed, P
 
 // ─── Default fallback category image URLs ─────────────────────────────────────
 const DEFAULT_CATEGORY_IMAGES: Record<string, string> = {
-  paintings: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=800&q=80",
+  paintings: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&q=80",
   "books-stationery": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80",
   jeans: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&q=80",
   "phones-tablets": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80",
@@ -95,7 +95,7 @@ const DEFAULT_CATEGORY_IMAGES: Record<string, string> = {
   "audio-headphones": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80",
   fashion: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&q=80",
   gadgets: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&q=80",
-  art: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=800&q=80",
+  art: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&q=80",
   home: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&q=80",
 };
 
