@@ -290,46 +290,109 @@ const Department = () => {
           </section>
         )}
 
-        {/* Featured collection banners (fashion & gadgets) */}
-        {slug !== "home" && featured.length >= 1 && (
+        {/* Featured collection banners (fashion, art, gadgets) */}
+        {slug !== "home" && (
           <section className="container mx-auto px-4 max-w-7xl pb-6">
             <div className="grid md:grid-cols-3 gap-4">
-              {[
+              {(slug === "fashion" ? [
                 { 
-                  title: slug === "fashion" ? "Men's Collection" : slug === "art" ? "Original Paintings" : "Audio Gear", 
-                  sub: slug === "fashion" ? "Casual. Stylish. Timeless." : slug === "art" ? "Hand-painted canvas & acrylics." : "Premium sound, every day.", 
+                  title: "Men's Collection", 
+                  sub: "Casual. Stylish. Timeless.", 
+                  categorySlug: "mens-clothing",
+                  keywords: ["men", "mens", "shirt", "suit", "jacket", "pant", "male"],
                   cls: "bg-foreground text-background" 
                 },
                 { 
-                  title: slug === "fashion" ? "Women's Collection" : slug === "art" ? "Digital Creations" : "Smart Home", 
-                  sub: slug === "fashion" ? "Chic looks for every moment." : slug === "art" ? "NFTs, digital prints & 3D art." : "Automate your everyday.", 
+                  title: "Women's Collection", 
+                  sub: "Chic looks for every moment.", 
+                  categorySlug: "womens-clothing",
+                  keywords: ["women", "womens", "dress", "skirt", "top", "female", "lady"],
                   cls: "bg-[hsl(var(--secondary))]" 
                 },
                 { 
-                  title: slug === "fashion" ? "Sneaker Fest" : slug === "art" ? "Sculptures & Crafts" : "Wearables", 
-                  sub: slug === "fashion" ? "Step up your style game." : slug === "art" ? "Handmade heritage creations." : "Track. Move. Achieve.", 
+                  title: "Sneaker Fest", 
+                  sub: "Step up your style game.", 
+                  categorySlug: "shoes-sneakers",
+                  keywords: ["shoe", "sneaker", "boot", "footwear", "runner"],
                   cls: "bg-[hsl(var(--muted))]" 
                 },
-              ].map((b, i) => (
-                <div key={i} className={`${b.cls} rounded-2xl p-6 min-h-[180px] flex flex-col justify-between hover:opacity-95 transition relative overflow-hidden group`}>
-                  <div className="max-w-[60%] md:max-w-[65%]">
-                    <h3 className="text-xl font-bold uppercase leading-tight">{b.title}</h3>
-                    <p className="text-sm opacity-80 mt-1">{b.sub}</p>
-                  </div>
-                  <span className="text-sm font-medium inline-flex items-center gap-1 mt-4">
-                    Shop Now <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                  {featured[i]?.image && (
-                    <div className="absolute right-3 bottom-3 w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden shadow-lg border border-white/20 bg-background/80 backdrop-blur-sm">
-                      <img 
-                        src={featured[i].image} 
-                        alt={featured[i]?.name || ""} 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                      />
+              ] : slug === "art" ? [
+                { 
+                  title: "Original Paintings", 
+                  sub: "Hand-painted canvas & acrylics.", 
+                  categorySlug: "paintings",
+                  keywords: ["paint", "painting", "canvas", "acrylic"],
+                  cls: "bg-foreground text-background" 
+                },
+                { 
+                  title: "Digital Creations", 
+                  sub: "NFTs, digital prints & 3D art.", 
+                  categorySlug: "digital-art",
+                  keywords: ["digital", "print", "nft", "3d"],
+                  cls: "bg-[hsl(var(--secondary))]" 
+                },
+                { 
+                  title: "Sculptures & Crafts", 
+                  sub: "Handmade heritage creations.", 
+                  categorySlug: "sculptures",
+                  keywords: ["sculpture", "craft", "handcraft", "statue"],
+                  cls: "bg-[hsl(var(--muted))]" 
+                },
+              ] : [
+                { 
+                  title: "Audio Gear", 
+                  sub: "Premium sound, every day.", 
+                  categorySlug: "audio-headphones",
+                  keywords: ["audio", "headphone", "earbud", "speaker"],
+                  cls: "bg-foreground text-background" 
+                },
+                { 
+                  title: "Smart Home", 
+                  sub: "Automate your everyday.", 
+                  categorySlug: "smart-home",
+                  keywords: ["smart", "home", "automation"],
+                  cls: "bg-[hsl(var(--secondary))]" 
+                },
+                { 
+                  title: "Wearables", 
+                  sub: "Track. Move. Achieve.", 
+                  categorySlug: "wearables",
+                  keywords: ["wearable", "watch", "tracker", "band"],
+                  cls: "bg-[hsl(var(--muted))]" 
+                },
+              ]).map((b, i) => {
+                const matchedProduct = products.find(p => 
+                  b.keywords.some(kw => 
+                    p.category.toLowerCase().includes(kw) || 
+                    p.name.toLowerCase().includes(kw)
+                  )
+                );
+
+                return (
+                  <button 
+                    key={i} 
+                    onClick={() => setActiveCategory(b.categorySlug)}
+                    className={`${b.cls} rounded-2xl p-6 min-h-[180px] flex flex-col justify-between hover:opacity-95 transition relative overflow-hidden group text-left cursor-pointer`}
+                  >
+                    <div className="max-w-[60%] md:max-w-[65%]">
+                      <h3 className="text-xl font-bold uppercase leading-tight">{b.title}</h3>
+                      <p className="text-sm opacity-80 mt-1">{b.sub}</p>
                     </div>
-                  )}
-                </div>
-              ))}
+                    <span className="text-sm font-medium inline-flex items-center gap-1 mt-4">
+                      Shop Now <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                    {matchedProduct?.image && (
+                      <div className="absolute right-3 bottom-3 w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden shadow-lg border border-white/20 bg-background/80 backdrop-blur-sm">
+                        <img 
+                          src={matchedProduct.image} 
+                          alt={matchedProduct.name || ""} 
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                        />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
         )}
