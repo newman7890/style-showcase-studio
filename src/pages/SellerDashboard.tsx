@@ -152,6 +152,11 @@ const SellerDashboard = () => {
   const [colors, setColors] = useState<ColorRow[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
+  // Drop-off scheduling state
+  const [dropoffModalOpen, setDropoffModalOpen] = useState(false);
+  const [selectedHubId, setSelectedHubId] = useState("");
+  const [submittingDropoff, setSubmittingDropoff] = useState(false);
+
   const handleMultipleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -336,6 +341,36 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  const handleScheduleDropoff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedHubId) {
+      toast({ title: "Select a Hub", description: "Please choose a fulfillment hub for your drop-off.", variant: "destructive" });
+      return;
+    }
+    if (!user) return;
+
+    setSubmittingDropoff(true);
+    try {
+      const { error } = await supabase.from("seller_dropoffs").insert({
+        seller_id: user.id,
+        hub_id: selectedHubId,
+        status: "pending",
+      });
+      if (error) throw error;
+      toast({
+        title: "Drop-off Scheduled!",
+        description: "Your drop-off request has been submitted. Bring your items to the hub for verification.",
+      });
+      setDropoffModalOpen(false);
+      setSelectedHubId("");
+      load();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to schedule drop-off.", variant: "destructive" });
+    } finally {
+      setSubmittingDropoff(false);
+    }
+  };
 
   // Auto-save form draft to localStorage when creating a new product
   useEffect(() => {
@@ -1044,15 +1079,68 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
                 <div className="text-sm text-muted-foreground">
                   {dropoffs.length} drop-off request{dropoffs.length === 1 ? "" : "s"}
                 </div>
-                <Button onClick={() => {
-                  toast({ title: "Coming Soon", description: "Scheduling drop-offs will be available shortly." });
-                }}><Plus className="w-4 h-4 mr-2" />Schedule Drop-off</Button>
+                <Dialog open={dropoffModalOpen} onOpenChange={setDropoffModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => setDropoffModalOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />Schedule Drop-off
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Schedule Item Drop-off</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleScheduleDropoff} className="space-y-4 pt-2">
+                      <div>
+                        <Label htmlFor="dropoff-hub">Select Fulfillment Hub *</Label>
+                        <Select
+                          value={selectedHubId}
+                          onValueChange={setSelectedHubId}
+                        >
+                          <SelectTrigger id="dropoff-hub" className="mt-1">
+                            <SelectValue placeholder="Choose a hub..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {hubs.length === 0 ? (
+                              <SelectItem value="none" disabled>No active hubs found</SelectItem>
+                            ) : (
+                              hubs.map((hub) => (
+                                <SelectItem key={hub.id} value={hub.id}>
+                                  {hub.name} ({hub.region})
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {selectedHubId && (() => {
+                        const hubObj = hubs.find((h) => h.id === selectedHubId);
+                        if (!hubObj) return null;
+                        return (
+                          <div className="p-3 bg-gray-50 rounded-lg text-xs space-y-1 text-gray-600 border">
+                            <div className="font-semibold text-gray-900">{hubObj.name}</div>
+                            <div>Address: {hubObj.address}</div>
+                            {hubObj.contact_phone && <div>Phone: {hubObj.contact_phone}</div>}
+                          </div>
+                        );
+                      })()}
+
+                      <Button type="submit" disabled={submittingDropoff || !selectedHubId} className="w-full">
+                        {submittingDropoff ? (
+                          <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Submitting...</>
+                        ) : (
+                          "Confirm Schedule Drop-off"
+                        )}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               {loading ? (
                 <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
               ) : dropoffs.length === 0 ? (
-                <Card><CardContent className="pt-6 text-center text-muted-foreground">No drop-off requests yet.</CardContent></Card>
+                <Card><CardContent className="pt-6 text-center text-muted-foreground">No drop-off requests yet. Click "Schedule Drop-off" above to request an inventory drop-off.</CardContent></Card>
               ) : (
                 <div className="space-y-3">
                   {dropoffs.map((d) => (
