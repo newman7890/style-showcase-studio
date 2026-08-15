@@ -3,8 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Heart, ShoppingBag, 
-  Search, Truck, RotateCcw, Lock,
-  Hexagon, Settings, CheckCircle2, Users
+  Search, CheckCircle2
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,9 +27,23 @@ interface Product {
   sale_price?: number | null;
   sale_ends_at?: string | null;
   stock?: number;
-  colors?: { name: string; hex: string; image: string | null; stock?: number }[];
-  sizes?: string[];
+  colors?: any;
+  sizes?: any;
 }
+
+const safeArray = (val: any): any[] => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -43,7 +56,6 @@ const ProductDetail = () => {
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
   
-  // Mock UI state for new design
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [activeTab, setActiveTab] = useState("Details");
@@ -61,6 +73,7 @@ const ProductDetail = () => {
 
   const fetchProduct = async () => {
     try {
+      setLoading(true);
       const { data: productData, error: productError } = await supabase
         .from("products")
         .select("*")
@@ -68,18 +81,22 @@ const ProductDetail = () => {
         .single();
 
       if (productError) throw productError;
-      setProduct(productData as any);
       
-      const pColors = (productData as any).colors as Product["colors"] | null;
-      if (pColors && pColors.length > 0) {
-        setSelectedColor(pColors[0].name);
+      const prod = productData as any;
+      setProduct(prod);
+      
+      const rawColors = safeArray(prod?.colors);
+      if (rawColors.length > 0) {
+        const first = rawColors[0];
+        const colorName = typeof first === "string" ? first : first?.name;
+        if (colorName) setSelectedColor(colorName);
       }
 
-      if (productData) {
+      if (prod) {
         const { data: relatedData } = await supabase
           .from("products")
           .select("*")
-          .eq("category", productData.category)
+          .eq("category", prod.category || "")
           .neq("id", id)
           .limit(4);
 
@@ -93,18 +110,69 @@ const ProductDetail = () => {
     }
   };
 
+  const colors = useMemo(() => {
+    if (!product) return [];
+    return safeArray(product.colors).map((c: any) => {
+      if (typeof c === "string") return { name: c, hex: "#cccccc", image: null, stock: undefined };
+      return {
+        name: c.name || "Default",
+        hex: c.hex || "#cccccc",
+        image: c.image || null,
+        stock: c.stock
+      };
+    });
+  }, [product]);
+
+  const sizes = useMemo(() => {
+    if (!product) return [];
+    return safeArray(product.sizes).map(s => String(s));
+  }, [product]);
+
+  const rawImages = useMemo(() => {
+    if (!product) return [];
+    return safeArray(product.images);
+  }, [product]);
+
+  const productImages = useMemo(() => {
+    if (!product) return [];
+    const list: string[] = [];
+    if (product.image) list.push(product.image);
+    rawImages.forEach((img) => {
+      if (img && typeof img === "string" && !list.includes(img)) list.push(img);
+    });
+    colors.forEach((c) => {
+      if (c.image && typeof c.image === "string" && !list.includes(c.image)) list.push(c.image);
+    });
+    return list.length > 0 ? list : [product.image || ""];
+  }, [product, rawImages, colors]);
+
+  const features: string[] = useMemo(() => {
+    if (!product) return [];
+    return safeArray((product as any).features).filter(Boolean);
+  }, [product]);
+
+  const materialsInfo: string = (product as any)?.materials_info || "";
+  const sizeFitInfo: string = (product as any)?.size_fit_info || "";
+  const shippingInfo: string = (product as any)?.shipping_returns_info || "";
+
+  const tabs = [
+    "Details",
+    ...(materialsInfo ? ["Materials"] : []),
+    ...(sizeFitInfo ? ["Size & Fit"] : []),
+    ...(shippingInfo ? ["Shipping & Returns"] : []),
+  ];
+  const currentTab = tabs.includes(activeTab) ? activeTab : tabs[0];
+
   const handleAddToCart = () => {
     if (product) {
-      if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      if (sizes.length > 0 && !selectedSize) {
         toast.error("Please select a size first");
         return;
       }
-      const colors = product.colors || [];
       const colorObj = colors.find(c => c.name === selectedColor) || null;
       addToCart(product.id, quantity, colorObj, selectedSize);
     }
   };
-
 
   const handleToggleFavorite = () => {
     if (product) {
@@ -114,7 +182,7 @@ const ProductDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -122,64 +190,31 @@ const ProductDetail = () => {
 
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">{t("noProductsFound")}</p>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">{t("noProductsFound")}</p>
+          <Button onClick={() => navigate("/department/home")}>Return to Shop</Button>
+        </div>
       </div>
     );
   }
 
-  const colors = product.colors || [];
-
-  // Deduplicate and combine all product gallery & color images
-  const productImages = useMemo(() => {
-    const list: string[] = [];
-    if (product.image) list.push(product.image);
-    if (Array.isArray(product.images)) {
-      product.images.forEach((img) => {
-        if (img && typeof img === "string" && !list.includes(img)) list.push(img);
-      });
-    }
-    if (Array.isArray(colors)) {
-      colors.forEach((c) => {
-        if (c.image && typeof c.image === "string" && !list.includes(c.image)) list.push(c.image);
-      });
-    }
-    return list.length > 0 ? list : [product.image];
-  }, [product, colors]);
-
-  const features: string[] = ((product as any).features || []).filter(Boolean);
-  const materialsInfo: string = (product as any).materials_info || "";
-  const sizeFitInfo: string = (product as any).size_fit_info || "";
-  const shippingInfo: string = (product as any).shipping_returns_info || "";
-
-  const tabs = [
-    "Details",
-    ...(materialsInfo ? ["Materials"] : []),
-    ...(sizeFitInfo ? ["Size & Fit"] : []),
-    ...(shippingInfo ? ["Shipping & Returns"] : []),
-  ];
-  const currentTab = tabs.includes(activeTab) ? activeTab : tabs[0];
-  const renderLines = (text: string) => (
-    <div className="space-y-2">
-      {text.split("\n").map((line, i) => line.trim() ? <p key={i}>{line}</p> : null)}
-    </div>
-  );
-
-  const isOnSale = product.sale_price != null && product.sale_ends_at && new Date(product.sale_ends_at) > new Date();
-  const displayPrice = isOnSale ? product.sale_price! : product.price;
+  const price = Number(product.price) || 0;
+  const salePrice = product.sale_price != null ? Number(product.sale_price) : null;
+  const isOnSale = salePrice != null && product.sale_ends_at && new Date(product.sale_ends_at) > new Date();
+  const displayPrice = isOnSale ? salePrice! : price;
 
   const displayColor = hoveredColor || selectedColor;
   const activeColorIndex = colors.findIndex(c => c.name === displayColor);
-  const activeColor = colors[activeColorIndex];
+  const activeColor = activeColorIndex >= 0 ? colors[activeColorIndex] : null;
 
-  // Active main image calculation
-  const activeMainImage = productImages[currentImageIndex] || activeColor?.image || product.image;
+  const activeMainImage = productImages[currentImageIndex] || activeColor?.image || product.image || "";
 
   const selectedColorObj = colors.find((c) => c.name === selectedColor) || null;
   const hasColorStock = colors.length > 0 && colors.some((c) => typeof c.stock === "number");
   const availableStock = hasColorStock
     ? Number(selectedColorObj?.stock ?? 0)
-    : (product.stock ?? 0);
+    : Number(product.stock ?? 0);
   const isSoldOut = typeof product.stock === "number" || hasColorStock ? availableStock <= 0 : false;
 
   return (
@@ -189,7 +224,7 @@ const ProductDetail = () => {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <button 
-            onClick={() => (window.history.length > 2 ? navigate(-1) : navigate("/products"))} 
+            onClick={() => (window.history.length > 2 ? navigate(-1) : navigate("/department/home"))} 
             className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-black transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -234,7 +269,7 @@ const ProductDetail = () => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
                   src={activeMainImage}
-                  alt={product.name}
+                  alt={product.name || "Product"}
                   className="w-full h-full object-cover transition-all duration-300"
                 />
               </AnimatePresence>
@@ -250,7 +285,7 @@ const ProductDetail = () => {
                 <DialogContent className="max-w-5xl p-0 overflow-hidden bg-transparent border-none shadow-none [&>button]:bg-white [&>button]:text-black [&>button]:p-2 [&>button]:rounded-full [&>button]:opacity-100 [&>button]:right-2 [&>button]:top-2 [&>button]:focus:ring-0 [&>button_svg]:w-5 [&>button_svg]:h-5">
                   <img 
                     src={activeMainImage} 
-                    alt={product.name} 
+                    alt={product.name || "Product"} 
                     className="w-full h-auto max-h-[90vh] object-contain rounded-xl transition-all duration-300" 
                   />
                 </DialogContent>
@@ -261,9 +296,11 @@ const ProductDetail = () => {
           {/* RIGHT: Product Info */}
           <div className="flex flex-col pt-2 sm:pt-6">
 
-            <div className="inline-block bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded-md mb-4 self-start capitalize">
-              {product.category}
-            </div>
+            {product.category && (
+              <div className="inline-block bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded-md mb-4 self-start capitalize">
+                {product.category}
+              </div>
+            )}
 
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-black mb-3 leading-tight">
               {product.name}
@@ -277,10 +314,10 @@ const ProductDetail = () => {
               {isOnSale && (
                 <>
                   <span className="text-lg text-gray-400 line-through font-medium">
-                    GH₵{product.price.toFixed(2)}
+                    GH₵{price.toFixed(2)}
                   </span>
                   <span className="text-xs font-bold text-white bg-black px-2 py-1 rounded">
-                    {Math.round(((product.price - displayPrice) / product.price) * 100)}% OFF
+                    {Math.round(((price - displayPrice) / price) * 100)}% OFF
                   </span>
                 </>
               )}
@@ -297,11 +334,11 @@ const ProductDetail = () => {
                 {availableStock > 0 ? (
                   <span className="text-gray-600">
                     {availableStock <= 5 ? `Only ${availableStock} left` : `${availableStock} in stock`}
-                    {hasColorStock ? ` in ${selectedColor}` : ""}
+                    {hasColorStock && selectedColor ? ` in ${selectedColor}` : ""}
                   </span>
                 ) : (
                   <span className="text-red-600">
-                    {hasColorStock ? `${selectedColor} is out of stock` : "Out of stock"}
+                    {hasColorStock && selectedColor ? `${selectedColor} is out of stock` : "Out of stock"}
                   </span>
                 )}
               </p>
@@ -316,7 +353,7 @@ const ProductDetail = () => {
                   Color: <span className="font-medium text-gray-600">{displayColor}</span>
                 </p>
                 <div className="flex gap-3 flex-wrap">
-                  {colors.map((c, idx) => {
+                  {colors.map((c) => {
                     const isSelected = selectedColor === c.name;
                     const outOfStock = hasColorStock && Number(c.stock ?? 0) <= 0;
                     return (
@@ -324,7 +361,13 @@ const ProductDetail = () => {
                         key={c.name}
                         onMouseEnter={() => setHoveredColor(c.name)}
                         onMouseLeave={() => setHoveredColor(null)}
-                        onClick={() => setSelectedColor(c.name)}
+                        onClick={() => {
+                          setSelectedColor(c.name);
+                          if (c.image) {
+                            const idx = productImages.indexOf(c.image);
+                            if (idx >= 0) setCurrentImageIndex(idx);
+                          }
+                        }}
                         className={`relative w-12 h-12 rounded-full overflow-hidden border-2 transition-all p-0.5 ${
                           isSelected ? "border-orange-500 shadow-sm" : "border-gray-200 hover:border-gray-400"
                         } ${outOfStock ? "opacity-40" : ""}`}
@@ -357,7 +400,7 @@ const ProductDetail = () => {
             )}
 
             {/* Size Selector */}
-            {product.sizes && product.sizes.length > 0 && (
+            {sizes.length > 0 && (
               <div className="mb-8">
                 <div className="mb-3">
                   <p className="text-sm font-bold text-black">
@@ -365,7 +408,7 @@ const ProductDetail = () => {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {product.sizes.map((size) => (
+                  {sizes.map((size) => (
                     <button
                       key={size}
                       onClick={() => setSelectedSize(size)}
@@ -405,9 +448,6 @@ const ProductDetail = () => {
                 />
               </button>
             </div>
-
-
-
 
           </div>
         </div>
@@ -456,70 +496,33 @@ const ProductDetail = () => {
             )}
 
             {currentTab === "Materials" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8">
-                {renderLines(materialsInfo)}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div className="text-gray-600 text-sm leading-relaxed">
+                  {materialsInfo}
+                </div>
               </motion.div>
             )}
 
             {currentTab === "Size & Fit" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8">
-                {renderLines(sizeFitInfo)}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div className="text-gray-600 text-sm leading-relaxed">
+                  {sizeFitInfo}
+                </div>
               </motion.div>
             )}
 
             {currentTab === "Shipping & Returns" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-gray-600 text-sm leading-relaxed mb-8">
-                {renderLines(shippingInfo)}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div className="text-gray-600 text-sm leading-relaxed">
+                  {shippingInfo}
+                </div>
               </motion.div>
             )}
           </div>
+
         </div>
 
-
-        {/* ── Customer Reviews ── */}
-        <div className="mb-24">
-          <ProductReviews productId={product.id} />
-        </div>
-
-        {/* ── Bottom Section: You May Also Like ── */}
-        {relatedProducts.length > 0 && (
-          <div>
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-bold text-black">You May Also Like</h2>
-              <Link to="/products" className="text-sm font-bold text-black flex items-center gap-1 hover:underline">
-                View All <ArrowLeft className="w-4 h-4 rotate-180" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-              {relatedProducts.map((item) => (
-                <Link key={item.id} to={`/product/${item.id}`} className="group cursor-pointer block">
-                  <div className="aspect-[3/4] bg-gray-100 rounded-2xl mb-4 overflow-hidden relative">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toggleFavorite(item.id);
-                      }}
-                      className="absolute bottom-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
-                    >
-                      <Heart className={`w-4 h-4 ${isFavorite(item.id) ? 'fill-black text-black' : 'text-black'}`} />
-                    </button>
-                  </div>
-                  <h3 className="text-sm font-bold text-black mb-1 line-clamp-1">{item.name}</h3>
-                  <p className="text-sm font-bold text-gray-600">GH₵{item.price.toFixed(2)}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-
+        <ProductReviews productId={product.id} />
       </div>
     </main>
   );
