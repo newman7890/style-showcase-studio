@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
@@ -167,13 +167,13 @@ const Home = () => {
     },
   });
 
-  const { data: marketingBanners = [] } = useQuery<{ id: string; title: string; badge: string; label: string; image_url: string; link_url: string }[]>({
+  const { data: marketingBanners = [] } = useQuery<{ id: string; title: string; badge: string; label: string; image_url: string; link_url: string; placement: string }[]>({
     queryKey: ["marketing-banners-home"],
     queryFn: async () => {
       try {
         const { data, error } = await (supabase as any)
           .from("marketing_banners")
-          .select("id, title, badge, label, image_url, link_url")
+          .select("id, title, badge, label, image_url, link_url, placement")
           .eq("is_active", true)
           .order("display_order", { ascending: true });
         if (error) return [];
@@ -184,6 +184,24 @@ const Home = () => {
     },
     retry: false,
   });
+
+  const dealBanners = useMemo(() => {
+    const deals = marketingBanners.filter((b) => !b.placement || b.placement === "deal_cards");
+    return deals.length > 0 ? deals : DEALS.map((d) => ({ ...d, link_url: "/department/home", placement: "deal_cards", image_url: d.image }));
+  }, [marketingBanners]);
+
+  const promoBanners = useMemo(() => {
+    return marketingBanners.filter((b) => b.placement === "promo_banner");
+  }, [marketingBanners]);
+
+  const handleAdClick = async (adId?: string, rawLink?: string) => {
+    if (adId) {
+      try {
+        await (supabase as any).rpc("increment_banner_click", { banner_id: adId }).catch(() => {});
+      } catch {}
+    }
+    handleDealClick(rawLink);
+  };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAddToCart = async (product: Product) => {

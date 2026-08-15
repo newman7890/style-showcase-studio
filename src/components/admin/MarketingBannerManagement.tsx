@@ -1,20 +1,23 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Pencil, Upload, GripVertical, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Pencil, Upload, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink, MousePointerClick, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface MarketingBanner {
+export interface MarketingBanner {
   id: string;
   title: string;
   badge: string;
   label: string;
   image_url: string;
   link_url: string;
+  placement: "hero_carousel" | "deal_cards" | "promo_banner" | "shop_banner";
+  click_count?: number;
   is_active: boolean;
   display_order: number;
   created_at: string;
@@ -24,7 +27,15 @@ const emptyForm = {
   title: "",
   badge: "",
   label: "",
-  link_url: "/products",
+  link_url: "/department/home",
+  placement: "deal_cards" as MarketingBanner["placement"],
+};
+
+export const PLACEMENT_LABELS: Record<MarketingBanner["placement"], { name: string; desc: string; color: string }> = {
+  hero_carousel: { name: "Hero Slider", desc: "Top hero carousel on homepage", color: "bg-blue-100 text-blue-800 border-blue-200" },
+  deal_cards: { name: "Deal Cards", desc: "Deal of the Day section", color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  promo_banner: { name: "Mid Promo Banner", desc: "Full-width banner in middle of homepage", color: "bg-purple-100 text-purple-800 border-purple-200" },
+  shop_banner: { name: "Shop Top Banner", desc: "Featured banner at top of Shop page", color: "bg-amber-100 text-amber-800 border-amber-200" },
 };
 
 export const MarketingBannerManagement = () => {
@@ -38,6 +49,7 @@ export const MarketingBannerManagement = () => {
   const [imagePreview, setImagePreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [tableMissing, setTableMissing] = useState(false);
+  const [activeTabFilter, setActiveTabFilter] = useState<string>("all");
 
   const fetchBanners = async () => {
     setLoading(true);
@@ -75,6 +87,7 @@ export const MarketingBannerManagement = () => {
       badge: banner.badge,
       label: banner.label,
       link_url: banner.link_url,
+      placement: banner.placement || "deal_cards",
     });
     setImagePreview(banner.image_url);
     setDialogOpen(true);
@@ -96,7 +109,7 @@ export const MarketingBannerManagement = () => {
       return;
     }
     if (!editing && !imageFile) {
-      toast({ title: "Error", description: "Please select a banner image.", variant: "destructive" });
+      toast({ title: "Error", description: "Please select an ad banner image.", variant: "destructive" });
       return;
     }
 
@@ -119,7 +132,8 @@ export const MarketingBannerManagement = () => {
         badge: form.badge.trim(),
         label: form.label.trim(),
         image_url: imageUrl,
-        link_url: form.link_url.trim() || "/products",
+        link_url: form.link_url.trim() || "/department/home",
+        placement: form.placement,
       };
 
       if (editing) {
@@ -128,14 +142,14 @@ export const MarketingBannerManagement = () => {
           .update(payload)
           .eq("id", editing.id);
         if (error) throw error;
-        toast({ title: "Banner updated", description: "Marketing banner updated successfully." });
+        toast({ title: "Ad Banner updated", description: "Marketing ad banner updated successfully." });
       } else {
         const nextOrder = banners.length > 0 ? Math.max(...banners.map((b) => b.display_order)) + 1 : 0;
         const { error } = await (supabase as any)
           .from("marketing_banners")
           .insert({ ...payload, display_order: nextOrder });
         if (error) throw error;
-        toast({ title: "Banner created", description: "New marketing banner added." });
+        toast({ title: "Ad Banner created", description: "New promotional ad banner added." });
       }
 
       setDialogOpen(false);
@@ -157,15 +171,15 @@ export const MarketingBannerManagement = () => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({
-        title: banner.is_active ? "Banner hidden" : "Banner visible",
-        description: `"${banner.title}" is now ${banner.is_active ? "hidden" : "visible"} on the homepage.`,
+        title: banner.is_active ? "Ad hidden" : "Ad visible",
+        description: `"${banner.title}" is now ${banner.is_active ? "hidden" : "visible"}.`,
       });
       fetchBanners();
     }
   };
 
   const deleteBanner = async (banner: MarketingBanner) => {
-    if (!confirm(`Delete banner "${banner.title}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete ad "${banner.title}"? This cannot be undone.`)) return;
     const { error } = await (supabase as any)
       .from("marketing_banners")
       .delete()
@@ -173,10 +187,14 @@ export const MarketingBannerManagement = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Deleted", description: "Banner removed." });
+      toast({ title: "Deleted", description: "Ad removed." });
       fetchBanners();
     }
   };
+
+  const filteredBanners = banners.filter(
+    (b) => activeTabFilter === "all" || b.placement === activeTabFilter
+  );
 
   if (loading) {
     return (
@@ -188,32 +206,56 @@ export const MarketingBannerManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">Marketing Banners</h2>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <LayoutGrid className="w-5 h-5 text-purple-600" />
+            Homepage & Shop Ads Manager
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Upload promotional images that appear in the "Deal of the Day" section on the homepage.
+            Create, control, and monitor promotional ad banners across key areas of your website.
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
             <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
-              <Plus className="w-4 h-4 mr-2" /> Add Banner
+              <Plus className="w-4 h-4 mr-2" /> Add New Ad Banner
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] overflow-y-auto max-w-lg">
             <DialogHeader>
-              <DialogTitle>{editing ? "Edit Banner" : "New Marketing Banner"}</DialogTitle>
+              <DialogTitle>{editing ? "Edit Ad Banner" : "Create New Ad Banner"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="banner-title">Title *</Label>
+                <Label htmlFor="banner-title">Ad Title *</Label>
                 <Input
                   id="banner-title"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="e.g. Pro Audio Noise-Canceling Headphones"
+                  placeholder="e.g. Spring Sale 2026 / 40% Off Sneakers"
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="banner-placement">Ad Placement / Position *</Label>
+                <Select
+                  value={form.placement}
+                  onValueChange={(val: MarketingBanner["placement"]) => setForm({ ...form, placement: val })}
+                >
+                  <SelectTrigger id="banner-placement">
+                    <SelectValue placeholder="Select placement position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hero_carousel">Hero Slider (Top of Homepage)</SelectItem>
+                    <SelectItem value="deal_cards">Deal of the Day Cards (Homepage)</SelectItem>
+                    <SelectItem value="promo_banner">Mid-Page Full Banner (Homepage)</SelectItem>
+                    <SelectItem value="shop_banner">Shop Page Featured Banner</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {PLACEMENT_LABELS[form.placement]?.desc}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -223,36 +265,35 @@ export const MarketingBannerManagement = () => {
                     id="banner-badge"
                     value={form.badge}
                     onChange={(e) => setForm({ ...form, badge: e.target.value })}
-                    placeholder="e.g. Up to 40% off"
+                    placeholder="e.g. 50% OFF or SPONSORED"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="banner-label">Label <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                  <Label htmlFor="banner-label">Sub-Label <span className="text-muted-foreground font-normal">(Optional)</span></Label>
                   <Input
                     id="banner-label"
                     value={form.label}
                     onChange={(e) => setForm({ ...form, label: e.target.value })}
-                    placeholder="e.g. Prime Deal"
+                    placeholder="e.g. Flash Deal"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="banner-link">Link URL</Label>
+                <Label htmlFor="banner-link">Target Destination Link URL</Label>
                 <Input
                   id="banner-link"
                   value={form.link_url}
                   onChange={(e) => setForm({ ...form, link_url: e.target.value })}
-                  placeholder="/art or /products or /department/fashion"
+                  placeholder="/department/home or /art or /product/123"
                 />
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  <span className="text-[10px] text-muted-foreground self-center mr-1">Quick presets:</span>
+                  <span className="text-[10px] text-muted-foreground self-center mr-1">Quick links:</span>
                   {[
-                    { label: "Art Gallery", url: "/art" },
-                    { label: "All Products", url: "/products" },
-                    { label: "Gadgets", url: "/department/gadgets" },
+                    { label: "Main Shop", url: "/department/home" },
                     { label: "Fashion", url: "/department/fashion" },
-                    { label: "Home", url: "/department/home" },
+                    { label: "Gadgets", url: "/department/gadgets" },
+                    { label: "Art Gallery", url: "/art" },
                   ].map((preset) => (
                     <button
                       key={preset.url}
@@ -274,7 +315,7 @@ export const MarketingBannerManagement = () => {
               <div className="border border-dashed border-gray-300 rounded-xl p-4 space-y-3 bg-gray-50/50">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="banner-image" className="font-semibold text-sm flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4 text-purple-600" /> Banner Image {!editing && "*"}
+                    <ImageIcon className="w-4 h-4 text-purple-600" /> Ad Image {!editing && "*"}
                   </Label>
                   <Label
                     htmlFor="banner-image"
@@ -303,16 +344,46 @@ export const MarketingBannerManagement = () => {
 
               <Button type="submit" disabled={submitting} className="w-full">
                 {submitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</>
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving Ad...</>
                 ) : editing ? (
-                  "Update Banner"
+                  "Update Ad Banner"
                 ) : (
-                  "Create Banner"
+                  "Create Ad Banner"
                 )}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* Placement Filters */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        <button
+          onClick={() => setActiveTabFilter("all")}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+            activeTabFilter === "all"
+              ? "bg-black text-white border-black"
+              : "bg-white text-gray-600 border-gray-200 hover:border-black"
+          }`}
+        >
+          All Ads ({banners.length})
+        </button>
+        {Object.entries(PLACEMENT_LABELS).map(([key, info]) => {
+          const count = banners.filter((b) => b.placement === key).length;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveTabFilter(key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                activeTabFilter === key
+                  ? "bg-purple-600 text-white border-purple-600"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+              }`}
+            >
+              {info.name} ({count})
+            </button>
+          );
+        })}
       </div>
 
       {tableMissing ? (
@@ -325,7 +396,7 @@ export const MarketingBannerManagement = () => {
               <div className="space-y-1">
                 <h3 className="font-semibold text-amber-900">Database Table Setup Required</h3>
                 <p className="text-sm text-amber-800">
-                  The <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-xs text-amber-900">marketing_banners</code> table has not been created yet in your Supabase project. The website is currently displaying the fallback default deals.
+                  The <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-xs text-amber-900">marketing_banners</code> table has not been created yet in your Supabase project.
                 </p>
               </div>
             </div>
@@ -337,7 +408,9 @@ export const MarketingBannerManagement = () => {
   badge TEXT NOT NULL DEFAULT '',
   label TEXT NOT NULL DEFAULT '',
   image_url TEXT NOT NULL,
-  link_url TEXT DEFAULT '/products',
+  link_url TEXT DEFAULT '/department/home',
+  placement TEXT DEFAULT 'deal_cards',
+  click_count INTEGER DEFAULT 0,
   is_active BOOLEAN DEFAULT true,
   display_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -354,87 +427,97 @@ CREATE POLICY "Admins can manage marketing banners"
             </div>
           </CardContent>
         </Card>
-      ) : banners.length === 0 ? (
+      ) : filteredBanners.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <ImageIcon className="w-12 h-12 text-muted-foreground mb-3" />
-            <h3 className="font-semibold text-lg">No marketing banners yet</h3>
+            <h3 className="font-semibold text-lg">No ad banners found</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Upload promotional images to feature on your homepage "Deal of the Day" section.
+              {activeTabFilter === "all"
+                ? "Click 'Add New Ad Banner' above to create your first promotional ad."
+                : `No active ads created for placement "${PLACEMENT_LABELS[activeTabFilter as keyof typeof PLACEMENT_LABELS]?.name}".`}
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {banners.map((banner) => (
-            <Card
-              key={banner.id}
-              className={`overflow-hidden transition-all ${
-                !banner.is_active ? "opacity-50 grayscale" : ""
-              }`}
-            >
-              <div className="relative h-40 bg-secondary/50 overflow-hidden">
-                <img
-                  src={banner.image_url}
-                  alt={banner.title}
-                  className="w-full h-full object-cover"
-                />
-                {!banner.is_active && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-full">
-                      Hidden
+          {filteredBanners.map((banner) => {
+            const placementInfo = PLACEMENT_LABELS[banner.placement] || PLACEMENT_LABELS.deal_cards;
+            return (
+              <Card
+                key={banner.id}
+                className={`overflow-hidden transition-all border ${
+                  !banner.is_active ? "opacity-50 grayscale" : ""
+                }`}
+              >
+                <div className="relative h-40 bg-secondary/50 overflow-hidden">
+                  <img
+                    src={banner.image_url}
+                    alt={banner.title}
+                    className="w-full h-full object-cover"
+                  />
+                  {!banner.is_active && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-full">
+                        Hidden
+                      </span>
+                    </div>
+                  )}
+                  {banner.badge && (
+                    <span className="absolute top-2 left-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
+                      {banner.badge}
                     </span>
-                  </div>
-                )}
-                {banner.badge && (
-                  <span className="absolute top-2 left-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
-                    {banner.badge}
+                  )}
+                  <span className={`absolute bottom-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-md border backdrop-blur-sm ${placementInfo.color}`}>
+                    {placementInfo.name}
                   </span>
-                )}
-                {banner.label && (
-                  <span className="absolute top-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
-                    {banner.label}
-                  </span>
-                )}
-              </div>
-              <CardContent className="p-3">
-                <p className="font-semibold text-sm truncate">{banner.title}</p>
-                <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
-                  <ExternalLink className="w-3 h-3" /> {banner.link_url}
-                </p>
-                <div className="flex items-center gap-1.5 mt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEdit(banner)}
-                    className="h-7 text-xs flex-1"
-                  >
-                    <Pencil className="w-3 h-3 mr-1" /> Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleActive(banner)}
-                    className="h-7 text-xs"
-                  >
-                    {banner.is_active ? (
-                      <><EyeOff className="w-3 h-3 mr-1" /> Hide</>
-                    ) : (
-                      <><Eye className="w-3 h-3 mr-1" /> Show</>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => deleteBanner(banner)}
-                    className="h-7 text-xs text-destructive hover:bg-red-50"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-sm truncate flex-1">{banner.title}</p>
+                    {banner.click_count != null && (
+                      <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-0.5 bg-gray-100 px-1.5 py-0.5 rounded">
+                        <MousePointerClick className="w-3 h-3 text-purple-600" /> {banner.click_count} clicks
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                    <ExternalLink className="w-3 h-3" /> {banner.link_url}
+                  </p>
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEdit(banner)}
+                      className="h-7 text-xs flex-1"
+                    >
+                      <Pencil className="w-3 h-3 mr-1" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleActive(banner)}
+                      className="h-7 text-xs"
+                    >
+                      {banner.is_active ? (
+                        <><EyeOff className="w-3 h-3 mr-1" /> Hide</>
+                      ) : (
+                        <><Eye className="w-3 h-3 mr-1" /> Show</>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteBanner(banner)}
+                      className="h-7 text-xs text-destructive hover:bg-red-50"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
