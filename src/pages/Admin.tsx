@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent, Building2, Megaphone } from "lucide-react";
+import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent, Building2, Megaphone, Bike } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
@@ -22,6 +22,7 @@ import { ProductApprovalsManagement } from "@/components/admin/ProductApprovalsM
 import { PlatformSettingsManagement } from "@/components/admin/PlatformSettingsManagement";
 import { HubManagement } from "@/components/admin/HubManagement";
 import { MarketingBannerManagement } from "@/components/admin/MarketingBannerManagement";
+import { RiderManagement } from "@/components/admin/RiderManagement";
 
 const Admin = () => {
   const { user, isAdmin, isSeller, loading } = useAuth();
@@ -115,6 +116,10 @@ const Admin = () => {
                     <Truck className="w-4 h-4" />
                     <span className="hidden sm:inline">Delivery</span>
                   </TabsTrigger>
+                  <TabsTrigger value="riders" className="flex items-center gap-2">
+                    <Bike className="w-4 h-4" />
+                    <span className="hidden sm:inline">Riders</span>
+                  </TabsTrigger>
                   <TabsTrigger value="customers" className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
                     <span className="hidden sm:inline">Customers</span>
@@ -142,6 +147,7 @@ const Admin = () => {
             <TabsContent value="seller-apps"><SellerApprovalsManagement /></TabsContent>
             <TabsContent value="product-approvals"><ProductApprovalsManagement /></TabsContent>
             <TabsContent value="hubs"><HubManagement /></TabsContent>
+            <TabsContent value="riders"><RiderManagement /></TabsContent>
             <TabsContent value="platform"><PlatformSettingsManagement /></TabsContent>
 
 
