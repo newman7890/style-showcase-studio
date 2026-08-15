@@ -1,10 +1,9 @@
-import { Heart, ShoppingBag } from "lucide-react";
-import { Link, NavLink } from "react-router-dom";
+import { Heart, ShoppingBag, ArrowLeft } from "lucide-react";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useCart } from "@/hooks/useCart";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useLocation } from "react-router-dom";
 
 const DEPARTMENTS = [
   { slug: "fashion" },
@@ -19,7 +18,9 @@ export const Header = () => {
   const { itemCount } = useCart();
   const { t } = useLanguage();
   const location = useLocation();
+  const navigate = useNavigate();
   const showCategories = location.pathname === "/products" || location.pathname.startsWith("/department");
+  const isSubPage = location.pathname !== "/";
   
   return (
     <motion.header
@@ -28,9 +29,22 @@ export const Header = () => {
       className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border"
     >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-2 md:gap-4">
-        <Link to="/" className="text-base md:text-xl font-semibold tracking-tight whitespace-nowrap shrink-0 truncate max-w-[92px] md:max-w-none">
-          {t("logo")}
-        </Link>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isSubPage && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => (window.history.length > 2 ? navigate(-1) : navigate("/"))}
+              className="p-1.5 rounded-full hover:bg-secondary text-foreground transition-colors"
+              title="Go back"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </motion.button>
+          )}
+          <Link to="/" className="text-base md:text-xl font-semibold tracking-tight whitespace-nowrap shrink-0 truncate max-w-[92px] md:max-w-none">
+            {t("logo")}
+          </Link>
+        </div>
 
         {showCategories ? (
           <nav className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto md:overflow-visible md:flex-none scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]">

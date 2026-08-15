@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Heart, ShoppingBag, 
@@ -34,6 +34,7 @@ interface Product {
 
 const ProductDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,10 +175,13 @@ const ProductDetail = () => {
       {/* Top Navigation - kept minimal */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-          <Link to="/products" className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-black transition-colors">
+          <button 
+            onClick={() => (window.history.length > 2 ? navigate(-1) : navigate("/products"))} 
+            className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-black transition-colors"
+          >
             <ArrowLeft className="w-4 h-4" />
             Back
-          </Link>
+          </button>
         </div>
       </header>
 
