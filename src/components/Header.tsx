@@ -6,9 +6,9 @@ import { useCart } from "@/hooks/useCart";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const DEPARTMENTS = [
+  { slug: "home" },
   { slug: "fashion" },
   { slug: "gadgets" },
-  { slug: "home" },
   { slug: "art" },
   { slug: "other" },
 ] as const;
