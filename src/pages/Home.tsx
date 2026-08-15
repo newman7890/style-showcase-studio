@@ -55,6 +55,7 @@ interface Product {
   name: string;
   price: number;
   image: string;
+  category?: string;
   sale_price?: number | null;
   sale_ends_at?: string | null;
 }
@@ -164,7 +165,7 @@ const Home = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price, image, sale_price, sale_ends_at")
+        .select("id, name, price, image, category, sale_price, sale_ends_at")
         .limit(4);
       if (error) throw error;
       return data || [];
