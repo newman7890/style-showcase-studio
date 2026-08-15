@@ -220,9 +220,12 @@ const SellerDashboard = () => {
       });
     } catch (err: any) {
       console.error("Background removal error:", err);
+      const isFetchError = err?.message?.includes("Failed to fetch") || err?.name === "TypeError";
       toast({
-        title: "Processing Error",
-        description: err.message || "Failed to remove background.",
+        title: isFetchError ? "Internet Connection Required" : "Processing Error",
+        description: isFetchError
+          ? "Unable to download AI background removal models. Please check your internet connection and try again."
+          : (err.message || "Failed to remove background."),
         variant: "destructive",
       });
       setGalleryImages((prev) =>
@@ -425,9 +428,12 @@ Do not include markdown blocks like \`\`\`json. Just the raw JSON object.`;
       });
     } catch (err: any) {
       console.error("Background removal error for color:", err);
+      const isFetchError = err?.message?.includes("Failed to fetch") || err?.name === "TypeError";
       toast({
-        title: "Processing Error",
-        description: err.message || "Failed to remove background.",
+        title: isFetchError ? "Internet Connection Required" : "Processing Error",
+        description: isFetchError
+          ? "Unable to download AI background removal models. Please check your internet connection and try again."
+          : (err.message || "Failed to remove background."),
         variant: "destructive",
       });
     } finally {
