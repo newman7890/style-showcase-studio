@@ -156,10 +156,10 @@ export const RiderManagement = () => {
 
     try {
       // Query orders assigned to this rider
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("orders")
         .select("id, status, created_at, delivery_address, phone, total_amount, profiles(full_name), order_items(id, quantity, unit_price, products(name))")
-        .eq("assigned_rider_id" as any, rider.user_id)
+        .eq("assigned_rider_id", rider.user_id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
