@@ -213,9 +213,21 @@ const Department = () => {
           <section className="container mx-auto px-4 max-w-7xl pb-6">
             <div className="grid md:grid-cols-3 gap-4">
               {[
-                { title: slug === "fashion" ? "Men's Collection" : "Audio Gear", sub: slug === "fashion" ? "Casual. Stylish. Timeless." : "Premium sound, every day.", cls: "bg-foreground text-background" },
-                { title: slug === "fashion" ? "Women's Collection" : "Smart Home", sub: slug === "fashion" ? "Chic looks for every moment." : "Automate your everyday.", cls: "bg-[hsl(var(--secondary))]" },
-                { title: slug === "fashion" ? "Sneaker Fest" : "Wearables", sub: slug === "fashion" ? "Step up your style game." : "Track. Move. Achieve.", cls: "bg-[hsl(var(--muted))]" },
+                { 
+                  title: slug === "fashion" ? "Men's Collection" : slug === "art" ? "Original Paintings" : "Audio Gear", 
+                  sub: slug === "fashion" ? "Casual. Stylish. Timeless." : slug === "art" ? "Hand-painted canvas & acrylics." : "Premium sound, every day.", 
+                  cls: "bg-foreground text-background" 
+                },
+                { 
+                  title: slug === "fashion" ? "Women's Collection" : slug === "art" ? "Digital Creations" : "Smart Home", 
+                  sub: slug === "fashion" ? "Chic looks for every moment." : slug === "art" ? "NFTs, digital prints & 3D art." : "Automate your everyday.", 
+                  cls: "bg-[hsl(var(--secondary))]" 
+                },
+                { 
+                  title: slug === "fashion" ? "Sneaker Fest" : slug === "art" ? "Sculptures & Crafts" : "Wearables", 
+                  sub: slug === "fashion" ? "Step up your style game." : slug === "art" ? "Handmade heritage creations." : "Track. Move. Achieve.", 
+                  cls: "bg-[hsl(var(--muted))]" 
+                },
               ].map((b, i) => (
                 <Link key={i} to="/products" className={`${b.cls} rounded-2xl p-6 min-h-[180px] flex flex-col justify-between hover:opacity-95 transition relative overflow-hidden`}>
                   <div>
