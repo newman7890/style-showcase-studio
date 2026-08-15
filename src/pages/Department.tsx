@@ -76,11 +76,6 @@ const FashionHero = ({ heroImg }: { heroImg?: string }) => (
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-rose-200 to-amber-200" />
         )}
-        <div className="absolute top-6 right-6 w-24 h-24 md:w-28 md:h-28 rounded-full bg-primary text-primary-foreground flex flex-col items-center justify-center font-bold text-center shadow-lg">
-          <span className="text-[10px] tracking-wider">UP TO</span>
-          <span className="text-2xl leading-none">50%</span>
-          <span className="text-[10px] tracking-wider">OFF</span>
-        </div>
       </div>
     </div>
   </section>
