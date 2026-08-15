@@ -68,7 +68,6 @@ const FashionHero = ({ heroImg }: { heroImg?: string }) => (
         <div className="flex flex-wrap gap-6 pt-2">
           <div className="flex items-center gap-2"><Heart className="w-5 h-5 text-primary" /><div><p className="font-bold text-sm">50,000+</p><p className="text-xs text-muted-foreground">Happy Customers</p></div></div>
           <div className="flex items-center gap-2"><Package className="w-5 h-5 text-primary" /><div><p className="font-bold text-sm">1000+</p><p className="text-xs text-muted-foreground">Premium Products</p></div></div>
-          <div className="flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /><div><p className="font-bold text-sm">30 Days</p><p className="text-xs text-muted-foreground">Easy Returns</p></div></div>
         </div>
       </div>
       <div className="relative aspect-[4/3] rounded-3xl overflow-hidden bg-muted">
@@ -110,11 +109,9 @@ const GadgetsHero = ({ heroImg }: { heroImg?: string }) => (
       </div>
     </section>
     <section className="container mx-auto px-4 max-w-7xl -mt-6 relative z-10">
-      <div className="bg-card border border-border rounded-2xl shadow-sm px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="bg-card border border-border rounded-2xl shadow-sm px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { icon: Truck, title: "Free Delivery", sub: "On orders over GH₵300" },
           { icon: ShieldCheck, title: "Secure Payments", sub: "100% secure checkout" },
-          { icon: RotateCcw, title: "Easy Returns", sub: "30-day return policy" },
           { icon: Award, title: "Warranty", sub: "Up to 2 years" },
           { icon: Headphones, title: "24/7 Support", sub: "Dedicated support" },
         ].map((f, i) => (
