@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutGrid, Plus, Pencil, Trash2, GripVertical, Eye, EyeOff, ImageIcon, Save, X, FolderOpen } from "lucide-react";
+import { LayoutGrid, Plus, Pencil, Trash2, GripVertical, Eye, EyeOff, ImageIcon, Save, X, FolderOpen, Upload, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,9 +54,31 @@ export const CategoryManagement = () => {
   const [formDepartment, setFormDepartment] = useState("fashion");
   const [formActive, setFormActive] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignCategory, setAssignCategory] = useState<Category | null>(null);
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `categories/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("product-images").upload(path, file);
+      if (uploadErr) throw uploadErr;
+
+      const pubUrl = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+      setFormImage(pubUrl);
+      toast({ title: "Image uploaded successfully!" });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -336,11 +358,44 @@ export const CategoryManagement = () => {
                 <option value="other">Other</option>
               </select>
             </div>
-            <div>
-              <Label>Image URL (optional)</Label>
-              <Input value={formImage} onChange={(e) => setFormImage(e.target.value)} placeholder="https://..." />
+            <div className="space-y-2">
+              <Label>Category Image</Label>
+              
+              {/* Direct File Upload Option */}
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-xs font-medium cursor-pointer transition-colors border">
+                  {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Upload className="w-4 h-4 text-primary" />}
+                  <span>{uploadingImage ? "Uploading Image..." : "Upload Image File"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    disabled={uploadingImage}
+                    className="hidden"
+                  />
+                </label>
+                <span className="text-xs text-muted-foreground">or paste URL below</span>
+              </div>
+
+              {/* URL fallback */}
+              <Input
+                value={formImage}
+                onChange={(e) => setFormImage(e.target.value)}
+                placeholder="https://..."
+                className="text-xs"
+              />
+
               {formImage && (
-                <img src={formImage} alt="Preview" className="w-20 h-20 rounded-lg object-cover mt-2" />
+                <div className="relative w-24 h-24 mt-2 rounded-lg overflow-hidden border group">
+                  <img src={formImage} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setFormImage("")}
+                    className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black text-white rounded-full transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               )}
             </div>
             <div className="flex items-center gap-3">
