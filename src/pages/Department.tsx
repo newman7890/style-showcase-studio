@@ -311,13 +311,23 @@ const Department = () => {
                   cls: "bg-[hsl(var(--muted))]" 
                 },
               ].map((b, i) => (
-                <div key={i} className={`${b.cls} rounded-2xl p-6 min-h-[180px] flex flex-col justify-between hover:opacity-95 transition relative overflow-hidden`}>
-                  <div>
+                <div key={i} className={`${b.cls} rounded-2xl p-6 min-h-[180px] flex flex-col justify-between hover:opacity-95 transition relative overflow-hidden group`}>
+                  <div className="max-w-[60%] md:max-w-[65%]">
                     <h3 className="text-xl font-bold uppercase leading-tight">{b.title}</h3>
                     <p className="text-sm opacity-80 mt-1">{b.sub}</p>
                   </div>
-                  <span className="text-sm font-medium inline-flex items-center gap-1">Shop Now <ArrowRight className="w-4 h-4" /></span>
-                  {featured[i]?.image && <img src={featured[i].image} alt="" className="absolute right-0 bottom-0 h-32 w-auto object-contain opacity-90" />}
+                  <span className="text-sm font-medium inline-flex items-center gap-1 mt-4">
+                    Shop Now <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                  {featured[i]?.image && (
+                    <div className="absolute right-3 bottom-3 w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden shadow-lg border border-white/20 bg-background/80 backdrop-blur-sm">
+                      <img 
+                        src={featured[i].image} 
+                        alt={featured[i]?.name || ""} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
