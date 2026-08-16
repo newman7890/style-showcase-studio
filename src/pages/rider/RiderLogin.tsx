@@ -121,14 +121,9 @@ const RiderLogin = () => {
       });
       if (profileErr) throw profileErr;
 
-      // 5. Mark Access Code as used
-      await (supabase.from("rider_access_codes" as any) as any)
-        .update({
-          is_used: true,
-          used_by: newUserId,
-          used_at: new Date().toISOString(),
-        })
-        .eq("id", codeData.id);
+      // 5. Mark Access Code as used (server-side)
+      await (supabase.rpc as any)("consume_rider_access_code", { _code: cleanCode });
+
 
       toast({
         title: "Account Registered Successfully! 🚴",
