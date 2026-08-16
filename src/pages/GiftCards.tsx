@@ -219,15 +219,21 @@ const GiftCards = () => {
     const giftCardData = {
       name: selectedCard ? selectedCard.name : "Premium Gift Card",
       hex: "#ffffff",
-      image: null,
+      image: selectedCard?.logo ?? null,
       recipientName,
       recipientEmail,
       message,
       isGiftCard: true,
+      reloadlyProductId: selectedCard?.id ?? null,
+      brand: selectedCard?.brand ?? null,
+      faceValue: amount,
     };
 
     try {
-      await addToCart(selectedCard?.id || GIFT_CARD_PRODUCT_ID, amount, giftCardData);
+      // Gift cards are always stored against the single internal gift-card
+      // product (price = 1 unit), so quantity carries the face value.
+      await addToCart(GIFT_CARD_PRODUCT_ID, amount, giftCardData, null);
+
       toast.success("Gift Card added to cart!");
       setIsDialogOpen(false);
       navigate("/cart");
