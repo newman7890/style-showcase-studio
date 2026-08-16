@@ -1316,6 +1316,7 @@ export type Database = {
     }
     Functions: {
       claim_delivery: { Args: { _order_id: string }; Returns: boolean }
+      consume_rider_access_code: { Args: { _code: string }; Returns: boolean }
       generate_tracking_code: { Args: never; Returns: string }
       get_available_deliveries: {
         Args: never
@@ -1406,6 +1407,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_banner_click: {
+        Args: { _banner_id: string }
+        Returns: undefined
+      }
       is_approved_seller: { Args: { _user_id: string }; Returns: boolean }
       resolve_delivery_fee: {
         Args: { _city: string; _region: string }
@@ -1424,6 +1429,7 @@ export type Database = {
           min_order_amount: number
         }[]
       }
+      verify_rider_access_code: { Args: { _code: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "rider" | "seller"
