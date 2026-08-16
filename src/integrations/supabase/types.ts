@@ -318,32 +318,89 @@ export type Database = {
       hubs: {
         Row: {
           address: string
+          contact_email: string | null
           contact_phone: string | null
           created_at: string | null
+          dropoff_instructions: string | null
+          google_maps_url: string | null
           id: string
           is_active: boolean | null
           name: string
+          operating_hours: string | null
           region: string
           updated_at: string | null
         }
         Insert: {
           address: string
+          contact_email?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          dropoff_instructions?: string | null
+          google_maps_url?: string | null
           id?: string
           is_active?: boolean | null
           name: string
+          operating_hours?: string | null
           region: string
           updated_at?: string | null
         }
         Update: {
           address?: string
+          contact_email?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          dropoff_instructions?: string | null
+          google_maps_url?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
+          operating_hours?: string | null
           region?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      marketing_banners: {
+        Row: {
+          badge: string
+          click_count: number | null
+          created_at: string | null
+          display_order: number | null
+          id: string
+          image_url: string
+          is_active: boolean | null
+          label: string
+          link_url: string | null
+          placement: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          badge?: string
+          click_count?: number | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url: string
+          is_active?: boolean | null
+          label?: string
+          link_url?: string | null
+          placement?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          badge?: string
+          click_count?: number | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string
+          is_active?: boolean | null
+          label?: string
+          link_url?: string | null
+          placement?: string | null
+          title?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -755,6 +812,78 @@ export type Database = {
         }
         Relationships: []
       }
+      rider_access_codes: {
+        Row: {
+          assigned_name: string | null
+          code: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_used: boolean | null
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          assigned_name?: string | null
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_used?: boolean | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          assigned_name?: string | null
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_used?: boolean | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
+      rider_profiles: {
+        Row: {
+          access_code: string
+          created_at: string | null
+          full_name: string
+          id: string
+          license_plate: string | null
+          phone_number: string
+          status: string | null
+          updated_at: string | null
+          user_id: string
+          vehicle_type: string | null
+        }
+        Insert: {
+          access_code: string
+          created_at?: string | null
+          full_name: string
+          id?: string
+          license_plate?: string | null
+          phone_number: string
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+          vehicle_type?: string | null
+        }
+        Update: {
+          access_code?: string
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          license_plate?: string | null
+          phone_number?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+          vehicle_type?: string | null
+        }
+        Relationships: []
+      }
       seller_billing_authorizations: {
         Row: {
           card_brand: string | null
@@ -1136,45 +1265,6 @@ export type Database = {
           rating?: number
           role?: string
           text?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      marketing_banners: {
-        Row: {
-          id: string
-          title: string
-          badge: string
-          label: string
-          image_url: string
-          link_url: string
-          is_active: boolean
-          display_order: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          title: string
-          badge?: string
-          label?: string
-          image_url: string
-          link_url?: string
-          is_active?: boolean
-          display_order?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          title?: string
-          badge?: string
-          label?: string
-          image_url?: string
-          link_url?: string
-          is_active?: boolean
-          display_order?: number
-          created_at?: string
           updated_at?: string
         }
         Relationships: []
