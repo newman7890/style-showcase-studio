@@ -76,19 +76,18 @@ const RiderLogin = () => {
 
     setLoading(true);
     try {
-      // 1. Verify Access Code exists and is not used
-      const { data: codeData, error: codeErr } = await (supabase.from("rider_access_codes" as any) as any)
-        .select("*")
-        .eq("code", cleanCode)
-        .maybeSingle();
+      // 1. Verify Access Code exists and is not used (server-side, no table read)
+      const { data: codeValid, error: codeErr } = await (supabase.rpc as any)("verify_rider_access_code", {
+        _code: cleanCode,
+      });
 
-      if (codeErr || !codeData) {
-        throw new Error("Invalid Access Code. Please contact your administrator for a valid registration code.");
+      if (codeErr) {
+        throw new Error("Could not verify the Access Code. Please try again.");
+      }
+      if (!codeValid) {
+        throw new Error("Invalid or already used Access Code. Please contact your administrator for a valid registration code.");
       }
 
-      if (codeData.is_used) {
-        throw new Error("This Access Code has already been used by another rider.");
-      }
 
       // 2. Sign up the user account
       const { data: authData, error: authErr } = await supabase.auth.signUp({
@@ -122,14 +121,9 @@ const RiderLogin = () => {
       });
       if (profileErr) throw profileErr;
 
-      // 5. Mark Access Code as used
-      await (supabase.from("rider_access_codes" as any) as any)
-        .update({
-          is_used: true,
-          used_by: newUserId,
-          used_at: new Date().toISOString(),
-        })
-        .eq("id", codeData.id);
+      // 5. Mark Access Code as used (server-side)
+      await (supabase.rpc as any)("consume_rider_access_code", { _code: cleanCode });
+
 
       toast({
         title: "Account Registered Successfully! 🚴",
