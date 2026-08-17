@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { authenticate, SERVICE_ROLE_KEY, SUPABASE_URL } from "../_shared/auth.ts";
+import { authenticate, SERVICE_ROLE_KEY, SUPABASE_URL, ANON_KEY } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,22 +37,34 @@ serve(async (req) => {
   }
 
   try {
-    // Require authentication — protects AI quota from anonymous abuse.
+    // Optional authentication — allow both guests and logged in users to chat
     const auth = await authenticate(req);
-    if (!auth) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let userOrdersContext = "";
+
+    if (auth) {
+      try {
+        const { data: userOrders } = await auth.client
+          .from("orders")
+          .select("id, status, total_amount, created_at")
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (userOrders && userOrders.length > 0) {
+          userOrdersContext = `\nCustomer's Recent Orders:\n` + 
+            userOrders.map(o => `- Order ID: ${o.id} (Status: ${o.status}, Total: $${o.total_amount}, Date: ${new Date(o.created_at).toLocaleDateString()})`).join("\n");
+        } else {
+          userOrdersContext = `\nCustomer is logged in but has no recent orders.`;
+        }
+      } catch (e) {
+        console.error("Error fetching user orders for chat:", e);
+      }
+    } else {
+      userOrdersContext = `\nCustomer is not logged in. If they ask to track an order, ask them to log in or provide their Order ID.`;
     }
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const apiKey = OPENAI_API_KEY || LOVABLE_API_KEY;
-
-    if (!apiKey) {
-      throw new Error("Neither OPENAI_API_KEY nor LOVABLE_API_KEY is configured");
-    }
 
     const body = await req.json().catch(() => ({}));
     const messages = sanitizeMessages((body as any)?.messages);
@@ -60,6 +72,29 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Invalid messages" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Fallback if API key is not yet set in Supabase secrets
+    if (!apiKey) {
+      const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
+      let fallbackMessage = "Welcome to Cynt! How can I help you today?";
+
+      if (lastUserMsg.includes("track") || lastUserMsg.includes("order")) {
+        if (auth && userOrdersContext.includes("Order ID:")) {
+          fallbackMessage = `Here are your recent orders:\n${userOrdersContext.replace("\\nCustomer's Recent Orders:\\n", "")}\n\nYou can also view full details on your Profile / Orders page!`;
+        } else if (auth) {
+          fallbackMessage = "You currently have no recent orders. Once you place an order, you can track it live right here!";
+        } else {
+          fallbackMessage = "To track your order, please log in to your account or visit the Account > Orders section on our website.";
+        }
+      } else if (lastUserMsg.includes("product") || lastUserMsg.includes("help") || lastUserMsg.includes("find")) {
+        fallbackMessage = "You can browse our latest fashion collection directly from the home page or search by categories!";
+      }
+
+      return new Response(
+        JSON.stringify({ message: fallbackMessage }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -83,10 +118,11 @@ serve(async (req) => {
 
     const systemPrompt = `You are a helpful fashion AI shopping assistant for "Cynt" fashion store.
 ${storeContext}
+${userOrdersContext}
 
 Guidelines:
 - Be friendly, helpful, and concise
-- When asked about orders, use the order data provided above
+- When asked about orders, use the Customer's Recent Orders provided above
 - Recommend products based on customer needs
 - For refunds/returns, explain the store policy (7-day return policy for unused items)
 - If you don't know something, be honest and suggest contacting customer support
@@ -116,19 +152,20 @@ Guidelines:
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
 
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      // Provide helpful fallback if AI service errors
+      const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
+      let fallbackMessage = "Thank you for reaching out! How can I assist you today?";
+
+      if (lastUserMsg.includes("track") || lastUserMsg.includes("order")) {
+        fallbackMessage = auth
+          ? "To view and track your recent orders, please check the Account > Orders section on your profile page."
+          : "To track your order, please log in to your account to view your active orders.";
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI service quota exceeded." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      throw new Error("AI gateway error");
+
+      return new Response(
+        JSON.stringify({ message: fallbackMessage }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const data = await response.json();
@@ -141,8 +178,9 @@ Guidelines:
   } catch (error) {
     console.error("Error in ai-chat:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ message: "To track your order or view active items, please sign in or visit your profile's Order section!" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
+
