@@ -39,7 +39,18 @@ serve(async (req) => {
     const apiKey = OPENAI_API_KEY || LOVABLE_API_KEY;
 
     if (!apiKey) {
-      throw new Error("Neither OPENAI_API_KEY nor LOVABLE_API_KEY is configured");
+      // Return sensible defaults when no AI key is configured
+      const fallback = {
+        description: `Discover our ${safeName} from the ${safeCategory} collection. Crafted with quality materials and attention to detail, this piece combines style with everyday comfort.`,
+        sizes: safeCategory.toLowerCase().includes("shoe") ? "38, 39, 40, 41, 42, 43, 44" : "S, M, L, XL",
+        features: "• Premium quality materials\n• Comfortable everyday wear\n• Modern and stylish design\n• Easy care and maintenance",
+        materials_info: "Composition: High-quality blend\nCare: Follow label instructions",
+        size_fit_info: "Fit: True to size. Please refer to our size guide for best results.",
+      };
+      return new Response(
+        JSON.stringify(fallback),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const aiEndpoint = OPENAI_API_KEY 
