@@ -1,4 +1,4 @@
-project_id = "rsxpoctivfhlacgmjawj"
+project_id = "wnfmcdncbbfcyfoewewd"
 
 [functions.send-order-notification]
 verify_jwt = false

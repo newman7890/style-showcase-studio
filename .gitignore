@@ -33,3 +33,7 @@ vite.config.ts.timestamp-*
 # JVM crash logs
 hs_err_pid*
 replay_pid*
+
+# Scratch and temporary files
+scratch-renderme/
+supabase/.temp/

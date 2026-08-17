@@ -46,9 +46,12 @@ serve(async (req) => {
       );
     }
 
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const apiKey = OPENAI_API_KEY || LOVABLE_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("Neither OPENAI_API_KEY nor LOVABLE_API_KEY is configured");
     }
 
     const body = await req.json().catch(() => ({}));
@@ -60,37 +63,26 @@ serve(async (req) => {
       );
     }
 
-    const userId = auth.userId;
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    // Prepare system prompt with store context & products
+    let storeContext = "";
+    try {
+      const supabase = createClient(SUPABASE_URL, ANON_KEY);
+      const { data: products } = await supabase
+        .from("products")
+        .select("name, category, price, stock, description")
+        .gt("stock", 0)
+        .limit(20);
 
-    // Fetch product data for context
-    const { data: products } = await supabase
-      .from("products")
-      .select("id, name, price, category, stock, description")
-      .limit(50);
+      if (products && products.length > 0) {
+        storeContext += `\nAvailable Products:\n` + 
+          products.map(p => `- ${p.name} (${p.category}): $${p.price} - ${p.description || "In stock"}`).join("\n");
+      }
+    } catch (e) {
+      console.error("Error fetching context:", e);
+    }
 
-    // Fetch user's recent orders
-    const { data: orders } = await supabase
-      .from("orders")
-      .select("id, status, tracking_code, total_amount, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(5);
-    const userOrders = orders || [];
-
-    const systemPrompt = `You are a helpful customer service assistant for an online fashion store. You help customers with:
-- Product recommendations and information
-- Order tracking and status inquiries
-- General shopping assistance
-- Returns and refunds information
-
-Available Products:
-${products?.map(p => `- ${p.name} (GH₵${p.price}) - Category: ${p.category}${p.stock > 0 ? '' : ' [OUT OF STOCK]'}`).join('\n') || 'No products available'}
-
-${userOrders.length > 0 ? `
-Customer's Recent Orders:
-${userOrders.map(o => `- Order #${o.id.slice(0, 8).toUpperCase()} - Status: ${o.status} - Tracking: ${o.tracking_code || 'N/A'} - Amount: GH₵${o.total_amount}`).join('\n')}
-` : ''}
+    const systemPrompt = `You are a helpful fashion AI shopping assistant for "Cynt" fashion store.
+${storeContext}
 
 Guidelines:
 - Be friendly, helpful, and concise
@@ -100,14 +92,19 @@ Guidelines:
 - If you don't know something, be honest and suggest contacting customer support
 - Respond in the same language as the customer's message`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiEndpoint = OPENAI_API_KEY 
+      ? "https://api.openai.com/v1/chat/completions" 
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+    const aiModel = OPENAI_API_KEY ? "gpt-4o-mini" : "google/gemini-3-flash-preview";
+
+    const response = await fetch(aiEndpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: aiModel,
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
