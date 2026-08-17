@@ -302,7 +302,7 @@ export default function ArtGallery() {
 
                           {/* Favorite Button */}
                           <button
-                            onClick={() => toggleFavorite(art as any)}
+                            onClick={() => toggleFavorite(art.id)}
                             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-950/70 backdrop-blur-md border border-slate-800 flex items-center justify-center text-slate-300 hover:text-red-400 transition-colors"
                           >
                             <Heart className={`w-4 h-4 ${isFav ? "fill-red-500 text-red-500" : ""}`} />

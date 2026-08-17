@@ -57,18 +57,26 @@ export const useFavorites = () => {
     fetchFavorites();
   }, [user]);
 
-  const isFavorite = (productId: string) => {
-    return favorites.some((fav) => fav.product_id === productId);
+  const isFavorite = (productId: string | { id: string }) => {
+    const targetId = typeof productId === "object" ? productId?.id : productId;
+    if (!targetId) return false;
+    return favorites.some((fav) => fav.product_id === targetId);
   };
 
-  const toggleFavorite = async (productId: string) => {
+  const toggleFavorite = async (productId: string | { id: string }) => {
     if (!user) {
       toast.error("Please sign in to add favorites");
       return;
     }
 
+    const targetId = typeof productId === "object" ? productId?.id : productId;
+    if (!targetId) {
+      toast.error("Invalid product reference");
+      return;
+    }
+
     try {
-      const existing = favorites.find((fav) => fav.product_id === productId);
+      const existing = favorites.find((fav) => fav.product_id === targetId);
 
       if (existing) {
         // Remove from favorites
@@ -85,7 +93,7 @@ export const useFavorites = () => {
           .from("favorites")
           .insert({
             user_id: user.id,
-            product_id: productId,
+            product_id: targetId,
           });
 
         if (error) throw error;
@@ -93,7 +101,7 @@ export const useFavorites = () => {
       }
 
       await fetchFavorites();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error toggling favorite:", error);
       toast.error("Failed to update favorites");
     }
