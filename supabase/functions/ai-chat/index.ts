@@ -31,7 +31,7 @@ function sanitizeMessages(input: unknown): ChatMessage[] {
   return cleaned.slice(-MAX_MESSAGES);
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -51,7 +51,7 @@ serve(async (req) => {
 
         if (userOrders && userOrders.length > 0) {
           userOrdersContext = `\nCustomer's Recent Orders:\n` + 
-            userOrders.map(o => `- Order ID: ${o.id} (Status: ${o.status}, Total: $${o.total_amount}, Date: ${new Date(o.created_at).toLocaleDateString()})`).join("\n");
+            userOrders.map((o: any) => `- Order ID: ${o.id} (Status: ${o.status}, Total: $${o.total_amount}, Date: ${new Date(o.created_at).toLocaleDateString()})`).join("\n");
         } else {
           userOrdersContext = `\nCustomer is logged in but has no recent orders.`;
         }
@@ -110,7 +110,7 @@ serve(async (req) => {
 
       if (products && products.length > 0) {
         storeContext += `\nAvailable Products:\n` + 
-          products.map(p => `- ${p.name} (${p.category}): $${p.price} - ${p.description || "In stock"}`).join("\n");
+          products.map((p: any) => `- ${p.name} (${p.category}): $${p.price} - ${p.description || "In stock"}`).join("\n");
       }
     } catch (e) {
       console.error("Error fetching context:", e);
