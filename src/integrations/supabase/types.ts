@@ -1429,7 +1429,6 @@ export type Database = {
           min_order_amount: number
         }[]
       }
-      verify_rider_access_code: { Args: { _code: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "rider" | "seller"
