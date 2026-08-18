@@ -45,9 +45,9 @@ export const useFavorites = () => {
 
       if (error) throw error;
       setFavorites(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching favorites:", error);
-      toast.error("Failed to load favorites");
+      toast.error("Failed to load favorites: " + (error?.message || "Unknown error"));
     } finally {
       setLoading(false);
     }

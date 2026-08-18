@@ -31,6 +31,7 @@ export const useCart = () => {
     }
 
     try {
+      // First try selecting with selected_color and selected_size
       const { data, error } = await supabase
         .from("cart_items")
         .select(`
@@ -49,11 +50,33 @@ export const useCart = () => {
         `)
         .eq("user_id", user.id);
 
-      if (error) throw error;
-      setCartItems((data as any) || []);
-    } catch (error) {
+      if (error) {
+        console.warn("Cart fetch with color/size failed, trying basic fetch:", error.message);
+        // Fallback for when selected_color/selected_size columns don't exist yet in remote schema
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("cart_items")
+          .select(`
+            id,
+            product_id,
+            quantity,
+            products (
+              id,
+              name,
+              price,
+              image,
+              category
+            )
+          `)
+          .eq("user_id", user.id);
+
+        if (fallbackError) throw fallbackError;
+        setCartItems((fallbackData as any) || []);
+      } else {
+        setCartItems((data as any) || []);
+      }
+    } catch (error: any) {
       console.error("Error fetching cart:", error);
-      toast.error("Failed to load cart");
+      toast.error("Failed to load cart: " + (error?.message || "Unknown error"));
     } finally {
       setLoading(false);
     }
@@ -110,14 +133,24 @@ export const useCart = () => {
             selected_size: selectedSize,
           });
 
-        if (error) throw error;
+        if (error) {
+          console.warn("Insert with color/size failed, retrying basic insert:", error.message);
+          const { error: fallbackError } = await supabase
+            .from("cart_items")
+            .insert({
+              user_id: user.id,
+              product_id: productId,
+              quantity,
+            });
+          if (fallbackError) throw fallbackError;
+        }
       }
 
       await fetchCart();
       toast.success("Added to cart!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding to cart:", error);
-      toast.error("Failed to add to cart");
+      toast.error("Failed to add to cart: " + (error?.message || "Unknown error"));
     }
   };
 
