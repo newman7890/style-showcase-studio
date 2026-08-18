@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  'https://rsxpoctivfhlacgmjawj.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzeHBvY3RpdmZobGFjZ21qYXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5MTY5OTYsImV4cCI6MjA3OTQ5Mjk5Nn0.AhffOdP6HWfCarUsM6c90AebO2YkbL1SqJUhC7bTi8w'
+  'https://wnfmcdncbbfcyfoewewd.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduZm1jZG5jYmJmY3lmb2V3ZXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5NjgxMDcsImV4cCI6MjEwMjU0NDEwN30.kKmq5_1ANxn7R7Xjfoqmk5mnRwFIULR6AOA_WqQ9GFE'
 );
 
 async function run() {
