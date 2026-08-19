@@ -240,10 +240,11 @@ const SellerDashboard = () => {
   };
 
   const handleAiAutoFill = async () => {
-    if (!form.name || !form.category) {
+    const primaryImage = galleryImages[0]?.url;
+    if (!form.name && !form.category && !primaryImage) {
       toast({
         title: "Missing Information",
-        description: "Please enter a product name and category first.",
+        description: "Please upload a photo, or enter a product name and category first.",
         variant: "destructive",
       });
       return;
@@ -251,20 +252,30 @@ const SellerDashboard = () => {
     setIsAiLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("ai-generate-product-details", {
-        body: { productName: form.name, category: form.category },
+        body: { 
+          productName: form.name, 
+          category: form.category,
+          imageUrl: primaryImage || null,
+        },
       });
       if (error) throw error;
 
       if (data) {
-        setForm({
-          ...form,
-          description: data.description || form.description,
-          sizes: data.sizes || form.sizes,
-          features: data.features || form.features,
-          materials_info: data.materials_info || form.materials_info,
-          size_fit_info: data.size_fit_info || form.size_fit_info,
+        setForm((prev) => ({
+          ...prev,
+          name: prev.name || data.name || prev.name,
+          description: data.description || prev.description,
+          sizes: data.sizes || prev.sizes,
+          features: data.features || prev.features,
+          materials_info: data.materials_info || prev.materials_info,
+          size_fit_info: data.size_fit_info || prev.size_fit_info,
+        }));
+        toast({ 
+          title: "AI Analysis Complete! ✨", 
+          description: primaryImage 
+            ? "Product photo analyzed! Details, description & features auto-filled." 
+            : "Product details generated successfully!" 
         });
-        toast({ title: "Success", description: "Product details generated successfully!" });
       }
     } catch (error: any) {
       toast({

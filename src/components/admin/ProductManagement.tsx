@@ -406,6 +406,7 @@ export const ProductManagement = () => {
           productName: formData.name,
           category: formData.category,
           price: formData.price ? parseFloat(formData.price) : undefined,
+          imageUrl: imagePreviews[0] || null,
         },
       });
 
