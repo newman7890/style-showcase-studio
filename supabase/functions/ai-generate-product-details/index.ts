@@ -7,119 +7,121 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Intelligent dynamic fallback generator that detects Category, Department, Price and details
+// Intelligent dynamic fallback generator with randomization so every click produces fresh, unique details
 function generateSmartFallback(name: string, category: string) {
-  const safeName = name || "Product";
-  const safeCategory = category || "";
-  const lowerName = safeName.toLowerCase();
-  const lowerCat = safeCategory.toLowerCase();
+  const safeNameInput = (name || "").trim();
+  const safeCategoryInput = (category || "").trim();
+  const lowerName = safeNameInput.toLowerCase();
+  const lowerCat = safeCategoryInput.toLowerCase();
 
-  let detectedCategory = safeCategory || "Fashion";
+  // Varied product title pool if name is missing
+  const sampleTitles = [
+    "Premium Urban Lifestyle Essential",
+    "Classic Tailored Edition Item",
+    "Contemporary Comfort Product",
+    "Signature Modern Collection Piece",
+    "Everyday Heritage Essential",
+    "Minimalist Crafted Product"
+  ];
+  
+  const seed = Math.floor(Math.random() * 10000);
+  const detectedName = safeNameInput || sampleTitles[seed % sampleTitles.length];
+
+  let detectedCategory = safeCategoryInput || "Fashion";
   let detectedDepartment = "fashion";
-  let estimatedPrice = "250";
+  let estimatedPrice = String(150 + (seed % 35) * 10); // Prices between GH₵150 and GH₵500
   let sizes = "S, M, L, XL";
-  let materials = "Composition: Premium fabric blend\nCare: Hand wash or machine wash cold";
-  let fit = "Fit: Standard true-to-size fit. Choose your normal size.";
-  let features = [
-    `• High quality crafting and design for ${safeName}`,
-    "• Durable and long-lasting construction",
-    "• Versatile style for any occasion",
-    "• Easy maintenance and care"
+  let materials = "Composition: Premium blend fabric\nCare: Machine wash cold or gentle dry clean";
+  let fit = "Fit: Standard modern fit. Order your typical size.";
+  
+  let featuresPool = [
+    [
+      `• Premium grade crafting designed for ${detectedName}`,
+      "• Lightweight, breathable fabric construction",
+      "• Reinforced seams for long-lasting durability",
+      "• Versatile styling for day-to-night wear"
+    ],
+    [
+      `• Signature finish tailored for ${detectedName}`,
+      "• Soft-touch, high-comfort material",
+      "• Modern ergonomic fit",
+      "• Color-fast and shrink-resistant fabric"
+    ],
+    [
+      `• High-performance modern design`,
+      "• Thoughtfully placed detailing and pockets",
+      "• Heavyweight premium structure",
+      "• Easy maintenance and wash care"
+    ]
   ];
 
-  if (lowerCat.includes("shoe") || lowerCat.includes("footwear") || lowerName.includes("sneaker") || lowerName.includes("boot") || lowerName.includes("shoe") || lowerName.includes("slipper") || lowerName.includes("runner") || lowerName.includes("kick")) {
+  let features = featuresPool[seed % featuresPool.length];
+
+  if (lowerCat.includes("shoe") || lowerCat.includes("footwear") || lowerName.includes("sneaker") || lowerName.includes("boot") || lowerName.includes("shoe") || lowerName.includes("slipper") || lowerName.includes("runner")) {
     detectedCategory = "Shoes & Sneakers";
     detectedDepartment = "fashion";
-    estimatedPrice = lowerName.includes("leather") || lowerName.includes("boot") ? "450" : "320";
+    estimatedPrice = String(280 + (seed % 25) * 10);
     sizes = "39, 40, 41, 42, 43, 44, 45";
-    materials = "Upper: Premium Leather / Breathable Mesh\nSole: Durable anti-slip rubber";
-    fit = "Fit: Comfortable ergonomic fit. Order your standard shoe size.";
+    materials = "Upper: Genuine Leather & Breathable Mesh\nSole: Anti-slip vulcanized rubber";
+    fit = "Fit: True to size. Order your standard shoe size.";
     features = [
-      `• Cushioned insole for all-day walking comfort`,
-      `• Non-slip rubber outsole for traction`,
-      `• Stylish ${safeName} silhouette`,
-      `• Reinforced stitching for extra durability`
+      `• Ergonomic cushioned insole for all-day walking comfort`,
+      `• High-grip rubber outsole for superior traction`,
+      `• Stylish ${detectedName} silhouette`,
+      `• Reinforced heel support and durable stitching`
     ];
-  } else if (lowerCat.includes("gadget") || lowerCat.includes("tech") || lowerCat.includes("audio") || lowerName.includes("phone") || lowerName.includes("headphone") || lowerName.includes("earbud") || lowerName.includes("watch") || lowerName.includes("charger") || lowerName.includes("laptop") || lowerName.includes("speaker")) {
+  } else if (lowerCat.includes("gadget") || lowerCat.includes("tech") || lowerCat.includes("audio") || lowerName.includes("phone") || lowerName.includes("headphone") || lowerName.includes("earbud") || lowerName.includes("watch") || lowerName.includes("speaker")) {
     detectedCategory = lowerName.includes("headphone") || lowerName.includes("earbud") || lowerName.includes("speaker") ? "Audio & Headphones" : lowerName.includes("watch") ? "Wearables" : "Gadgets & Tech";
     detectedDepartment = "gadgets";
-    estimatedPrice = lowerName.includes("phone") || lowerName.includes("laptop") ? "2800" : lowerName.includes("watch") ? "650" : "350";
-    sizes = "Standard";
-    materials = "Material: Anodized Aluminum / High-grade Polymer\nIncludes: Product, Charging Cable, User Manual";
-    fit = "Universal compatibility with iOS, Android, and Bluetooth devices.";
+    estimatedPrice = String(350 + (seed % 40) * 20);
+    sizes = "One Size";
+    materials = "Material: Anodized Matte Aluminum / High-grade Polymer\nIncludes: USB-C Cable, Accessories & User Manual";
+    fit = "Universal compatibility with iOS, Android, and Bluetooth 5.3 devices.";
     features = [
-      `• High-performance technology built into ${safeName}`,
-      "• Long-lasting battery life & quick charging",
-      "• Sleek ergonomic design for portable use",
+      `• High-performance technology integrated into ${detectedName}`,
+      "• Fast charging with extended battery battery life",
+      "• Sleek ergonomic finish designed for daily use",
       "• 1-Year warranty included"
     ];
-  } else if (lowerCat.includes("art") || lowerCat.includes("home") || lowerName.includes("painting") || lowerName.includes("decor") || lowerName.includes("sculpture") || lowerName.includes("canvas") || lowerName.includes("print")) {
+  } else if (lowerCat.includes("art") || lowerCat.includes("home") || lowerName.includes("painting") || lowerName.includes("decor") || lowerName.includes("sculpture") || lowerName.includes("canvas")) {
     detectedCategory = lowerName.includes("painting") || lowerName.includes("canvas") ? "Paintings" : lowerName.includes("sculpture") ? "Sculptures" : "Art & Collectibles";
     detectedDepartment = lowerCat.includes("home") ? "home" : "art";
-    estimatedPrice = lowerName.includes("sculpture") ? "750" : "500";
+    estimatedPrice = String(400 + (seed % 30) * 15);
     sizes = "One Size";
-    materials = "Craftsmanship: Hand-selected premium materials\nOrigin: Artisanal craftsmanship";
-    fit = "Designed to enhance any living space, gallery or office.";
+    materials = "Craftsmanship: Hand-selected premium archival canvas/materials\nOrigin: Artisanal studio creation";
+    fit = "Designed to enhance living rooms, galleries, and modern spaces.";
     features = [
-      `• Unique artistic creation: ${safeName}`,
-      "• Handcrafted with exquisite detail",
-      "• Protective finish for color longevity",
-      "• Perfect centerpiece for modern spaces"
+      `• Unique artistic creation: ${detectedName}`,
+      "• Handcrafted with rich texture and detail",
+      "• UV-resistant coating for color preservation",
+      "• Ready to display centerpiece"
     ];
-  } else if (lowerName.includes("bag") || lowerName.includes("backpack") || lowerName.includes("wallet") || lowerName.includes("purse") || lowerName.includes("tote")) {
+  } else if (lowerName.includes("bag") || lowerName.includes("backpack") || lowerName.includes("wallet") || lowerName.includes("purse")) {
     detectedCategory = "Bags & Accessories";
     detectedDepartment = "fashion";
-    estimatedPrice = lowerName.includes("leather") ? "380" : "220";
+    estimatedPrice = String(220 + (seed % 20) * 10);
     sizes = "One Size";
-    materials = "Material: Water-resistant synthetic leather & durable lining\nCare: Wipe clean with damp cloth";
-    fit = "Spacious interior with multiple organizational compartments.";
+    materials = "Material: Premium water-resistant synthetic leather & durable lining\nCare: Wipe clean with damp cloth";
+    fit = "Spacious interior with multiple organized compartments.";
     features = [
-      `• Multi-compartment storage for daily essentials`,
-      "• Sturdy zips and reinforced shoulder straps",
-      "• Elegant finish matching formal & casual wear",
-      "• Lightweight yet heavy-duty design"
-    ];
-  } else if (lowerName.includes("dress") || lowerName.includes("gown") || lowerName.includes("skirt")) {
-    detectedCategory = "Women's Clothing";
-    detectedDepartment = "fashion";
-    estimatedPrice = "280";
-    sizes = "XS, S, M, L, XL";
-    materials = "Fabric: Premium Cotton / Silk blend\nCare: Gentle cycle or dry clean recommended";
-    fit = "Fit: Flattering tailored fit. Fits true to size.";
-    features = [
-      `• Elegant silhouette featuring ${safeName}`,
-      "• Breathable, premium soft fabric",
-      "• Designed for comfort and grace",
-      "• Vibrant color retention"
-    ];
-  } else if (lowerName.includes("shirt") || lowerName.includes("pant") || lowerName.includes("suit") || lowerName.includes("jacket") || lowerName.includes("hoodie") || lowerName.includes("trouser")) {
-    detectedCategory = "Men's Clothing";
-    detectedDepartment = "fashion";
-    estimatedPrice = lowerName.includes("suit") || lowerName.includes("jacket") ? "550" : "180";
-    sizes = "S, M, L, XL, XXL";
-    materials = "Fabric: 100% Breathable Premium Cotton Blend\nCare: Machine wash cold with like colors";
-    fit = "Fit: Modern tailored fit.";
-    features = [
-      `• Premium tailored finish for ${safeName}`,
-      "• Soft-touch, breathable fabric blend",
-      "• Reinforced seams for long-term wear",
-      "• Easy care & wrinkle resistant"
+      `• Multi-compartment storage for daily carry`,
+      "• Heavy-duty zippers & reinforced handles",
+      "• Elegant silhouette for formal and casual wear",
+      "• Water-resistant exterior finish"
     ];
   }
 
-  // Dynamic, non-repetitive descriptions
-  const hash = safeName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const descriptors = [
-    `Experience ultimate comfort and style with the ${safeName}. Designed for everyday versatility in the ${detectedCategory} range, it combines high-grade materials with contemporary design.`,
-    `The ${safeName} brings together sophisticated style and practical functionality. Expertly crafted for our ${detectedCategory} collection, offering outstanding durability and effortless elegance.`,
-    `Elevate your look with ${safeName}. Featuring superior craftsmanship and a modern finish, this item in our ${detectedCategory} collection is built for longevity and supreme comfort.`,
-    `Discover the beauty of ${safeName}. Designed with premium detailing and an ergonomic finish, it is the ideal choice to elevate your ${detectedCategory} selection.`
+  const descriptions = [
+    `Elevate your everyday style with the ${detectedName}. Thoughtfully designed for the ${detectedCategory} collection, it combines premium materials with modern craftsmanship to deliver supreme comfort and a refined aesthetic.`,
+    `The ${detectedName} features a contemporary silhouette crafted for maximum versatility. Perfect for our ${detectedCategory} selection, it offers exceptional quality, tactile comfort, and lasting durability.`,
+    `Add distinction to your collection with ${detectedName}. Meticulously created with attention to detail and high-grade materials, this item in ${detectedCategory} delivers timeless style and ease.`,
+    `Discover ${detectedName}—a blend of contemporary aesthetics and everyday functionality. Designed for our ${detectedCategory} lineup, it offers superior comfort and effortless elegance.`
   ];
 
-  const description = descriptors[hash % descriptors.length];
+  const description = descriptions[seed % descriptions.length];
 
   return {
-    name: safeName,
+    name: detectedName,
     category: detectedCategory,
     department: detectedDepartment,
     price: estimatedPrice,
@@ -138,7 +140,6 @@ serve(async (req) => {
 
   try {
     const auth = await authenticate(req);
-    // Auth is optional — generate details regardless
 
     const body = await req.json().catch(() => ({}));
     const { productName, category, imageUrl } = body;
@@ -183,11 +184,18 @@ Respond ONLY with valid JSON. No markdown backticks.`;
     let promptText = `Product Name Input: ${safeName || "Detect from photo"}\nCategory Input: ${safeCategory || "Detect from photo"}`;
 
     if (imageUrl && (imageUrl.startsWith("http") || imageUrl.startsWith("data:image"))) {
+      // Truncate ultra-large data URLs if needed to prevent payload size errors
+      let safeImageUrl = imageUrl;
+      if (imageUrl.length > 2000000) {
+        // If image is larger than 2MB base64, send text prompt fallback or trimmed image
+        safeImageUrl = imageUrl.slice(0, 2000000);
+      }
+
       promptText += `\n\nIMPORTANT: Analyze the attached product photo carefully. Visually identify the product name, exact category, department, realistic price in GH₵, color, fabric/material texture, and style. Write detailed description and specs specifically matching what is visible in this photo.`;
       
       userContent = [
         { type: "text", text: promptText },
-        { type: "image_url", image_url: { url: imageUrl } }
+        { type: "image_url", image_url: { url: safeImageUrl } }
       ];
     } else {
       userContent = promptText;

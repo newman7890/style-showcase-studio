@@ -266,18 +266,18 @@ const SellerDashboard = () => {
           name: data.name || prev.name,
           category: data.category || prev.category,
           department: data.department || prev.department || "fashion",
-          price: (!prev.price || prev.price === "0") ? (data.price ? String(data.price) : prev.price) : prev.price,
-          description: data.description || prev.description,
-          sizes: data.sizes || prev.sizes,
-          features: data.features || prev.features,
-          materials_info: data.materials_info || prev.materials_info,
-          size_fit_info: data.size_fit_info || prev.size_fit_info,
+          price: data.price ? String(data.price) : (prev.price || "150"),
+          description: data.description || "",
+          sizes: data.sizes || "",
+          features: data.features || "",
+          materials_info: data.materials_info || "",
+          size_fit_info: data.size_fit_info || "",
         }));
         toast({ 
           title: "AI Recognition Complete! ✨", 
           description: primaryImage 
-            ? "Photo analyzed! Category, price, specs & description auto-filled." 
-            : "Product details, category & price generated successfully!" 
+            ? "Photo analyzed! Category, price, specs & description updated." 
+            : "Product details, category & price updated successfully!" 
         });
       }
     } catch (error: any) {
@@ -833,7 +833,7 @@ const SellerDashboard = () => {
                             variant="secondary" 
                             size="sm" 
                             onClick={handleAiAutoFill}
-                            disabled={isAiLoading || !form.name || !form.category}
+                            disabled={isAiLoading}
                             className="h-8 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200"
                           >
                             {isAiLoading ? (
