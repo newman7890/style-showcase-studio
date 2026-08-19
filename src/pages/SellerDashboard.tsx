@@ -244,7 +244,7 @@ const SellerDashboard = () => {
     if (!form.name && !form.category && !primaryImage) {
       toast({
         title: "Missing Information",
-        description: "Please upload a photo, or enter a product name and category first.",
+        description: "Please upload a photo, or enter a product name/category first.",
         variant: "destructive",
       });
       return;
@@ -263,7 +263,10 @@ const SellerDashboard = () => {
       if (data) {
         setForm((prev) => ({
           ...prev,
-          name: prev.name || data.name || prev.name,
+          name: data.name || prev.name,
+          category: data.category || prev.category,
+          department: data.department || prev.department || "fashion",
+          price: (!prev.price || prev.price === "0") ? (data.price ? String(data.price) : prev.price) : prev.price,
           description: data.description || prev.description,
           sizes: data.sizes || prev.sizes,
           features: data.features || prev.features,
@@ -271,10 +274,10 @@ const SellerDashboard = () => {
           size_fit_info: data.size_fit_info || prev.size_fit_info,
         }));
         toast({ 
-          title: "AI Analysis Complete! ✨", 
+          title: "AI Recognition Complete! ✨", 
           description: primaryImage 
-            ? "Product photo analyzed! Details, description & features auto-filled." 
-            : "Product details generated successfully!" 
+            ? "Photo analyzed! Category, price, specs & description auto-filled." 
+            : "Product details, category & price generated successfully!" 
         });
       }
     } catch (error: any) {
