@@ -78,7 +78,7 @@ serve(async (req: Request) => {
     // Fallback if API key is not yet set in Supabase secrets
     if (!apiKey) {
       const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
-      let fallbackMessage = "Welcome to Cynt! How can I help you today?";
+      let fallbackMessage = "Welcome to Trades Point! How can I help you today?";
 
       if (lastUserMsg.includes("track") || lastUserMsg.includes("order")) {
         if (auth && userOrdersContext.includes("Order ID:")) {
@@ -116,7 +116,7 @@ serve(async (req: Request) => {
       console.error("Error fetching context:", e);
     }
 
-    const systemPrompt = `You are a helpful fashion AI shopping assistant for "Cynt" fashion store.
+    const systemPrompt = `You are a helpful AI shopping assistant for "Trades Point" (Tagline: "Shop More. Save More. Live Better.").
 ${storeContext}
 ${userOrdersContext}
 

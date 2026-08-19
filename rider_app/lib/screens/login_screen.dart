@@ -211,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Cynt",
+                      "Trades Point",
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white.withValues(alpha: 0.5),

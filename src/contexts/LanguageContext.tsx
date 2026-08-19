@@ -135,7 +135,7 @@ const translations = {
     searchExample: "Example: I need a casual outfit for a summer party",
     
     // Brand & Navigation
-    logo: "Cynt",
+    logo: "Trades Point",
     fashion: "Fashion",
     gadgets: "Gadgets",
     art: "Art",
@@ -286,7 +286,7 @@ const translations = {
     searchExample: "Ejemplo: Necesito un atuendo casual para una fiesta de verano",
     
     // Brand & Navigation
-    logo: "Cynt",
+    logo: "Trades Point",
     fashion: "Moda",
     gadgets: "Accesorios",
     other: "Otros",
@@ -409,7 +409,7 @@ const translations = {
     generating: "Génération...",
     
     // Brand & Navigation
-    logo: "Cynt",
+    logo: "Trades Point",
     fashion: "Mode",
     gadgets: "Gadgets",
     other: "Autre",
@@ -532,7 +532,7 @@ const translations = {
     generating: "Generieren...",
     
     // Brand & Navigation
-    logo: "Cynt",
+    logo: "Trades Point",
     fashion: "Mode",
     gadgets: "Gadgets",
     other: "Andere",
@@ -655,7 +655,7 @@ const translations = {
     generating: "生成中...",
     
     // Brand & Navigation
-    logo: "Cynt",
+    logo: "Trades Point",
     fashion: "时尚",
     gadgets: "数码配件",
     other: "其他",
@@ -778,7 +778,7 @@ const translations = {
     generating: "生成中...",
     
     // Brand & Navigation
-    logo: "Cynt",
+    logo: "Trades Point",
     fashion: "時尚",
     gadgets: "數碼配件",
     other: "其他",

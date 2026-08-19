@@ -195,7 +195,7 @@ const Department = () => {
   }, [slug]);
 
   useEffect(() => {
-    document.title = `${meta.title} — Cynt`;
+    document.title = `${meta.title} — Trades Point`;
     const desc = document.querySelector('meta[name="description"]');
     if (desc) desc.setAttribute("content", `Shop ${meta.title}: ${meta.tagline}`);
   }, [slug, meta.title, meta.tagline]);

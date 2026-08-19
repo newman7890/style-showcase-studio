@@ -29,8 +29,11 @@ export const Header = () => {
       className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border"
     >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-2 md:gap-4">
-        <Link to="/" className="text-base md:text-xl font-semibold tracking-tight whitespace-nowrap shrink-0 truncate max-w-[92px] md:max-w-none">
-          {t("logo")}
+        <Link to="/" className="flex items-center gap-2 shrink-0">
+          <img src="/logo.jpg" alt="Trades Point" className="h-9 w-auto object-contain rounded" />
+          <span className="text-lg md:text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-800 bg-clip-text text-transparent">
+            Trades Point
+          </span>
         </Link>
 
         {showCategories ? (
