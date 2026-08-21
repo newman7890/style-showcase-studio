@@ -541,14 +541,6 @@ function StepBusiness({ form, set, errors }: StepProps) {
         <Err msg={errors.business_name} />
       </div>
       <div>
-        <Label>Business registration number</Label>
-        <Input
-          value={form.business_registration_number}
-          onChange={(e) => set("business_registration_number", e.target.value)}
-          placeholder="Optional — leave blank if you do not have one"
-        />
-      </div>
-      <div>
         <Label>Business address</Label>
         <Input value={form.business_address} onChange={(e) => set("business_address", e.target.value)} />
         <Err msg={errors.business_address} />
