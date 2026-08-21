@@ -60,7 +60,7 @@ const Checkout = () => {
 
   const [formData, setFormData] = useState({
     shipping_name: "", shipping_email: "", shipping_phone: "",
-    shipping_address: "", shipping_city: "", shipping_region: "",
+    shipping_address: "", shipping_city: "", shipping_region: "", shipping_town: "",
   });
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("mtn_momo");
@@ -68,47 +68,73 @@ const Checkout = () => {
   const [momoDialogOpen, setMomoDialogOpen] = useState(false);
   const [momoDialogMode, setMomoDialogMode] = useState<MomoDialogMode>("waiting");
   const [momoDialogTitle, setMomoDialogTitle] = useState("Approve on your phone");
-  const [momoStatusText, setMomoStatusText] = useState<string>(DEFAULT_MOMO_PROMPT_TEXT);
+  const [momoStatusText, setMomoStatusText] = useState(DEFAULT_MOMO_PROMPT_TEXT);
   const [momoDialogHint, setMomoDialogHint] = useState<string | null>(null);
   const [momoInlineFeedback, setMomoInlineFeedback] = useState<{ title: string; description: string } | null>(null);
   const [momoReference, setMomoReference] = useState<string | null>(null);
   const [momoOrderId, setMomoOrderId] = useState<string | null>(null);
   const [otpValue, setOtpValue] = useState("");
   const [otpSubmitting, setOtpSubmitting] = useState(false);
-  const [deliveryFees, setDeliveryFees] = useState<Array<{ region: string; city: string | null; fee: number; is_default: boolean }>>([]);
+  const [deliveryFees, setDeliveryFees] = useState<Array<{ region: string; city: string | null; town: string | null; fee: number; is_default: boolean }>>([]);
 
   useEffect(() => {
     supabase
       .from("delivery_fees")
-      .select("region, city, fee, is_default")
+      .select("region, city, town, fee, is_default")
       .eq("is_active", true)
       .then(({ data }) => {
-        if (data) setDeliveryFees(data as Array<{ region: string; city: string | null; fee: number; is_default: boolean }>);
+        if (data) setDeliveryFees(data as any);
       });
   }, []);
 
-  // Fee resolution with fallback: exact city → region → default
+  // Fee resolution with fallback: exact town → city → region → default
   const deliveryFee = (() => {
     if (!formData.shipping_region) return 0;
     const region = formData.shipping_region.trim().toLowerCase();
     const city = formData.shipping_city.trim().toLowerCase();
+    const town = formData.shipping_town.trim().toLowerCase();
 
-    // 1. Exact city + region match
+    // 1. Exact town + city + region match
+    if (town && city) {
+      const townCityMatch = deliveryFees.find(
+        (f) =>
+          f.region.trim().toLowerCase() === region &&
+          f.city && f.city.trim().toLowerCase() === city &&
+          f.town && f.town.trim().toLowerCase() === town
+      );
+      if (townCityMatch) return Number(townCityMatch.fee);
+    }
+    // 2. Exact town + region match (no city set on fee row)
+    if (town) {
+      const townMatch = deliveryFees.find(
+        (f) =>
+          f.region.trim().toLowerCase() === region &&
+          f.town && f.town.trim().toLowerCase() === town
+      );
+      if (townMatch) return Number(townMatch.fee);
+    }
+    // 3. Exact city + region match (no town set on fee row)
     if (city) {
       const cityMatch = deliveryFees.find(
-        (f) => f.region.trim().toLowerCase() === region && f.city && f.city.trim().toLowerCase() === city
+        (f) =>
+          f.region.trim().toLowerCase() === region &&
+          f.city && f.city.trim().toLowerCase() === city &&
+          (!f.town || !f.town.trim())
       );
       if (cityMatch) return Number(cityMatch.fee);
     }
-    // 2. Region-only match (no city set on the row)
+    // 4. Region-only match (no city or town set)
     const regionOnly = deliveryFees.find(
-      (f) => f.region.trim().toLowerCase() === region && (!f.city || !f.city.trim())
+      (f) =>
+        f.region.trim().toLowerCase() === region &&
+        (!f.city || !f.city.trim()) &&
+        (!f.town || !f.town.trim())
     );
     if (regionOnly) return Number(regionOnly.fee);
-    // 3. Any region match
+    // 5. Any region match
     const anyRegion = deliveryFees.find((f) => f.region.trim().toLowerCase() === region);
     if (anyRegion) return Number(anyRegion.fee);
-    // 4. Default fallback row
+    // 6. Default fallback row
     const defaultRow = deliveryFees.find((f) => f.is_default);
     return defaultRow ? Number(defaultRow.fee) : 0;
   })();
@@ -117,6 +143,8 @@ const Checkout = () => {
     if (!formData.shipping_region) return null;
     const region = formData.shipping_region.trim().toLowerCase();
     const city = formData.shipping_city.trim().toLowerCase();
+    const town = formData.shipping_town.trim().toLowerCase();
+    if (town && deliveryFees.some((f) => f.region.trim().toLowerCase() === region && f.town && f.town.trim().toLowerCase() === town)) return "town";
     if (city && deliveryFees.some((f) => f.region.trim().toLowerCase() === region && f.city && f.city.trim().toLowerCase() === city)) return "city";
     if (deliveryFees.some((f) => f.region.trim().toLowerCase() === region)) return "region";
     if (deliveryFees.some((f) => f.is_default)) return "default";
@@ -586,7 +614,40 @@ const Checkout = () => {
                     <div>
                       <Label htmlFor="shipping_city" className="text-xs uppercase tracking-wider text-muted-foreground">{t("city")}</Label>
                       <Input id="shipping_city" name="shipping_city" value={formData.shipping_city} onChange={handleChange} required
-                        className="mt-1.5 rounded-none border-border bg-transparent h-12 focus:ring-0 focus:border-foreground" placeholder="City" />
+                        className="mt-1.5 rounded-none border-border bg-transparent h-12 focus:ring-0 focus:border-foreground" placeholder="City (e.g., Accra, Kumasi)" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label htmlFor="shipping_town" className="text-xs uppercase tracking-wider text-muted-foreground">Town / Sub-Area (Optional)</Label>
+                      <Input id="shipping_town" name="shipping_town" value={formData.shipping_town} onChange={handleChange}
+                        className="mt-1.5 rounded-none border-border bg-transparent h-12 focus:ring-0 focus:border-foreground" placeholder="e.g., East Legon, Osu, Madina, Spintex, Adum" />
+                      
+                      {/* Dynamic Town Badges from database delivery_fees */}
+                      {formData.shipping_region && (() => {
+                        const regLower = formData.shipping_region.trim().toLowerCase();
+                        const townRows = deliveryFees.filter(f => f.region.trim().toLowerCase() === regLower && f.town && f.town.trim());
+                        if (townRows.length === 0) return null;
+                        return (
+                          <div className="mt-2">
+                            <span className="text-[11px] text-muted-foreground">Available specific delivery areas in {formData.shipping_region}:</span>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {townRows.map((tr) => (
+                                <button
+                                  type="button"
+                                  key={tr.town}
+                                  onClick={() => setFormData(prev => ({ ...prev, shipping_town: tr.town || "" }))}
+                                  className={`text-xs px-2.5 py-1 border transition-colors ${
+                                    formData.shipping_town.trim().toLowerCase() === (tr.town || "").trim().toLowerCase()
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-muted/40 text-foreground border-border hover:bg-muted"
+                                  }`}
+                                >
+                                  {tr.town} (GH₵{tr.fee})
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="md:col-span-2">
                       <Label htmlFor="shipping_address" className="text-xs uppercase tracking-wider text-muted-foreground">{t("streetAddress")}</Label>

@@ -15,6 +15,7 @@ interface DeliveryFee {
   id: string;
   region: string;
   city: string | null;
+  town: string | null;
   fee: number;
   is_active: boolean;
   is_default: boolean;
@@ -30,7 +31,19 @@ interface AuditEntry {
   created_at: string;
 }
 
-const AUDITED_FIELDS = ["region", "city", "fee", "is_active", "is_default"] as const;
+const AUDITED_FIELDS = ["region", "city", "town", "fee", "is_active", "is_default"] as const;
+
+const GHANA_TOWN_PRESETS: Record<string, string[]> = {
+  "Accra": ["East Legon", "Osu", "Madina", "Spintex", "Dansoman", "Adenta", "Legon", "Cantonments", "Lapaz", "Achimota", "Airport Residential", "Labone", "Kaneshie", "Weija", "Dome", "Dzorwulu", "Haatso", "Sakumono"],
+  "Tema": ["Community 1", "Community 2", "Community 6", "Community 10", "Community 25"],
+  "Kumasi": ["Adum", "Ayigya", "Bantama", "KNUST", "Suame", "Asokwa", "Nhyiaeso", "Kenyasi", "Tafo", "Adugyama"],
+  "Takoradi": ["Market Circle", "Fijai", "Kojokrom", "Effiakuma"],
+  "Tamale": ["Central", "Lamashegu", "Nyohini", "Vitting"],
+  "Cape Coast": ["University", "Pedu", "Abura", "Kotokuraba"],
+  "Koforidua": ["Central", "Mile 50", "Effiduase", "Asokore"],
+  "Ho": ["Central", "Kpodzi", "Bankoe", "Ahamansu"],
+  "Sunyani": ["Central", "Fiapre", "Penkwase"],
+};
 
 export const DeliveryFeeManagement = () => {
   const [fees, setFees] = useState<DeliveryFee[]>([]);
@@ -39,7 +52,9 @@ export const DeliveryFeeManagement = () => {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [newRegion, setNewRegion] = useState("");
   const [newCity, setNewCity] = useState("");
+  const [newTown, setNewTown] = useState("");
   const [newFee, setNewFee] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -67,7 +82,7 @@ export const DeliveryFeeManagement = () => {
     const msg = err?.message || "";
     if (err?.code === "23505" || /duplicate/i.test(msg) || /unique/i.test(msg)) {
       if (/only_one_default/i.test(msg)) return "Only one default delivery fee is allowed. Unset the existing default first.";
-      return "A delivery fee for that region already exists. Edit the existing row instead.";
+      return "A delivery fee for that specific region, city, and town already exists. Edit the existing row instead.";
     }
     return msg || "Something went wrong.";
   };
@@ -83,6 +98,7 @@ export const DeliveryFeeManagement = () => {
       .update({
         region: row.region.trim(),
         city: row.city?.trim() || null,
+        town: row.town?.trim() || null,
         fee: Number(row.fee) || 0,
         is_active: row.is_active,
         is_default: row.is_default,
@@ -120,10 +136,15 @@ export const DeliveryFeeManagement = () => {
       toast.error("Enter a valid fee");
       return;
     }
-    // Client-side duplicate guard
-    const dup = fees.find((f) => f.region.trim().toLowerCase() === newRegion.trim().toLowerCase());
+    // Client-side composite duplicate guard
+    const dup = fees.find(
+      (f) =>
+        f.region.trim().toLowerCase() === newRegion.trim().toLowerCase() &&
+        (f.city ?? "").trim().toLowerCase() === newCity.trim().toLowerCase() &&
+        (f.town ?? "").trim().toLowerCase() === newTown.trim().toLowerCase()
+    );
     if (dup) {
-      toast.error(`"${dup.region}" already exists. Edit the existing row instead.`);
+      toast.error(`A fee for "${newRegion}${newCity ? " > " + newCity : ""}${newTown ? " > " + newTown : ""}" already exists. Edit the existing row instead.`);
       return;
     }
     setAdding(true);
@@ -132,6 +153,7 @@ export const DeliveryFeeManagement = () => {
       .insert({
         region: newRegion.trim(),
         city: newCity.trim() || null,
+        town: newTown.trim() || null,
         fee,
         is_active: true,
       });
@@ -143,9 +165,23 @@ export const DeliveryFeeManagement = () => {
     toast.success("Location added");
     setNewRegion("");
     setNewCity("");
+    setNewTown("");
     setNewFee("");
     load();
   };
+
+  const filteredFees = fees.filter((f) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      f.region.toLowerCase().includes(q) ||
+      (f.city && f.city.toLowerCase().includes(q)) ||
+      (f.town && f.town.toLowerCase().includes(q)) ||
+      String(f.fee).includes(q)
+    );
+  });
+
+  const presetTowns = GHANA_TOWN_PRESETS[newCity.trim()] || [];
 
   const formatDate = (s: string) =>
     new Date(s).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -206,9 +242,9 @@ export const DeliveryFeeManagement = () => {
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-2xl font-semibold mb-1">Delivery Fees</h2>
+          <h2 className="text-2xl font-semibold mb-1">Delivery Fees Management</h2>
           <p className="text-sm text-muted-foreground">
-            Customers see the matching fee at checkout. Lookup order: <strong>exact city → region → Default</strong>.
+            Lookup order at checkout: <strong>Town/Area → City → Region → Default</strong>.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
@@ -217,9 +253,9 @@ export const DeliveryFeeManagement = () => {
       </div>
 
       {/* Add new */}
-      <div className="border border-border rounded-lg p-4 bg-muted/30">
-        <h3 className="text-sm font-semibold mb-3">Add a new location</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="border border-border rounded-lg p-4 bg-muted/30 space-y-3">
+        <h3 className="text-sm font-semibold">Add a new delivery location</h3>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div className="space-y-1">
             <Label htmlFor="new-region" className="text-xs">Region *</Label>
             <Input id="new-region" placeholder="e.g. Greater Accra" value={newRegion} onChange={(e) => setNewRegion(e.target.value)} />
@@ -229,15 +265,49 @@ export const DeliveryFeeManagement = () => {
             <Input id="new-city" placeholder="e.g. Accra" value={newCity} onChange={(e) => setNewCity(e.target.value)} />
           </div>
           <div className="space-y-1">
+            <Label htmlFor="new-town" className="text-xs">Town / Area (optional)</Label>
+            <Input id="new-town" placeholder="e.g. East Legon, Osu" value={newTown} onChange={(e) => setNewTown(e.target.value)} />
+          </div>
+          <div className="space-y-1">
             <Label htmlFor="new-fee" className="text-xs">Fee (GH₵) *</Label>
             <Input id="new-fee" type="number" min="0" step="0.01" placeholder="0.00" value={newFee} onChange={(e) => setNewFee(e.target.value)} />
           </div>
           <div className="flex items-end">
             <Button onClick={addRow} disabled={adding} className="w-full">
-              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Add</>}
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Add Fee</>}
             </Button>
           </div>
         </div>
+
+        {/* Preset Town Suggestions */}
+        {presetTowns.length > 0 && (
+          <div className="pt-2">
+            <span className="text-xs text-muted-foreground mr-2 font-medium">Quick Town Suggestions for {newCity}:</span>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {presetTowns.map((tName) => (
+                <Badge
+                  key={tName}
+                  variant="outline"
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground text-xs py-0.5"
+                  onClick={() => setNewTown(tName)}
+                >
+                  + {tName}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Search & Table Header */}
+      <div className="flex items-center justify-between gap-4">
+        <Input
+          placeholder="Filter locations by region, city, or town..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-sm"
+        />
+        <span className="text-xs text-muted-foreground">Showing {filteredFees.length} of {fees.length} locations</span>
       </div>
 
       {/* Table */}
@@ -247,6 +317,7 @@ export const DeliveryFeeManagement = () => {
             <TableRow>
               <TableHead>Region</TableHead>
               <TableHead>City</TableHead>
+              <TableHead>Town / Sub-Area</TableHead>
               <TableHead>Fee (GH₵)</TableHead>
               <TableHead>Default</TableHead>
               <TableHead>Active</TableHead>
@@ -254,14 +325,14 @@ export const DeliveryFeeManagement = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {fees.length === 0 && (
+            {filteredFees.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
-                  No delivery fees yet. Add one above.
+                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                  {fees.length === 0 ? "No delivery fees configured yet. Add one above." : "No matching locations found."}
                 </TableCell>
               </TableRow>
             )}
-            {fees.map((fee) => (
+            {filteredFees.map((fee) => (
               <TableRow key={fee.id} className={fee.is_default ? "bg-primary/5" : ""}>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -270,7 +341,10 @@ export const DeliveryFeeManagement = () => {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Input value={fee.city ?? ""} onChange={(e) => updateField(fee.id, { city: e.target.value })} placeholder="—" className="h-9" />
+                  <Input value={fee.city ?? ""} onChange={(e) => updateField(fee.id, { city: e.target.value })} placeholder="All Cities" className="h-9" />
+                </TableCell>
+                <TableCell>
+                  <Input value={fee.town ?? ""} onChange={(e) => updateField(fee.id, { town: e.target.value })} placeholder="All Areas" className="h-9" />
                 </TableCell>
                 <TableCell>
                   <Input
