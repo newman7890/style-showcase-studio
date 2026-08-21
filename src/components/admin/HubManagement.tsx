@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, Plus, Building2, Package, ArrowRightLeft, CheckCircle2, Clock, XCircle, Mail, Phone, MapPin, ExternalLink, Info } from "lucide-react";
+import { Loader2, Plus, Building2, Package, ArrowRightLeft, CheckCircle2, Clock, XCircle, Mail, Phone, MapPin, ExternalLink, Info, Pencil, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const HubManagement = () => {
@@ -23,6 +24,11 @@ export const HubManagement = () => {
     dropoff_instructions: "",
     google_maps_url: "",
   });
+
+  const [editingHub, setEditingHub] = useState<any | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [updatingHub, setUpdatingHub] = useState(false);
+
   const [dropoffs, setDropoffs] = useState<any[]>([]);
 
   const loadData = async () => {
@@ -72,7 +78,7 @@ export const HubManagement = () => {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Hub created");
+      toast.success("Hub created successfully!");
       setNewHub({
         name: "",
         region: "",
@@ -83,6 +89,53 @@ export const HubManagement = () => {
         dropoff_instructions: "",
         google_maps_url: "",
       });
+      loadData();
+    }
+  };
+
+  const openEditHub = (hub: any) => {
+    setEditingHub({ ...hub });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateHub = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingHub) return;
+    setUpdatingHub(true);
+    try {
+      const { error } = await supabase
+        .from("hubs")
+        .update({
+          name: editingHub.name,
+          region: editingHub.region,
+          address: editingHub.address,
+          contact_phone: editingHub.contact_phone,
+          contact_email: editingHub.contact_email,
+          operating_hours: editingHub.operating_hours,
+          dropoff_instructions: editingHub.dropoff_instructions,
+          google_maps_url: editingHub.google_maps_url,
+        })
+        .eq("id", editingHub.id);
+
+      if (error) throw error;
+      toast.success("Hub updated successfully!");
+      setEditDialogOpen(false);
+      setEditingHub(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update hub");
+    } finally {
+      setUpdatingHub(false);
+    }
+  };
+
+  const handleDeleteHub = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+    const { error } = await supabase.from("hubs").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(`Hub "${name}" deleted`);
       loadData();
     }
   };
@@ -172,11 +225,33 @@ export const HubManagement = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {hubs.map(hub => (
-              <Card key={hub.id} className="relative">
+              <Card key={hub.id} className="relative group">
                 <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{hub.name}</CardTitle>
-                    <Badge variant="outline">{hub.region}</Badge>
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <CardTitle className="text-lg font-bold">{hub.name}</CardTitle>
+                      <Badge variant="outline" className="mt-1">{hub.region}</Badge>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        onClick={() => openEditHub(hub)}
+                        title="Edit Hub Details"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDeleteHub(hub.id, hub.name)}
+                        title="Delete Hub"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="text-xs space-y-2.5 text-muted-foreground">
@@ -227,6 +302,96 @@ export const HubManagement = () => {
               </Card>
             ))}
           </div>
+
+          {/* Edit Hub Dialog */}
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+                  <Pencil className="w-5 h-5 text-primary" /> Edit Hub Details
+                </DialogTitle>
+              </DialogHeader>
+              {editingHub && (
+                <form onSubmit={handleUpdateHub} className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <Label>Hub Name *</Label>
+                    <Input
+                      value={editingHub.name || ""}
+                      onChange={(e) => setEditingHub({ ...editingHub, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Region *</Label>
+                    <Input
+                      value={editingHub.region || ""}
+                      onChange={(e) => setEditingHub({ ...editingHub, region: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Physical Address *</Label>
+                    <Input
+                      value={editingHub.address || ""}
+                      onChange={(e) => setEditingHub({ ...editingHub, address: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Contact Phone Number</Label>
+                    <Input
+                      value={editingHub.contact_phone || ""}
+                      onChange={(e) => setEditingHub({ ...editingHub, contact_phone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Business Support Email</Label>
+                    <Input
+                      type="email"
+                      value={editingHub.contact_email || ""}
+                      onChange={(e) => setEditingHub({ ...editingHub, contact_email: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Operating Hours</Label>
+                    <Input
+                      value={editingHub.operating_hours || ""}
+                      onChange={(e) => setEditingHub({ ...editingHub, operating_hours: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Google Maps Live Location URL</Label>
+                    <Input
+                      value={editingHub.google_maps_url || ""}
+                      onChange={(e) => setEditingHub({ ...editingHub, google_maps_url: e.target.value })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Drop-off Instructions for Sellers</Label>
+                    <Textarea
+                      rows={3}
+                      value={editingHub.dropoff_instructions || ""}
+                      onChange={(e) => setEditingHub({ ...editingHub, dropoff_instructions: e.target.value })}
+                    />
+                  </div>
+                  <DialogFooter className="md:col-span-2 gap-2 sm:gap-0">
+                    <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={updatingHub}>
+                      {updatingHub ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
+                        </>
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="receiving" className="mt-6 space-y-6">
