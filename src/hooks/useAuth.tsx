@@ -53,16 +53,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    let currentUserId: string | null = null;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, s) => {
+      (event, s) => {
         setSession(s);
-        setUser(s?.user ?? null);
-        if (s?.user) {
-          setIsAdmin(false);
-          setSellerStatus("none");
-          setLoading(true);
-          setTimeout(() => loadRoles(s.user.id), 0);
+        const newUser = s?.user ?? null;
+        const newUserId = newUser?.id ?? null;
+
+        setUser(newUser);
+
+        if (newUserId) {
+          // Only trigger loading & reload roles if the user actually changed (e.g. fresh login or switching accounts)
+          // Background token refreshes (TOKEN_REFRESHED) or tab focus events MUST NOT reset loading to true!
+          if (currentUserId !== newUserId) {
+            currentUserId = newUserId;
+            setIsAdmin(false);
+            setSellerStatus("none");
+            setLoading(true);
+            setTimeout(() => loadRoles(newUserId), 0);
+          }
         } else {
+          currentUserId = null;
           setIsAdmin(false);
           setSellerStatus("none");
           setLoading(false);
@@ -72,9 +84,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) loadRoles(session.user.id);
-      else setLoading(false);
+      const initialUser = session?.user ?? null;
+      setUser(initialUser);
+      if (initialUser) {
+        currentUserId = initialUser.id;
+        loadRoles(initialUser.id);
+      } else {
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
