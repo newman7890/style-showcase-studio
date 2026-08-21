@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Loader2, Plus, Trash2, Save, History, Star } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, History, Star, MapPin, Building2, Globe, ChevronRight, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -57,6 +57,7 @@ export const DeliveryFeeManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [expandedRegions, setExpandedRegions] = useState<string[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -65,7 +66,13 @@ export const DeliveryFeeManagement = () => {
       supabase.from("delivery_fee_audit").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
     if (feesRes.error) toast.error("Failed to load delivery fees");
-    else setFees((feesRes.data as DeliveryFee[]) ?? []);
+    else {
+      const fetched = (feesRes.data as DeliveryFee[]) ?? [];
+      setFees(fetched);
+      // Auto expand regions on first load
+      const regionNames = Array.from(new Set(fetched.map((f) => f.region)));
+      setExpandedRegions(regionNames);
+    }
     if (!auditRes.error) setAudit((auditRes.data as AuditEntry[]) ?? []);
     setLoading(false);
   };
@@ -126,34 +133,40 @@ export const DeliveryFeeManagement = () => {
     }
   };
 
-  const addRow = async () => {
-    if (!newRegion.trim()) {
+  const addRow = async (customRegion?: string, customCity?: string, customTown?: string, customFeeVal?: string) => {
+    const r = (customRegion !== undefined ? customRegion : newRegion).trim();
+    const c = (customCity !== undefined ? customCity : newCity).trim();
+    const t = (customTown !== undefined ? customTown : newTown).trim();
+    const fStr = customFeeVal !== undefined ? customFeeVal : newFee;
+
+    if (!r) {
       toast.error("Region is required");
       return;
     }
-    const fee = Number(newFee);
+    const fee = Number(fStr);
     if (isNaN(fee) || fee < 0) {
       toast.error("Enter a valid fee");
       return;
     }
-    // Client-side composite duplicate guard
+
     const dup = fees.find(
-      (f) =>
-        f.region.trim().toLowerCase() === newRegion.trim().toLowerCase() &&
-        (f.city ?? "").trim().toLowerCase() === newCity.trim().toLowerCase() &&
-        (f.town ?? "").trim().toLowerCase() === newTown.trim().toLowerCase()
+      (item) =>
+        item.region.trim().toLowerCase() === r.toLowerCase() &&
+        (item.city ?? "").trim().toLowerCase() === c.toLowerCase() &&
+        (item.town ?? "").trim().toLowerCase() === t.toLowerCase()
     );
     if (dup) {
-      toast.error(`A fee for "${newRegion}${newCity ? " > " + newCity : ""}${newTown ? " > " + newTown : ""}" already exists. Edit the existing row instead.`);
+      toast.error(`A fee for "${r}${c ? " > " + c : ""}${t ? " > " + t : ""}" already exists.`);
       return;
     }
+
     setAdding(true);
     const { error } = await supabase
       .from("delivery_fees")
       .insert({
-        region: newRegion.trim(),
-        city: newCity.trim() || null,
-        town: newTown.trim() || null,
+        region: r,
+        city: c || null,
+        town: t || null,
         fee,
         is_active: true,
       });
@@ -163,23 +176,71 @@ export const DeliveryFeeManagement = () => {
       return;
     }
     toast.success("Location added");
-    setNewRegion("");
-    setNewCity("");
-    setNewTown("");
-    setNewFee("");
+    if (customRegion === undefined) {
+      setNewRegion("");
+      setNewCity("");
+      setNewTown("");
+      setNewFee("");
+    }
     load();
   };
 
-  const filteredFees = fees.filter((f) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      f.region.toLowerCase().includes(q) ||
-      (f.city && f.city.toLowerCase().includes(q)) ||
-      (f.town && f.town.toLowerCase().includes(q)) ||
-      String(f.fee).includes(q)
-    );
-  });
+  // Group fees hierarchically: Region -> City -> Towns
+  const groupedTree = useMemo(() => {
+    const filtered = fees.filter((f) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        f.region.toLowerCase().includes(q) ||
+        (f.city && f.city.toLowerCase().includes(q)) ||
+        (f.town && f.town.toLowerCase().includes(q)) ||
+        String(f.fee).includes(q)
+      );
+    });
+
+    const map = new Map<
+      string,
+      {
+        region: string;
+        regionBaseFee?: DeliveryFee;
+        citiesMap: Map<string, { cityName: string; cityBaseFee?: DeliveryFee; towns: DeliveryFee[] }>;
+        standaloneTowns: DeliveryFee[];
+      }
+    >();
+
+    for (const f of filtered) {
+      const regKey = f.region.trim();
+      if (!map.has(regKey)) {
+        map.set(regKey, {
+          region: regKey,
+          citiesMap: new Map(),
+          standaloneTowns: [],
+        });
+      }
+      const regGroup = map.get(regKey)!;
+
+      const cityName = f.city?.trim();
+      const townName = f.town?.trim();
+
+      if (!cityName && !townName) {
+        regGroup.regionBaseFee = f;
+      } else if (cityName) {
+        if (!regGroup.citiesMap.has(cityName)) {
+          regGroup.citiesMap.set(cityName, { cityName, towns: [] });
+        }
+        const cityGroup = regGroup.citiesMap.get(cityName)!;
+        if (!townName) {
+          cityGroup.cityBaseFee = f;
+        } else {
+          cityGroup.towns.push(f);
+        }
+      } else if (townName) {
+        regGroup.standaloneTowns.push(f);
+      }
+    }
+
+    return Array.from(map.values());
+  }, [fees, searchQuery]);
 
   const presetTowns = GHANA_TOWN_PRESETS[newCity.trim()] || [];
 
@@ -211,7 +272,6 @@ export const DeliveryFeeManagement = () => {
         </div>
       );
     }
-    // updated → show only changed fields
     const changes = AUDITED_FIELDS.filter(
       (k) => String(entry.old_values?.[k] ?? "") !== String(entry.new_values?.[k] ?? "")
     );
@@ -244,7 +304,7 @@ export const DeliveryFeeManagement = () => {
         <div>
           <h2 className="text-2xl font-semibold mb-1">Delivery Fees Management</h2>
           <p className="text-sm text-muted-foreground">
-            Lookup order at checkout: <strong>Town/Area → City → Region → Default</strong>.
+            Structured hierarchy: <strong>Region → City → Town/Area</strong>. Lookup order at checkout: <strong>Town → City → Region → Default</strong>.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
@@ -252,9 +312,12 @@ export const DeliveryFeeManagement = () => {
         </Button>
       </div>
 
-      {/* Add new */}
-      <div className="border border-border rounded-lg p-4 bg-muted/30 space-y-3">
-        <h3 className="text-sm font-semibold">Add a new delivery location</h3>
+      {/* Add new Form */}
+      <div className="border border-border rounded-lg p-5 bg-card space-y-4 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Plus className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">Add New Delivery Location Fee</h3>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div className="space-y-1">
             <Label htmlFor="new-region" className="text-xs">Region *</Label>
@@ -273,22 +336,22 @@ export const DeliveryFeeManagement = () => {
             <Input id="new-fee" type="number" min="0" step="0.01" placeholder="0.00" value={newFee} onChange={(e) => setNewFee(e.target.value)} />
           </div>
           <div className="flex items-end">
-            <Button onClick={addRow} disabled={adding} className="w-full">
-              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Add Fee</>}
+            <Button onClick={() => addRow()} disabled={adding} className="w-full">
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Add Location</>}
             </Button>
           </div>
         </div>
 
         {/* Preset Town Suggestions */}
         {presetTowns.length > 0 && (
-          <div className="pt-2">
-            <span className="text-xs text-muted-foreground mr-2 font-medium">Quick Town Suggestions for {newCity}:</span>
-            <div className="flex flex-wrap gap-1.5 mt-1">
+          <div className="pt-1 border-t border-border/50">
+            <span className="text-xs text-muted-foreground mr-2 font-medium">Quick Town Shortcuts for {newCity}:</span>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
               {presetTowns.map((tName) => (
                 <Badge
                   key={tName}
-                  variant="outline"
-                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground text-xs py-0.5"
+                  variant="secondary"
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground text-xs py-1 px-2.5 transition-colors"
                   onClick={() => setNewTown(tName)}
                 >
                   + {tName}
@@ -299,94 +362,197 @@ export const DeliveryFeeManagement = () => {
         )}
       </div>
 
-      {/* Search & Table Header */}
-      <div className="flex items-center justify-between gap-4">
-        <Input
-          placeholder="Filter locations by region, city, or town..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-xs text-muted-foreground">Showing {filteredFees.length} of {fees.length} locations</span>
+      {/* Search & Tree Controls */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="relative max-w-md w-full">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search regions, cities, or towns..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setExpandedRegions(groupedTree.map((g) => g.region))}
+            className="text-xs"
+          >
+            Expand All
+          </Button>
+          <span className="text-muted-foreground">•</span>
+          <Button variant="ghost" size="sm" onClick={() => setExpandedRegions([])} className="text-xs">
+            Collapse All
+          </Button>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="border border-border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Region</TableHead>
-              <TableHead>City</TableHead>
-              <TableHead>Town / Sub-Area</TableHead>
-              <TableHead>Fee (GH₵)</TableHead>
-              <TableHead>Default</TableHead>
-              <TableHead>Active</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredFees.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
-                  {fees.length === 0 ? "No delivery fees configured yet. Add one above." : "No matching locations found."}
-                </TableCell>
-              </TableRow>
-            )}
-            {filteredFees.map((fee) => (
-              <TableRow key={fee.id} className={fee.is_default ? "bg-primary/5" : ""}>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {fee.is_default && <Star className="w-3.5 h-3.5 text-primary fill-primary" />}
-                    <Input value={fee.region} onChange={(e) => updateField(fee.id, { region: e.target.value })} className="h-9" />
+      {/* Grouped Accordion Tree */}
+      {groupedTree.length === 0 ? (
+        <div className="border border-border rounded-lg p-12 text-center text-muted-foreground bg-card">
+          <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <p className="text-base font-medium">No delivery fees configured</p>
+          <p className="text-xs mt-1">Add your first region or town above to get started.</p>
+        </div>
+      ) : (
+        <Accordion type="multiple" value={expandedRegions} onValueChange={setExpandedRegions} className="space-y-4">
+          {groupedTree.map((regGroup) => {
+            const citiesList = Array.from(regGroup.citiesMap.values());
+            const totalItemsCount =
+              (regGroup.regionBaseFee ? 1 : 0) +
+              citiesList.reduce((acc, c) => acc + (c.cityBaseFee ? 1 : 0) + c.towns.length, 0) +
+              regGroup.standaloneTowns.length;
+
+            return (
+              <AccordionItem
+                key={regGroup.region}
+                value={regGroup.region}
+                className="border border-border rounded-lg overflow-hidden bg-card shadow-sm"
+              >
+                {/* Region Header */}
+                <AccordionTrigger className="px-5 py-4 hover:no-underline bg-muted/20 hover:bg-muted/40 transition-colors">
+                  <div className="flex items-center gap-3 text-left">
+                    <Globe className="w-5 h-5 text-primary shrink-0" />
+                    <div>
+                      <span className="text-base font-semibold">{regGroup.region} Region</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant="outline" className="text-[11px] font-normal">
+                          {totalItemsCount} location{totalItemsCount === 1 ? "" : "s"}
+                        </Badge>
+                        {regGroup.regionBaseFee && (
+                          <span className="text-xs text-muted-foreground">
+                            Base Region Fee: <strong className="text-foreground">GH₵ {regGroup.regionBaseFee.fee}</strong>
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </TableCell>
-                <TableCell>
-                  <Input value={fee.city ?? ""} onChange={(e) => updateField(fee.id, { city: e.target.value })} placeholder="All Cities" className="h-9" />
-                </TableCell>
-                <TableCell>
-                  <Input value={fee.town ?? ""} onChange={(e) => updateField(fee.id, { town: e.target.value })} placeholder="All Areas" className="h-9" />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={fee.fee}
-                    onChange={(e) => updateField(fee.id, { fee: parseFloat(e.target.value) || 0 })}
-                    className="h-9 w-28"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Switch
-                    checked={fee.is_default}
-                    onCheckedChange={(checked) => updateField(fee.id, { is_default: checked })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Switch checked={fee.is_active} onCheckedChange={(checked) => updateField(fee.id, { is_active: checked })} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="outline" onClick={() => saveRow(fee)} disabled={savingId === fee.id}>
-                      {savingId === fee.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => deleteRow(fee.id, fee.is_default)}
-                      disabled={fee.is_default}
-                      className="text-destructive hover:text-destructive disabled:opacity-30"
-                      title={fee.is_default ? "Default cannot be deleted" : "Delete"}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                </AccordionTrigger>
+
+                <AccordionContent className="p-5 space-y-5">
+                  {/* Base Region Row */}
+                  {regGroup.regionBaseFee && (
+                    <div className="p-3 border border-primary/20 bg-primary/5 rounded-md flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        {regGroup.regionBaseFee.is_default && <Star className="w-4 h-4 text-primary fill-primary" />}
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base Region Fee:</span>
+                        <span className="text-sm font-medium">{regGroup.region} (Entire Region)</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium">GH₵</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={regGroup.regionBaseFee.fee}
+                            onChange={(e) => updateField(regGroup.regionBaseFee!.id, { fee: parseFloat(e.target.value) || 0 })}
+                            className="h-8 w-24"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">Active</span>
+                          <Switch
+                            checked={regGroup.regionBaseFee.is_active}
+                            onCheckedChange={(checked) => updateField(regGroup.regionBaseFee!.id, { is_active: checked })}
+                          />
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => saveRow(regGroup.regionBaseFee!)} disabled={savingId === regGroup.regionBaseFee.id}>
+                          {savingId === regGroup.regionBaseFee.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteRow(regGroup.regionBaseFee!.id, regGroup.regionBaseFee!.is_default)}
+                          disabled={regGroup.regionBaseFee.is_default}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cities & Towns Tree */}
+                  {citiesList.map((cityGroup) => (
+                    <div key={cityGroup.cityName} className="border border-border rounded-lg p-4 bg-background space-y-3">
+                      <div className="flex items-center justify-between gap-4 border-b border-border pb-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-primary" />
+                          <h4 className="text-sm font-bold">{cityGroup.cityName} City</h4>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {cityGroup.towns.length} Town{cityGroup.towns.length === 1 ? "" : "s"}
+                          </Badge>
+                        </div>
+
+                        {/* City Base Fee if exists */}
+                        {cityGroup.cityBaseFee && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">City Base Fee:</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={cityGroup.cityBaseFee.fee}
+                              onChange={(e) => updateField(cityGroup.cityBaseFee!.id, { fee: parseFloat(e.target.value) || 0 })}
+                              className="h-7 w-20 text-xs"
+                            />
+                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => saveRow(cityGroup.cityBaseFee!)}>
+                              <Save className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Towns List under this City */}
+                      {cityGroup.towns.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic py-1">No specific towns added for {cityGroup.cityName} yet.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                          {cityGroup.towns.map((tItem) => (
+                            <div key={tItem.id} className="p-3 border border-border/80 rounded-md bg-muted/20 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                                <span className="text-xs font-semibold truncate" title={tItem.town || ""}>
+                                  {tItem.town}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-[11px] text-muted-foreground">GH₵</span>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={tItem.fee}
+                                  onChange={(e) => updateField(tItem.id, { fee: parseFloat(e.target.value) || 0 })}
+                                  className="h-7 w-16 text-xs px-1.5"
+                                />
+                                <Switch
+                                  checked={tItem.is_active}
+                                  onCheckedChange={(checked) => updateField(tItem.id, { is_active: checked })}
+                                  className="scale-75"
+                                />
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => saveRow(tItem)}>
+                                  <Save className="w-3 h-3 text-foreground" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteRow(tItem.id, tItem.is_default)}>
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      )}
 
       {/* Audit Dialog */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
