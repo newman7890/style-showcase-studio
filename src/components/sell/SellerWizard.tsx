@@ -117,10 +117,10 @@ const stepSchemas = [
       .regex(/^GHA-?\d{9}-?\d$/i, "Format: GHA-XXXXXXXXX-X"),
     proof_of_address_type: z.enum(
       ["bank_statement", "utility_bill", "credit_card_statement", "government_document"],
-      { errorMap: () => ({ message: "Select a document type" }) },
-    ),
-    proof_of_address_issued_on: z.string().min(1, "Required"),
-    tax_form_type: z.enum(["w9", "w8ben", "other", "none"]),
+      { errorMap: () => ({ message: "Select a document type" }) }
+    ).optional().or(z.literal("")),
+    proof_of_address_issued_on: z.string().optional().or(z.literal("")),
+    tax_form_type: z.enum(["w9", "w8ben", "other", "none"]).optional().or(z.literal("")),
   }),
   z.discriminatedUnion("payout_method", [
     z.object({
@@ -146,7 +146,7 @@ const stepSchemas = [
   z.object({
     store_name: z.string().trim().min(2, "Required").max(120),
     store_description: z.string().trim().min(10, "At least 10 chars").max(500),
-    return_address: z.string().trim().min(4, "Required").max(300),
+    return_address: z.string().trim().optional().or(z.literal("")),
     bio: z.string().trim().max(500).optional().or(z.literal("")),
   }),
 ];
@@ -211,9 +211,6 @@ export default function SellerWizard() {
         if (form.id_document_type !== "passport" && !files.id_back)
           errs.id_back = "Upload the back of your ID";
         if (!files.selfie) errs.selfie = "Upload a clear selfie";
-        if (!files.proof_of_address) errs.proof_of_address = "Upload a proof of address";
-        if (form.tax_form_type !== "none" && !files.tax_form)
-          errs.tax_form = "Upload the selected tax form";
         for (const f of Object.values(files)) {
           if (f && f.size > MAX_FILE_MB * 1024 * 1024) {
             errs.file_size = `Each file must be under ${MAX_FILE_MB}MB`;
@@ -620,67 +617,6 @@ function StepIdentity({ form, set, errors, files, setFile }: FileStepProps) {
         error={errors.selfie}
       />
 
-      <div className="rounded-md border p-3 space-y-3">
-        <div className="text-xs font-medium text-muted-foreground uppercase">Proof of address</div>
-        <div>
-          <Label>Document type</Label>
-          <Select
-            value={form.proof_of_address_type}
-            onValueChange={(v) => set("proof_of_address_type", v)}
-          >
-            <SelectTrigger><SelectValue placeholder="Select document type" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="bank_statement">Bank statement</SelectItem>
-              <SelectItem value="utility_bill">Utility bill</SelectItem>
-              <SelectItem value="credit_card_statement">Credit card statement</SelectItem>
-              <SelectItem value="government_document">Government document</SelectItem>
-            </SelectContent>
-          </Select>
-          <Err msg={errors.proof_of_address_type} />
-        </div>
-        <div>
-          <Label>Issue date (must be within last 90 days)</Label>
-          <Input
-            type="date"
-            value={form.proof_of_address_issued_on}
-            onChange={(e) => set("proof_of_address_issued_on", e.target.value)}
-          />
-          <Err msg={errors.proof_of_address_issued_on} />
-        </div>
-        <FileInput
-          slot="proof_of_address"
-          label="Upload document"
-          file={files.proof_of_address}
-          setFile={setFile}
-          error={errors.proof_of_address}
-        />
-      </div>
-
-      <div className="rounded-md border p-3 space-y-3">
-        <div className="text-xs font-medium text-muted-foreground uppercase">Tax form</div>
-        <div>
-          <Label>Form type</Label>
-          <Select value={form.tax_form_type} onValueChange={(v) => set("tax_form_type", v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Not applicable</SelectItem>
-              <SelectItem value="w9">W-9 (US persons)</SelectItem>
-              <SelectItem value="w8ben">W-8BEN (non-US persons)</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {form.tax_form_type !== "none" && (
-          <FileInput
-            slot="tax_form"
-            label="Upload tax form"
-            file={files.tax_form}
-            setFile={setFile}
-            error={errors.tax_form}
-          />
-        )}
-      </div>
-
       <Err msg={errors.file_size} />
     </>
   );
@@ -803,11 +739,6 @@ function StepStore({ form, set, errors, files, setFile }: FileStepProps) {
           placeholder="Tell buyers what your store sells."
         />
         <Err msg={errors.store_description} />
-      </div>
-      <div>
-        <Label>Return address</Label>
-        <Input value={form.return_address} onChange={(e) => set("return_address", e.target.value)} placeholder="Where buyers should return items" />
-        <Err msg={errors.return_address} />
       </div>
       <div>
         <Label>Short bio (optional, shown on your profile)</Label>
