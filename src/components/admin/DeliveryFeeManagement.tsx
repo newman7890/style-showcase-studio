@@ -113,6 +113,9 @@ export const DeliveryFeeManagement = () => {
 
   const friendlyError = (err: any): string => {
     const msg = err?.message || "";
+    if (/failed to fetch|load failed|networkerror/i.test(msg)) {
+      return "Network connection issue. Please check your internet connection.";
+    }
     if (err?.code === "23505" || /duplicate/i.test(msg) || /unique/i.test(msg)) {
       if (/only_one_default/i.test(msg)) return "Only one default delivery fee is allowed. Unset the existing default first.";
       return "A delivery fee for that specific region, city, and town already exists. Edit the existing row instead.";

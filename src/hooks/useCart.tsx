@@ -149,7 +149,12 @@ export const useCart = () => {
       toast.success("Added to cart!");
     } catch (error: any) {
       console.error("Error adding to cart:", error);
-      toast.error("Failed to add to cart: " + (error?.message || "Unknown error"));
+      const msg = error?.message || "";
+      if (/failed to fetch|load failed|networkerror/i.test(msg)) {
+        toast.error("Network connection issue. Please check your internet connection.");
+      } else {
+        toast.error("Failed to add to cart: " + (msg || "Unknown error"));
+      }
     }
   };
 

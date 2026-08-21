@@ -254,7 +254,14 @@ const Checkout = () => {
       }
     }
 
-    return error instanceof Error ? error.message : null;
+    if (error instanceof Error) {
+      if (/failed to fetch|load failed|networkerror/i.test(error.message)) {
+        return "Network connection issue. Please check your internet connection and try again.";
+      }
+      return error.message;
+    }
+
+    return null;
   };
 
   
@@ -529,8 +536,12 @@ const Checkout = () => {
       else { throw new Error("Failed to initialize payment"); }
     } catch (error) {
       console.error("Error placing order:", error);
-      const msg = error instanceof Error ? error.message : "Payment initialization failed. Please try again.";
-      toast.error(msg);
+      const rawMsg = error instanceof Error ? error.message : "";
+      if (/failed to fetch|load failed|networkerror/i.test(rawMsg)) {
+        toast.error("Network connection issue. Please check your internet connection and try again.");
+      } else {
+        toast.error(rawMsg || "Payment initialization failed. Please try again.");
+      }
       setSubmitting(false);
     }
   };
