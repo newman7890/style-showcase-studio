@@ -93,7 +93,7 @@ export const DeliveryFeeManagement = () => {
     ]);
     if (feesRes.error) toast.error("Failed to load delivery fees");
     else {
-      const fetched = (feesRes.data as DeliveryFee[]) ?? [];
+      const fetched = (feesRes.data as unknown as DeliveryFee[]) ?? [];
       setFees(fetched);
       // Auto expand regions on first load
       const regionNames = Array.from(new Set(fetched.map((f) => f.region)));
