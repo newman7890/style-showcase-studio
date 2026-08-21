@@ -59,6 +59,28 @@ export const DeliveryFeeManagement = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expandedRegions, setExpandedRegions] = useState<string[]>([]);
 
+  // Modal State for adding town/location
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalRegion, setModalRegion] = useState("");
+  const [modalCity, setModalCity] = useState("");
+  const [modalTown, setModalTown] = useState("");
+  const [modalFee, setModalFee] = useState("");
+
+  const openAddModal = (reg: string = "", city: string = "") => {
+    setModalRegion(reg || newRegion || "Greater Accra");
+    setModalCity(city || newCity || "Accra");
+    setModalTown("");
+    setModalFee("");
+    setModalOpen(true);
+  };
+
+  const handleModalSave = async () => {
+    const success = await addRow(modalRegion, modalCity, modalTown, modalFee);
+    if (success !== false) {
+      setModalOpen(false);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     const [feesRes, auditRes] = await Promise.all([
@@ -605,11 +627,7 @@ export const DeliveryFeeManagement = () => {
                         variant="outline"
                         size="sm"
                         className="mt-2 text-xs"
-                        onClick={() => {
-                          setNewRegion(regGroup.region);
-                          setNewCity("Accra");
-                          setNewTown("East Legon");
-                        }}
+                        onClick={() => openAddModal(regGroup.region, "Accra")}
                       >
                         <Plus className="w-3 h-3 mr-1" /> Add a Town to {regGroup.region}
                       </Button>
@@ -621,6 +639,87 @@ export const DeliveryFeeManagement = () => {
           })}
         </Accordion>
       )}
+
+      {/* Add Location Modal Dialog */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-primary" /> Add Delivery Town / Location
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <Label htmlFor="modal-region" className="text-xs">Region *</Label>
+              <Input
+                id="modal-region"
+                value={modalRegion}
+                onChange={(e) => setModalRegion(e.target.value)}
+                placeholder="e.g. Greater Accra"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="modal-city" className="text-xs">City (optional)</Label>
+              <Input
+                id="modal-city"
+                value={modalCity}
+                onChange={(e) => setModalCity(e.target.value)}
+                placeholder="e.g. Accra, Tema, Kumasi"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="modal-town" className="text-xs">Town / Sub-Area *</Label>
+              <Input
+                id="modal-town"
+                value={modalTown}
+                onChange={(e) => setModalTown(e.target.value)}
+                placeholder="e.g. East Legon, Osu, Madina, Spintex"
+              />
+            </div>
+
+            {/* Quick Town Suggestions in Modal */}
+            {modalCity.trim() && GHANA_TOWN_PRESETS[modalCity.trim()] && (
+              <div className="pt-1">
+                <span className="text-xs text-muted-foreground font-medium">Quick Town Suggestions:</span>
+                <div className="flex flex-wrap gap-1.5 mt-1.5 max-h-24 overflow-y-auto">
+                  {GHANA_TOWN_PRESETS[modalCity.trim()].map((tName) => (
+                    <Badge
+                      key={tName}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground text-xs py-0.5 px-2"
+                      onClick={() => setModalTown(tName)}
+                    >
+                      + {tName}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <Label htmlFor="modal-fee" className="text-xs">Delivery Fee (GH₵) *</Label>
+              <Input
+                id="modal-fee"
+                type="number"
+                min="0"
+                step="0.01"
+                value={modalFee}
+                onChange={(e) => setModalFee(e.target.value)}
+                placeholder="20.00"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button variant="outline" size="sm" onClick={() => setModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleModalSave} disabled={adding}>
+                {adding ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />} Save Location Fee
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Audit Dialog */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
