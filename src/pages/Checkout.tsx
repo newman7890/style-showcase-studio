@@ -641,7 +641,7 @@ const Checkout = () => {
                                       : "bg-muted/40 text-foreground border-border hover:bg-muted"
                                   }`}
                                 >
-                                  {tr.town} (GH₵{tr.fee})
+                                  {tr.town}
                                 </button>
                               ))}
                             </div>
