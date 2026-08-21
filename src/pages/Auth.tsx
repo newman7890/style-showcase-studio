@@ -75,19 +75,98 @@ const Auth = () => {
     }
   };
 
+  // Generate background logo grid items (plenty of logos across the entire background)
+  const logoGrid = Array.from({ length: 30 });
+
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-16 pb-20 flex items-center justify-center">
+      <main className="min-h-screen pt-16 pb-20 flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-emerald-50/50 via-background to-green-50/50">
+        
+        {/* Background Tiled & Floating Logo Pattern (Distributed across the ENTIRE screen) */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          {/* Tiled Grid Watermark of Logos */}
+          <div className="absolute inset-0 grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-6 sm:gap-10 p-6 opacity-[0.09] dark:opacity-[0.06]">
+            {logoGrid.map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-center"
+                style={{
+                  transform: `rotate(${i % 2 === 0 ? "-12deg" : "12deg"}) scale(${0.85 + (i % 3) * 0.1})`,
+                }}
+              >
+                <img
+                  src="/logo.png"
+                  alt="Trades Point"
+                  className="w-16 h-16 sm:w-24 sm:h-24 object-contain filter grayscale hover:grayscale-0 transition-all"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Floating Animated Hero Logos on all sides & corners */}
+          <motion.img
+            src="/logo.png"
+            alt="Trades Point Floating Logo"
+            initial={{ opacity: 0, y: -20, scale: 0.8 }}
+            animate={{ opacity: 0.25, y: [0, 15, 0], scale: 1 }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-20 left-[4%] w-24 h-24 sm:w-36 sm:h-36 object-contain"
+          />
+          <motion.img
+            src="/logo.png"
+            alt="Trades Point Floating Logo"
+            initial={{ opacity: 0, y: 20, scale: 0.8 }}
+            animate={{ opacity: 0.25, y: [0, -18, 0], scale: 1.1 }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            className="absolute top-24 right-[4%] w-28 h-28 sm:w-40 sm:h-40 object-contain"
+          />
+          <motion.img
+            src="/logo.png"
+            alt="Trades Point Floating Logo"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 0.2, y: [0, 12, 0] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            className="absolute bottom-24 left-[6%] w-28 h-28 sm:w-36 sm:h-36 object-contain"
+          />
+          <motion.img
+            src="/logo.png"
+            alt="Trades Point Floating Logo"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 0.25, y: [0, -15, 0] }}
+            transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+            className="absolute bottom-20 right-[6%] w-24 h-24 sm:w-36 sm:h-36 object-contain"
+          />
+
+          {/* Center Glow Effect */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        </div>
+
+        {/* Login Card */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md px-4"
+          initial={{ opacity: 0, y: 20, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="w-full max-w-md px-4 relative z-10 my-6"
         >
-          <div className="bg-card border border-border rounded-lg p-8">
-            <h1 className="text-3xl font-light mb-6 text-center">
-              {isLogin ? "Welcome Back" : "Create Account"}
-            </h1>
+          <div className="bg-card/95 backdrop-blur-xl border border-emerald-500/20 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-emerald-950/10">
+            {/* Prominent Logo Header inside Card */}
+            <div className="flex flex-col items-center justify-center mb-6 text-center">
+              <motion.img
+                src="/logo.png"
+                alt="Trades Point Logo"
+                whileHover={{ scale: 1.06, rotate: 2 }}
+                className="w-20 h-20 sm:w-24 sm:h-24 object-contain mb-3 drop-shadow-md"
+              />
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-800 bg-clip-text text-transparent">
+                {isLogin ? "Welcome Back" : "Create Account"}
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                {isLogin
+                  ? "Sign in to access your Trades Point account"
+                  : "Join Trades Point to shop and sell items"}
+              </p>
+            </div>
 
             <form onSubmit={handleAuth} className="space-y-4">
               {!isLogin && (
@@ -100,6 +179,7 @@ const Auth = () => {
                     onChange={(e) => setFullName(e.target.value)}
                     required={!isLogin}
                     placeholder="John Doe"
+                    className="mt-1"
                   />
                 </div>
               )}
@@ -113,6 +193,7 @@ const Auth = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="you@example.com"
+                  className="mt-1"
                 />
               </div>
 
@@ -126,12 +207,13 @@ const Auth = () => {
                   required
                   minLength={6}
                   placeholder="••••••••"
+                  className="mt-1"
                 />
               </div>
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full h-11 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all mt-2"
                 disabled={loading}
               >
                 {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
@@ -140,7 +222,7 @@ const Auth = () => {
 
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="w-full mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full mt-5 text-xs sm:text-sm text-muted-foreground hover:text-emerald-600 transition-colors text-center font-medium"
             >
               {isLogin
                 ? "Don't have an account? Sign up"
