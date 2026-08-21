@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { ChevronLeft, ChevronRight, Loader2, Upload, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Upload, CheckCircle2, BookOpen, ShieldCheck, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { SellerDocumentationModal } from "./SellerDocumentationModal";
 
 type Form = {
   // Step 1 - Personal / Account
@@ -55,6 +56,7 @@ type Form = {
   store_description: string;
   return_address: string;
   bio: string;
+  agreed_terms: boolean;
 };
 
 const EMPTY: Form = {
@@ -88,6 +90,7 @@ const EMPTY: Form = {
   store_description: "",
   return_address: "",
   bio: "",
+  agreed_terms: false,
 };
 
 const stepSchemas = [
@@ -148,6 +151,9 @@ const stepSchemas = [
     store_description: z.string().trim().min(10, "At least 10 chars").max(500),
     return_address: z.string().trim().optional().or(z.literal("")),
     bio: z.string().trim().max(500).optional().or(z.literal("")),
+    agreed_terms: z.literal(true, {
+      errorMap: () => ({ message: "Please read and accept the Seller Policy & Terms before submitting." }),
+    }),
   }),
 ];
 
@@ -373,6 +379,30 @@ export default function SellerWizard() {
   return (
     <Card>
       <CardHeader>
+        {/* Seller Documentation & Policy Top Banner */}
+        <div className="mb-3 p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 font-bold">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 text-left">
+              <div className="text-xs font-bold text-emerald-900 dark:text-emerald-300 truncate">
+                Seller Guide, Payouts & Policy
+              </div>
+              <div className="text-[11px] text-emerald-700 dark:text-emerald-400 truncate">
+                10% commission, 24h payouts, seller policy & privacy
+              </div>
+            </div>
+          </div>
+          <SellerDocumentationModal
+            trigger={
+              <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-100 dark:text-emerald-300 shrink-0 font-semibold">
+                Read Guide
+              </Button>
+            }
+          />
+        </div>
+
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs text-muted-foreground uppercase tracking-wide">
             Step {step + 1} of {totalSteps}
@@ -736,6 +766,31 @@ function StepStore({ form, set, errors, files, setFile }: FileStepProps) {
         <Label>Short bio (optional, shown on your profile)</Label>
         <Textarea value={form.bio} onChange={(e) => set("bio", e.target.value)} rows={2} maxLength={500} />
       </div>
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 p-3.5 space-y-2 text-xs">
+        <div className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            id="agree-seller-policy"
+            checked={form.agreed_terms || false}
+            onChange={(e) => set("agreed_terms", e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
+          />
+          <label htmlFor="agree-seller-policy" className="text-gray-800 dark:text-gray-200 cursor-pointer">
+            I have read and agree to the{" "}
+            <SellerDocumentationModal
+              trigger={
+                <button type="button" className="text-emerald-700 dark:text-emerald-400 font-semibold underline hover:text-emerald-800 inline-flex items-center gap-1">
+                  Seller Documentation, 10% Fee Policy, and Privacy Terms
+                </button>
+              }
+            />.
+          </label>
+        </div>
+        {errors.agreed_terms && (
+          <p className="text-xs text-destructive font-medium pl-6.5">{errors.agreed_terms}</p>
+        )}
+      </div>
+
       <div className="rounded-lg border p-3 text-sm text-muted-foreground flex gap-2">
         <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
         <span>Submit to send your application for admin review. You'll be notified once approved.</span>
