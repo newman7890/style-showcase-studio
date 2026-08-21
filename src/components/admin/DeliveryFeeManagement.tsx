@@ -572,6 +572,16 @@ export const DeliveryFeeManagement = () => {
                           ))}
                         </div>
                       )}
+
+                      {/* Persistent "Add Town" button inside each city group */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 text-xs border-dashed"
+                        onClick={() => openAddModal(regGroup.region, cityGroup.cityName)}
+                      >
+                        <Plus className="w-3 h-3 mr-1" /> Add Town to {cityGroup.cityName}
+                      </Button>
                     </div>
                   ))}
 
@@ -624,20 +634,17 @@ export const DeliveryFeeManagement = () => {
                     </div>
                   )}
 
-                  {/* Empty state prompt for adding cities/towns to this region */}
-                  {citiesList.length === 0 && regGroup.standaloneTowns.length === 0 && (
-                    <div className="p-4 border border-dashed border-border rounded-lg text-center bg-muted/10">
-                      <p className="text-xs text-muted-foreground">No cities or towns added under {regGroup.region} yet.</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2 text-xs"
-                        onClick={() => openAddModal(regGroup.region, "Accra")}
-                      >
-                        <Plus className="w-3 h-3 mr-1" /> Add a Town to {regGroup.region}
-                      </Button>
-                    </div>
-                  )}
+                  {/* Always-visible "Add Location" button at the bottom of each region */}
+                  <div className="pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs border-dashed w-full"
+                      onClick={() => openAddModal(regGroup.region, citiesList.length > 0 ? citiesList[0].cityName : "")}
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Location to {regGroup.region}
+                    </Button>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
             );
