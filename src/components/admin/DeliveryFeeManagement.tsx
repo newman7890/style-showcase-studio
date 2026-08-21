@@ -75,8 +75,12 @@ export const DeliveryFeeManagement = () => {
   };
 
   const handleModalSave = async () => {
+    if (!modalTown.trim()) {
+      toast.error("Please type or click a Town / Area name (e.g., East Legon, Osu, Madina)");
+      return;
+    }
     const success = await addRow(modalRegion, modalCity, modalTown, modalFee);
-    if (success !== false) {
+    if (success === true) {
       setModalOpen(false);
     }
   };
@@ -155,7 +159,7 @@ export const DeliveryFeeManagement = () => {
     }
   };
 
-  const addRow = async (customRegion?: string, customCity?: string, customTown?: string, customFeeVal?: string) => {
+  const addRow = async (customRegion?: string, customCity?: string, customTown?: string, customFeeVal?: string): Promise<boolean> => {
     const r = (customRegion !== undefined ? customRegion : newRegion).trim();
     const c = (customCity !== undefined ? customCity : newCity).trim();
     const t = (customTown !== undefined ? customTown : newTown).trim();
@@ -163,12 +167,12 @@ export const DeliveryFeeManagement = () => {
 
     if (!r) {
       toast.error("Region is required");
-      return;
+      return false;
     }
     const fee = Number(fStr);
     if (isNaN(fee) || fee < 0) {
       toast.error("Enter a valid fee");
-      return;
+      return false;
     }
 
     const dup = fees.find(
@@ -179,7 +183,7 @@ export const DeliveryFeeManagement = () => {
     );
     if (dup) {
       toast.error(`A fee for "${r}${c ? " > " + c : ""}${t ? " > " + t : ""}" already exists.`);
-      return;
+      return false;
     }
 
     setAdding(true);
@@ -195,7 +199,7 @@ export const DeliveryFeeManagement = () => {
     setAdding(false);
     if (error) {
       toast.error(friendlyError(error));
-      return;
+      return false;
     }
     toast.success("Location added");
     if (customRegion === undefined) {
@@ -205,6 +209,7 @@ export const DeliveryFeeManagement = () => {
       setNewFee("");
     }
     load();
+    return true;
   };
 
   // Group fees hierarchically: Region -> City -> Towns
