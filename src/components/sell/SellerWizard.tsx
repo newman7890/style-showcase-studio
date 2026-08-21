@@ -99,9 +99,7 @@ const stepSchemas = [
     address: z.string().trim().min(4, "Required").max(300),
   }),
   z.object({
-    business_type: z.enum(["sole_proprietor", "llc", "corporation", "partnership", "other"], {
-      errorMap: () => ({ message: "Select a business type" }),
-    }),
+    business_type: z.enum(["sole_proprietor", "llc", "corporation", "partnership", "other"]).optional().or(z.literal("")),
     business_name: z.string().trim().min(2, "Required").max(120),
     business_registration_number: z.string().trim().max(60).optional().or(z.literal("")),
     business_address: z.string().trim().min(4, "Required").max(300),
@@ -541,20 +539,6 @@ function StepBusiness({ form, set, errors }: StepProps) {
   return (
     <>
       <div>
-        <Label>Business type</Label>
-        <Select value={form.business_type} onValueChange={(v) => set("business_type", v)}>
-          <SelectTrigger><SelectValue placeholder="Select business type" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="sole_proprietor">Sole proprietor</SelectItem>
-            <SelectItem value="llc">LLC</SelectItem>
-            <SelectItem value="corporation">Corporation</SelectItem>
-            <SelectItem value="partnership">Partnership</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-        <Err msg={errors.business_type} />
-      </div>
-      <div>
         <Label>Registered business name</Label>
         <Input value={form.business_name} onChange={(e) => set("business_name", e.target.value)} />
         <Err msg={errors.business_name} />
@@ -571,18 +555,6 @@ function StepBusiness({ form, set, errors }: StepProps) {
         <Label>Business address</Label>
         <Input value={form.business_address} onChange={(e) => set("business_address", e.target.value)} />
         <Err msg={errors.business_address} />
-      </div>
-      <div>
-        <Label>Tax identification number (TIN)</Label>
-        <Input
-          value={form.tax_id}
-          onChange={(e) => set("tax_id", e.target.value)}
-          placeholder="Optional — leave blank if you do not have one"
-        />
-      </div>
-      <div>
-        <Label>VAT number (optional)</Label>
-        <Input value={form.vat_number} onChange={(e) => set("vat_number", e.target.value)} />
       </div>
     </>
   );
