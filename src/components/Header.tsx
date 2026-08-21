@@ -30,7 +30,7 @@ export const Header = () => {
     >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-2 md:gap-4">
         <Link to="/" className="flex items-center gap-2 shrink-0">
-          <img src="/logo.jpg" alt="Trades Point" className="h-9 w-auto object-contain rounded" />
+          <img src="/logo.png" alt="Trades Point" className="h-9 w-auto object-contain" />
           <span className="text-lg md:text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-800 bg-clip-text text-transparent">
             Trades Point
           </span>
