@@ -620,34 +620,7 @@ const Checkout = () => {
                       <Label htmlFor="shipping_town" className="text-xs uppercase tracking-wider text-muted-foreground">Town / Sub-Area (Optional)</Label>
                       <Input id="shipping_town" name="shipping_town" value={formData.shipping_town} onChange={handleChange}
                         className="mt-1.5 rounded-none border-border bg-transparent h-12 focus:ring-0 focus:border-foreground" placeholder="e.g., East Legon, Osu, Madina, Spintex, Adum" />
-                      
-                      {/* Dynamic Town Badges from database delivery_fees */}
-                      {formData.shipping_region && (() => {
-                        const regLower = formData.shipping_region.trim().toLowerCase();
-                        const townRows = deliveryFees.filter(f => f.region.trim().toLowerCase() === regLower && f.town && f.town.trim());
-                        if (townRows.length === 0) return null;
-                        return (
-                          <div className="mt-2">
-                            <span className="text-[11px] text-muted-foreground">Available specific delivery areas in {formData.shipping_region}:</span>
-                            <div className="flex flex-wrap gap-1.5 mt-1">
-                              {townRows.map((tr) => (
-                                <button
-                                  type="button"
-                                  key={tr.town}
-                                  onClick={() => setFormData(prev => ({ ...prev, shipping_town: tr.town || "" }))}
-                                  className={`text-xs px-2.5 py-1 border transition-colors ${
-                                    formData.shipping_town.trim().toLowerCase() === (tr.town || "").trim().toLowerCase()
-                                      ? "bg-primary text-primary-foreground border-primary"
-                                      : "bg-muted/40 text-foreground border-border hover:bg-muted"
-                                  }`}
-                                >
-                                  {tr.town}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
+
                     </div>
                     <div className="md:col-span-2">
                       <Label htmlFor="shipping_address" className="text-xs uppercase tracking-wider text-muted-foreground">{t("streetAddress")}</Label>
