@@ -62,11 +62,7 @@ export const useOrders = () => {
       if (error) throw error;
       setOrders((data as any) || []);
     } catch (error: any) {
-      const msg = error?.message || "";
-      if (!/failed to fetch|load failed|networkerror/i.test(msg)) {
-        console.error("Error fetching orders:", error);
-        toast.error("Failed to load orders");
-      }
+      console.error("Error fetching orders:", error);
     } finally {
       setLoading(false);
     }

@@ -76,9 +76,6 @@ export const useCart = () => {
       }
     } catch (error: any) {
       console.error("Error fetching cart:", error);
-      if (error?.message && !error.message.includes("Failed to fetch")) {
-        toast.error("Failed to load cart: " + error.message);
-      }
     } finally {
       setLoading(false);
     }
