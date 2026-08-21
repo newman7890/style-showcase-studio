@@ -699,8 +699,8 @@ const SellerDashboard = () => {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-20 pb-24">
-        <div className="container mx-auto px-4 max-w-5xl">
+      <main className="min-h-screen pt-20 pb-24 w-full overflow-x-hidden">
+        <div className="container mx-auto px-4 max-w-5xl w-full">
           <motion.h1
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -710,55 +710,69 @@ const SellerDashboard = () => {
           </motion.h1>
 
           {/* Summary cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-xs text-muted-foreground">Total sales</div>
-                <div className="text-2xl font-semibold">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6">
+            <Card className="overflow-hidden min-w-0">
+              <CardContent className="p-3 sm:p-5 min-w-0">
+                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Total sales</div>
+                <div className="text-sm sm:text-xl font-bold truncate mt-0.5" title={`GH₵${Number(summary?.total_gross ?? 0).toFixed(2)}`}>
                   GH₵{Number(summary?.total_gross ?? 0).toFixed(2)}
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-xs text-muted-foreground">Your earnings</div>
-                <div className="text-2xl font-semibold">
+            <Card className="overflow-hidden min-w-0">
+              <CardContent className="p-3 sm:p-5 min-w-0">
+                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Your earnings</div>
+                <div className="text-sm sm:text-xl font-bold truncate mt-0.5 text-emerald-600 dark:text-emerald-400" title={`GH₵${Number(summary?.total_earnings ?? 0).toFixed(2)}`}>
                   GH₵{Number(summary?.total_earnings ?? 0).toFixed(2)}
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-xs text-muted-foreground">Pending payout</div>
-                <div className="text-2xl font-semibold">
+            <Card className="overflow-hidden min-w-0">
+              <CardContent className="p-3 sm:p-5 min-w-0">
+                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Pending payout</div>
+                <div className="text-sm sm:text-xl font-bold truncate mt-0.5 text-amber-600 dark:text-amber-400" title={`GH₵${Number(summary?.pending_earnings ?? 0).toFixed(2)}`}>
                   GH₵{Number(summary?.pending_earnings ?? 0).toFixed(2)}
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-xs text-muted-foreground">Orders</div>
-                <div className="text-2xl font-semibold">{Number(summary?.total_orders ?? 0)}</div>
+            <Card className="overflow-hidden min-w-0">
+              <CardContent className="p-3 sm:p-5 min-w-0">
+                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Orders</div>
+                <div className="text-sm sm:text-xl font-bold truncate mt-0.5">
+                  {Number(summary?.total_orders ?? 0)}
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          <Tabs defaultValue="products" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="products"><Package className="w-4 h-4 mr-2" />Products</TabsTrigger>
-              <TabsTrigger value="orders"><ShoppingBag className="w-4 h-4 mr-2" />Orders</TabsTrigger>
-              <TabsTrigger value="earnings"><DollarSign className="w-4 h-4 mr-2" />Earnings</TabsTrigger>
-              <TabsTrigger value="dropoffs"><Package className="w-4 h-4 mr-2" />Drop-offs</TabsTrigger>
-            </TabsList>
+          <Tabs defaultValue="products" className="space-y-6 w-full">
+            <div className="w-full overflow-x-auto no-scrollbar pb-1">
+              <TabsList className="inline-flex w-max min-w-full sm:w-auto h-auto p-1 bg-muted rounded-xl gap-1">
+                <TabsTrigger value="products" className="text-xs sm:text-sm px-3 sm:px-3.5 py-2 data-[state=active]:bg-background">
+                  <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 shrink-0" />Products
+                </TabsTrigger>
+                <TabsTrigger value="orders" className="text-xs sm:text-sm px-3 sm:px-3.5 py-2 data-[state=active]:bg-background">
+                  <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 shrink-0" />Orders
+                </TabsTrigger>
+                <TabsTrigger value="earnings" className="text-xs sm:text-sm px-3 sm:px-3.5 py-2 data-[state=active]:bg-background">
+                  <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 shrink-0" />Earnings
+                </TabsTrigger>
+                <TabsTrigger value="dropoffs" className="text-xs sm:text-sm px-3 sm:px-3.5 py-2 data-[state=active]:bg-background">
+                  <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 shrink-0" />Drop-offs
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="products">
-              <div className="flex justify-between items-center mb-4">
-                <div className="text-sm text-muted-foreground">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="text-xs sm:text-sm font-medium text-muted-foreground">
                   {products.length} product{products.length === 1 ? "" : "s"}
                 </div>
                 <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o && editing) resetForm(); }}>
                   <DialogTrigger asChild>
-                    <Button onClick={handleOpenAddDialog}><Plus className="w-4 h-4 mr-2" />Add product</Button>
+                    <Button onClick={handleOpenAddDialog} size="sm" className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm shrink-0">
+                      <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />Add product
+                    </Button>
                   </DialogTrigger>
                   <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
@@ -1095,25 +1109,27 @@ const SellerDashboard = () => {
               ) : (
                 <div className="grid gap-3">
                   {products.map((p) => (
-                    <Card key={p.id}>
-                      <CardContent className="pt-4 flex gap-3 items-center">
-                        <img src={p.image} alt={p.name} className="w-16 h-16 object-cover rounded" />
+                    <Card key={p.id} className="overflow-hidden min-w-0">
+                      <CardContent className="p-3 sm:p-4 flex items-center gap-3 min-w-0">
+                        <img src={p.image} alt={p.name} className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-lg shrink-0 border bg-muted" />
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{p.name}</div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="font-semibold text-sm sm:text-base truncate">{p.name}</div>
+                          <div className="text-xs sm:text-sm text-muted-foreground mt-0.5 font-medium truncate">
                             GH₵{Number(p.price).toFixed(2)} · Stock {p.stock}
                           </div>
-                          <div className="flex gap-2 mt-1"><StatusBadge status={p.status} /></div>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <StatusBadge status={p.status} />
+                          </div>
                           {p.status === "rejected" && p.rejection_reason && (
-                            <div className="text-xs text-destructive mt-1">{p.rejection_reason}</div>
+                            <div className="text-xs text-destructive mt-1 bg-destructive/10 p-1.5 rounded">{p.rejection_reason}</div>
                           )}
                         </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
-                            <Pencil className="w-4 h-4" />
+                        <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
+                          <Button size="icon" variant="outline" className="h-8 w-8 sm:h-9 sm:w-9" onClick={() => openEdit(p)} title="Edit product">
+                            <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => remove(p.id)}>
-                            <Trash2 className="w-4 h-4" />
+                          <Button size="icon" variant="outline" className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => remove(p.id)} title="Delete product">
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </Button>
                         </div>
                       </CardContent>
