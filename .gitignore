@@ -35,5 +35,6 @@ hs_err_pid*
 replay_pid*
 
 # Scratch and temporary files
+scratch/
 scratch-renderme/
 supabase/.temp/

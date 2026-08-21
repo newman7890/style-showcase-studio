@@ -127,6 +127,38 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Check if order items belong to a seller with a Paystack Subaccount for Split Payment
+    let sellerSubaccountCode: string | null = null;
+    let totalCommissionInPesewas = 0;
+
+    const { data: orderItems } = await auth.client
+      .from("order_items")
+      .select("seller_id, commission_amount")
+      .eq("order_id", orderId);
+
+    if (orderItems && orderItems.length > 0) {
+      const primarySellerId = orderItems.find(item => item.seller_id)?.seller_id;
+      if (primarySellerId) {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+        const { data: sellerProfile } = await adminClient
+          .from("seller_profiles")
+          .select("paystack_subaccount_code")
+          .eq("user_id", primarySellerId)
+          .maybeSingle();
+
+        if (sellerProfile?.paystack_subaccount_code) {
+          sellerSubaccountCode = sellerProfile.paystack_subaccount_code;
+          const totalCommissionGHS = orderItems.reduce((acc, item) => acc + (Number(item.commission_amount) || 0), 0);
+          totalCommissionInPesewas = Math.round(totalCommissionGHS * 100);
+          console.log(`Split payment active: Subaccount ${sellerSubaccountCode}, Transaction Charge (Platform Commission): ${totalCommissionInPesewas} pesewas`);
+        }
+      }
+    }
+
     const paystackPayload: Record<string, unknown> = {
       email,
       amount: amountInPesewas,
@@ -146,6 +178,13 @@ const handler = async (req: Request): Promise<Response> => {
         ],
       },
     };
+
+    if (sellerSubaccountCode) {
+      paystackPayload.subaccount = sellerSubaccountCode;
+      if (totalCommissionInPesewas > 0) {
+        paystackPayload.transaction_charge = totalCommissionInPesewas;
+      }
+    }
 
     if (mobileMoneyProvider && normalizedMobileNumber) {
       paystackPayload.mobile_money = {

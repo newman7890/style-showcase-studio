@@ -131,6 +131,30 @@ export const SellerApprovalsManagement = () => {
 
   useEffect(() => { load(); }, [filter]);
 
+  const [syncingSubaccount, setSyncingSubaccount] = useState<string | null>(null);
+
+  const syncSubaccount = async (sellerId: string) => {
+    setSyncingSubaccount(sellerId);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-paystack-subaccount", {
+        body: { sellerId },
+      });
+      if (error) {
+        toast({ title: "Paystack Error", description: error.message, variant: "destructive" });
+      } else if (data?.subaccount_code) {
+        toast({ title: "Paystack Subaccount Created", description: `Code: ${data.subaccount_code}` });
+      } else if (data?.error) {
+        toast({ title: "Paystack Notice", description: data.error });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to create subaccount", variant: "destructive" });
+    } finally {
+      setSyncingSubaccount(null);
+      load();
+      setReviewing(null);
+    }
+  };
+
   const setStatus = async (
     id: string,
     status: "approved" | "rejected" | "suspended",
@@ -142,8 +166,13 @@ export const SellerApprovalsManagement = () => {
       .eq("id", id);
     if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
     toast({ title: `Seller ${status}` });
-    load();
-    setReviewing(null);
+
+    if (status === "approved") {
+      syncSubaccount(id);
+    } else {
+      load();
+      setReviewing(null);
+    }
   };
 
   const saveOverride = async (id: string) => {
@@ -369,6 +398,18 @@ export const SellerApprovalsManagement = () => {
                           <KV k="SWIFT / BIC" v={r.swift_bic} mono />
                         </>
                       )}
+                      <div className="pt-2 border-t mt-2 flex items-center justify-between">
+                        <KV k="Paystack Subaccount" v={(r as any).paystack_subaccount_code || "Not created"} mono />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={syncingSubaccount === r.id}
+                          onClick={() => syncSubaccount(r.id)}
+                        >
+                          {syncingSubaccount === r.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                          Sync Paystack
+                        </Button>
+                      </div>
                     </Panel>
 
                     <Panel title="Store" className="md:col-span-2">
