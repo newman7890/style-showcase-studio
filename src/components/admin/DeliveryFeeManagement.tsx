@@ -547,6 +547,74 @@ export const DeliveryFeeManagement = () => {
                       )}
                     </div>
                   ))}
+
+                  {/* Standalone Towns (Towns added directly under region without specifying a city) */}
+                  {regGroup.standaloneTowns.length > 0 && (
+                    <div className="border border-border rounded-lg p-4 bg-background space-y-3">
+                      <div className="flex items-center justify-between gap-4 border-b border-border pb-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-primary" />
+                          <h4 className="text-sm font-bold">Towns & Areas (Direct Region)</h4>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {regGroup.standaloneTowns.length} Town{regGroup.standaloneTowns.length === 1 ? "" : "s"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                        {regGroup.standaloneTowns.map((tItem) => (
+                          <div key={tItem.id} className="p-3 border border-border/80 rounded-md bg-muted/20 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                              <span className="text-xs font-semibold truncate" title={tItem.town || ""}>
+                                {tItem.town}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[11px] text-muted-foreground">GH₵</span>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={tItem.fee}
+                                onChange={(e) => updateField(tItem.id, { fee: parseFloat(e.target.value) || 0 })}
+                                className="h-7 w-16 text-xs px-1.5"
+                              />
+                              <Switch
+                                checked={tItem.is_active}
+                                onCheckedChange={(checked) => updateField(tItem.id, { is_active: checked })}
+                                className="scale-75"
+                              />
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => saveRow(tItem)}>
+                                <Save className="w-3 h-3 text-foreground" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteRow(tItem.id, tItem.is_default)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state prompt for adding cities/towns to this region */}
+                  {citiesList.length === 0 && regGroup.standaloneTowns.length === 0 && (
+                    <div className="p-4 border border-dashed border-border rounded-lg text-center bg-muted/10">
+                      <p className="text-xs text-muted-foreground">No cities or towns added under {regGroup.region} yet.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 text-xs"
+                        onClick={() => {
+                          setNewRegion(regGroup.region);
+                          setNewCity("Accra");
+                          setNewTown("East Legon");
+                        }}
+                      >
+                        <Plus className="w-3 h-3 mr-1" /> Add a Town to {regGroup.region}
+                      </Button>
+                    </div>
+                  )}
                 </AccordionContent>
               </AccordionItem>
             );
