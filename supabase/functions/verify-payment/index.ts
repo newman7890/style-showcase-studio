@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate, hasRole } from "../_shared/auth.ts";
+import { getPaystackSecretKey } from "../_shared/paystack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +15,7 @@ const VerifySchema = z.object({
     .string()
     .min(1)
     .max(100, "Reference too long")
-    .regex(/^[A-Za-z0-9_\-]+$/, "Invalid reference format"),
+    .regex(/^[A-Za-z0-9_-]+$/, "Invalid reference format"),
 });
 
 const handler = async (req: Request): Promise<Response> => {
@@ -32,13 +33,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const paystackSecretKey = 
-      Deno.env.get("Paystack_Live_Secret_Key") || 
-      Deno.env.get("PAYSTACK_SECRET_KEY") || 
-      Deno.env.get("Paystack_Test_Secret_Key");
-    if (!paystackSecretKey) {
-      throw new Error("Paystack secret key not configured");
-    }
+    const paystackSecretKey = getPaystackSecretKey();
 
     const parsed = VerifySchema.safeParse(await req.json());
     if (!parsed.success) {

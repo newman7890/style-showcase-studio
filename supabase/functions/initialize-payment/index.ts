@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
+import { getPaystackSecretKey } from "../_shared/paystack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,13 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const paystackSecretKey = 
-      Deno.env.get("PAYSTACK_SECRET_KEY") || 
-      Deno.env.get("Paystack_Live_Secret_Key") || 
-      Deno.env.get("Paystack_Test_Secret_Key");
-    if (!paystackSecretKey) {
-      throw new Error("Paystack secret key not configured");
-    }
+    const paystackSecretKey = getPaystackSecretKey();
 
     const rawBody = await req.json();
     const parsed = PaymentSchema.safeParse(rawBody);
