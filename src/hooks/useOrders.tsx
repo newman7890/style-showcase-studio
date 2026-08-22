@@ -127,14 +127,32 @@ export const useOrders = () => {
         .from("order_items")
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.warn("Order items insert with color/size failed, retrying basic insert:", itemsError.message);
+        const basicOrderItems = cartItems.map((item) => ({
+          order_id: order.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price: item.price,
+        }));
+        const { error: fallbackError } = await supabase
+          .from("order_items")
+          .insert(basicOrderItems);
+
+        if (fallbackError) throw fallbackError;
+      }
 
       toast.success("Order placed successfully!");
       await fetchOrders();
       return order.id;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating order:", error);
-      toast.error("Failed to place order");
+      const msg = error?.message || "";
+      if (/failed to fetch|load failed|networkerror/i.test(msg)) {
+        toast.error("Network connection issue. Please check your internet connection.");
+      } else {
+        toast.error("Could not place your order: " + (msg || "Please try again."));
+      }
       return null;
     }
   };
