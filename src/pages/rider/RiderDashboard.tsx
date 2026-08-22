@@ -162,12 +162,6 @@ const RiderDashboard = () => {
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
               </button>
-              <button
-                onClick={handleLogout}
-                className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
             </div>
           </div>
         </div>

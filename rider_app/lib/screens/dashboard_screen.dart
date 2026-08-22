@@ -169,12 +169,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: _handleRefresh,
             spinning: _refreshing,
           ),
-          const SizedBox(width: 8),
-          _buildHeaderButton(
-            icon: LucideIcons.logOut,
-            onTap: _handleLogout,
-            isLogout: true,
-          ),
         ],
       ),
     );
