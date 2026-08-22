@@ -56,16 +56,17 @@ interface DeliveryOrder {
   id: string;
   status: string;
   created_at: string;
-  delivery_address: string | null;
-  phone: string | null;
+  shipping_address?: string | null;
+  shipping_phone?: string | null;
+  shipping_name?: string | null;
+  delivery_address?: string | null;
+  phone?: string | null;
   total_amount: number;
-  profiles?: {
-    full_name: string | null;
-  };
   order_items?: Array<{
     id: string;
     quantity: number;
-    unit_price: number;
+    price?: number;
+    unit_price?: number;
     products?: {
       name: string;
     };
@@ -158,7 +159,7 @@ export const RiderManagement = () => {
       // Query orders assigned to this rider
       const { data, error } = await (supabase as any)
         .from("orders")
-        .select("id, status, created_at, delivery_address, phone, total_amount, profiles(full_name), order_items(id, quantity, unit_price, products(name))")
+        .select("id, status, created_at, shipping_address, shipping_phone, shipping_name, total_amount, order_items(id, quantity, price, unit_price, products(name))")
         .eq("assigned_rider_id", rider.user_id)
         .order("created_at", { ascending: false });
 
@@ -527,21 +528,21 @@ export const RiderManagement = () => {
 
                           {/* Customer & Address */}
                           <div className="bg-secondary/40 p-2.5 rounded-lg space-y-1 text-gray-700">
-                            {order.profiles?.full_name && (
+                            {order.shipping_name && (
                               <div className="font-semibold text-gray-900 flex items-center gap-1">
-                                <User className="w-3 h-3 text-primary" /> Customer: {order.profiles.full_name}
+                                <User className="w-3 h-3 text-primary" /> Customer: {order.shipping_name}
                               </div>
                             )}
-                            {order.delivery_address && (
+                            {(order.shipping_address || order.delivery_address) && (
                               <div className="flex items-start gap-1">
                                 <MapPin className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                                <span>Destination: {order.delivery_address}</span>
+                                <span>Destination: {order.shipping_address || order.delivery_address}</span>
                               </div>
                             )}
-                            {order.phone && (
+                            {(order.shipping_phone || order.phone) && (
                               <div className="flex items-center gap-1">
                                 <Phone className="w-3 h-3 text-emerald-600" />
-                                <span>Phone: {order.phone}</span>
+                                <span>Phone: {order.shipping_phone || order.phone}</span>
                               </div>
                             )}
                           </div>
@@ -553,19 +554,22 @@ export const RiderManagement = () => {
                                 Package Items ({order.order_items.length}):
                               </span>
                               <div className="space-y-1">
-                                {order.order_items.map((item) => (
-                                  <div
-                                    key={item.id}
-                                    className="flex justify-between items-center bg-background px-2.5 py-1 rounded border text-[11px]"
-                                  >
-                                    <span className="font-medium text-gray-800">
-                                      {item.quantity}x {item.products?.name || "Product"}
-                                    </span>
-                                    <span className="font-semibold">
-                                      GH₵{(item.unit_price * item.quantity).toFixed(2)}
-                                    </span>
-                                  </div>
-                                ))}
+                                {order.order_items.map((item) => {
+                                  const itemPrice = Number(item.price ?? item.unit_price ?? 0);
+                                  return (
+                                    <div
+                                      key={item.id}
+                                      className="flex justify-between items-center bg-background px-2.5 py-1 rounded border text-[11px]"
+                                    >
+                                      <span className="font-medium text-gray-800">
+                                        {item.quantity}x {item.products?.name || "Product"}
+                                      </span>
+                                      <span className="font-semibold">
+                                        GH₵{(itemPrice * item.quantity).toFixed(2)}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}

@@ -26,6 +26,73 @@ class SupabaseService {
     return client.auth.signOut();
   }
 
+  // Sign up a new rider account with access code
+  static Future<AuthResponse> signUpRider({
+    required String email,
+    required String password,
+    required String fullName,
+    required String phoneNumber,
+    required String vehicleType,
+    required String accessCode,
+  }) {
+    return client.auth.signUp(
+      email: email,
+      password: password,
+      data: {
+        'full_name': fullName,
+        'phone_number': phoneNumber,
+        'vehicle_type': vehicleType,
+        'access_code': accessCode.trim().toUpperCase(),
+      },
+    );
+  }
+
+  // Verify rider access code via RPC (server-side, no table read)
+  static Future<bool> verifyRiderAccessCode(String code) async {
+    try {
+      final result = await client.rpc('verify_rider_access_code', params: {'_code': code});
+      return result == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Mark access code as used via RPC
+  static Future<void> consumeRiderAccessCode(String code) async {
+    await client.rpc('consume_rider_access_code', params: {'_code': code});
+  }
+
+  // Assign rider role in user_roles
+  static Future<void> assignRiderRole(String userId) async {
+    try {
+      await client.from('user_roles').insert({
+        'user_id': userId,
+        'role': 'rider',
+      });
+    } catch (e) {
+      // Ignore duplicate key errors
+      if (!e.toString().contains('duplicate')) rethrow;
+    }
+  }
+
+  // Create rider profile entry
+  static Future<void> createRiderProfile({
+    required String userId,
+    required String fullName,
+    required String phoneNumber,
+    required String vehicleType,
+    required String accessCode,
+  }) async {
+    await client.from('rider_profiles').insert({
+      'user_id': userId,
+      'full_name': fullName,
+      'phone_number': phoneNumber,
+      'vehicle_type': vehicleType,
+      'access_code': accessCode,
+      'status': 'active',
+    });
+  }
+
   // Check if user has rider role
   static Future<bool> checkRiderRole(String userId) async {
     final data = await client

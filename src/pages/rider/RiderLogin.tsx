@@ -89,40 +89,33 @@ const RiderLogin = () => {
       }
 
 
-      // 2. Sign up the user account
+      // 2. Sign up the user account with metadata for server trigger
       const { data: authData, error: authErr } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          data: { full_name: fullName.trim() },
+          data: {
+            full_name: fullName.trim(),
+            phone_number: phone.trim(),
+            vehicle_type: vehicleType,
+            access_code: cleanCode,
+          },
         },
       });
 
       if (authErr) throw authErr;
       if (!authData.user) throw new Error("Registration failed. Please try again.");
 
-      const newUserId = authData.user.id;
+      // Supabase Auth returns empty identities if email already exists
+      if (authData.user.identities && authData.user.identities.length === 0) {
+        throw new Error("An account with this email address already exists. Try signing in instead.");
+      }
 
-      // 3. Assign rider role in user_roles
-      const { error: roleErr } = await supabase.from("user_roles").insert({
-        user_id: newUserId,
-        role: "rider",
-      });
-      if (roleErr && !roleErr.message.includes("duplicate")) throw roleErr;
-
-      // 4. Create rider_profiles entry
-      const { error: profileErr } = await (supabase.from("rider_profiles" as any) as any).insert({
-        user_id: newUserId,
-        full_name: fullName.trim(),
-        phone_number: phone.trim(),
-        vehicle_type: vehicleType,
-        access_code: cleanCode,
-        status: "active",
-      });
-      if (profileErr) throw profileErr;
-
-      // 5. Mark Access Code as used (server-side)
-      await (supabase.rpc as any)("consume_rider_access_code", { _code: cleanCode });
+      // If session wasn't established automatically, sign in
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      }
 
 
       toast({
