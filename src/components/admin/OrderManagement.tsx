@@ -38,6 +38,7 @@ interface Order {
   id: string;
   user_id: string;
   status: string;
+  payment_status?: string | null;
   total_amount: number;
   currency: string;
   shipping_name: string;
@@ -200,7 +201,8 @@ export const OrderManagement = () => {
                 <TableHead>Customer</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Fulfillment</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -224,6 +226,21 @@ export const OrderManagement = () => {
                   </TableCell>
                   <TableCell className="font-medium">
                     GH₵{order.total_amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {order.payment_status === "paid" || ["confirmed", "processing", "shipped", "delivered"].includes(order.status) ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 font-semibold">
+                        🟢 Paid
+                      </Badge>
+                    ) : order.payment_status === "failed" || order.status === "cancelled" ? (
+                      <Badge className="bg-red-500/15 text-red-600 border-red-500/30 font-semibold">
+                        🔴 Failed
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 font-semibold">
+                        🟡 Unpaid
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge className={`${statusConfig[order.status]?.color || ""} flex items-center gap-1 w-fit`}>

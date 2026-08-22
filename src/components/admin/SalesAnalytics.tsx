@@ -135,8 +135,11 @@ export const SalesAnalytics = () => {
 
   const fetchAnalytics = async () => {
     try {
-      // Fetch orders with optional date filtering
-      let ordersQuery = supabase.from("orders").select("*");
+      // Fetch orders with optional date filtering (ONLY paid / confirmed orders)
+      let ordersQuery = supabase
+        .from("orders")
+        .select("*")
+        .or("payment_status.eq.paid,status.in.(confirmed,processing,shipped,delivered)");
       
       if (dateRange.from) {
         ordersQuery = ordersQuery.gte("created_at", dateRange.from.toISOString());
