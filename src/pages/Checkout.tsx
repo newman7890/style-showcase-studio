@@ -45,7 +45,16 @@ const GHANA_REGIONS = [
 
 const DEFAULT_MOMO_PROMPT_TEXT = "Check your phone and enter your Mobile Money PIN to authorize this payment.";
 
-
+const getFunctionErrorMessage = async (error: any) => {
+  if (!error) return null;
+  try {
+    if (error.context && typeof error.context.json === "function") {
+      const body = await error.context.json();
+      return body?.userMessage || body?.error || body?.message || null;
+    }
+  } catch {}
+  return error?.message || null;
+};
 const Checkout = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
