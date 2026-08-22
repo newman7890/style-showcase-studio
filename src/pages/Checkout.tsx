@@ -428,75 +428,30 @@ const Checkout = () => {
       }, orderItems);
       if (!orderId) { setSubmitting(false); return; }
 
-      // Mobile Money: direct charge so the PIN prompt fires on the phone
-      if (isMomo) {
-        const provider = MOMO_PROVIDERS[paymentMethod as Exclude<PaymentMethod, "bank_card">];
-        const { data: chargeData, error: chargeError } = await supabase.functions.invoke("charge-momo", {
-          body: {
-            orderId,
-            email: formData.shipping_email,
-            amount: finalTotal,
-            provider,
-            mobileNumber: momoNumber,
-          },
-        });
-        if (chargeError) {
-          const message = await getFunctionErrorMessage(chargeError);
-          showMomoErrorState(
-            "Couldn't start Mobile Money payment",
-            message || "We couldn't start the mobile money charge.",
-            "Please confirm the wallet number and try again."
-          );
-          setSubmitting(false);
-          return;
-        }
+      // Delegate 100% to Paystack payment initialization (Mobile Money, Card, USSD, etc.)
+      const callbackUrl = `${window.location.origin}/payment/callback`;
+      const { data, error } = await supabase.functions.invoke("initialize-payment", {
+        body: {
+          orderId,
+          email: formData.shipping_email,
+          amount: finalTotal,
+          paymentMethod,
+          mobileNumber: momoNumber || formData.shipping_phone,
+          callbackUrl,
+        },
+      });
 
-        const chargeResult = (chargeData || {}) as MomoFunctionResult;
-        if (chargeResult.reference) {
-          setMomoReference(chargeResult.reference);
-          setMomoOrderId(orderId);
-        }
-
-        if (chargeResult.requiresOtp || chargeResult.status === "send_otp") {
-          if (!chargeResult.reference) {
-            showMomoErrorState("Couldn't start Mobile Money payment", "Missing payment reference. Please try again.");
-            setSubmitting(false);
-            return;
-          }
-          showMomoOtpState(
-            chargeResult.display_text || chargeResult.userMessage || "Check your phone SMS or dial *110# for your Mobile Money authorization code."
-          );
-          return;
-        }
-
-        if (!chargeResult.success || !chargeResult.reference) {
-          showMomoErrorState(
-            chargeResult.errorCode === "PROMPT_NOT_SENT" ? "Phone prompt not sent" : "Couldn't start Mobile Money payment",
-            chargeResult.userMessage || chargeResult.friendlyError || "We couldn't start the mobile money charge.",
-            chargeResult.errorCode === "PROMPT_NOT_SENT"
-              ? "Check that the number is active for Mobile Money and try again."
-              : "Please verify the wallet number or use another payment method."
-          );
-          setSubmitting(false);
-          return;
-        }
-
-        showMomoWaitingState(
-          chargeResult.display_text || chargeResult.userMessage || "Check your phone — a prompt has been sent. Enter your Mobile Money PIN to authorize this payment.",
-          chargeResult.awaitingAction ? "Approve the request on your phone. We’ll confirm automatically here." : null
-        );
-        void pollMomoStatus(chargeResult.reference, orderId);
+      if (error) {
+        const msg = await getFunctionErrorMessage(error);
+        toast.error(msg || "Could not initialize Paystack payment.");
+        setSubmitting(false);
         return;
       }
 
-      // Card: existing Paystack Inline flow
-      const callbackUrl = `${window.location.origin}/payment/callback`;
-      const { data, error } = await supabase.functions.invoke("initialize-payment", {
-        body: { orderId, email: formData.shipping_email, amount: finalTotal, paymentMethod: "bank_card", callbackUrl },
-      });
-      if (error) throw error;
-
-      if (data.accessCode && (window as any).PaystackPop && data.publicKey) {
+      if (data?.authorization_url) {
+        window.location.href = data.authorization_url;
+        return;
+      } else if (data?.accessCode && (window as any).PaystackPop && data?.publicKey) {
         try {
           const handler = (window as any).PaystackPop.setup({
             key: data.publicKey,
@@ -507,37 +462,26 @@ const Checkout = () => {
             channels: data.channels,
             callback: (response: any) => {
               const paidReference = response?.reference ?? data.reference;
-              void (async () => {
-                try {
-                  const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
-                    "verify-payment",
-                    { body: { reference: paidReference } }
-                  );
-                  if (verifyError) throw verifyError;
-                  if (verifyData?.success) {
-                    await clearCart();
-                    navigate(`/order-confirmation/${verifyData.orderId}`);
-                    toast.success("Payment approved!");
-                  } else {
-                    toast.error(verifyData?.friendlyError || "Payment verification failed.");
-                    navigate("/orders");
-                  }
-                } catch (err) {
-                  console.error("Verification error:", err);
-                  toast.error("Payment verification failed.");
-                  navigate(`/payment/callback?reference=${paidReference}`);
-                }
-              })();
+              window.location.href = `${callbackUrl}?reference=${paidReference}`;
             },
             onClose: () => {
-              toast.error("Payment cancelled.");
-              void supabase.functions.invoke("verify-payment", { body: { reference: data.reference } });
               setSubmitting(false);
+              toast.info("Payment cancelled.");
             },
           });
-          handler.openIframe(); return;
+          handler.openIframe();
+          return;
         } catch (popupError) {
           console.error("Paystack popup initialization failed:", popupError);
+          if (data.authorization_url) {
+            window.location.href = data.authorization_url;
+            return;
+          }
+        }
+      }
+
+      toast.error("Payment initialization failed. Please try again.");
+      setSubmitting(false);
           if (data.authorizationUrl) { window.location.href = data.authorizationUrl; return; }
           throw popupError;
         }
