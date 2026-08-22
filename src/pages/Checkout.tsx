@@ -482,14 +482,9 @@ const Checkout = () => {
 
       toast.error("Payment initialization failed. Please try again.");
       setSubmitting(false);
-          if (data.authorizationUrl) { window.location.href = data.authorizationUrl; return; }
-          throw popupError;
-        }
-      } else if (data.authorizationUrl) { window.location.href = data.authorizationUrl; return; }
-      else { throw new Error("Failed to initialize payment"); }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error placing order:", error);
-      const rawMsg = error instanceof Error ? error.message : "";
+      const rawMsg = error?.message || "";
       if (/failed to fetch|load failed|networkerror/i.test(rawMsg)) {
         toast.error("Network connection issue. Please check your internet connection and try again.");
       } else {
