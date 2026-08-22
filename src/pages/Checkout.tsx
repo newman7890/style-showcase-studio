@@ -865,8 +865,11 @@ const Checkout = () => {
           )}
           {momoDialogMode === "otp" && (
             <div className="space-y-4">
-              <div className="border border-border bg-secondary/30 px-4 py-3 text-xs text-muted-foreground">
-                {momoDialogHint}
+              <div className="border border-border bg-secondary/30 px-4 py-3 text-xs text-muted-foreground space-y-1">
+                <p>{momoDialogHint}</p>
+                <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  💡 If testing in Paystack Test Mode, enter <strong>123456</strong> to proceed.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="momo-otp" className="text-xs uppercase tracking-wider">OTP code</Label>
