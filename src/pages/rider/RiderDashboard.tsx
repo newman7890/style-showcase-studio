@@ -99,6 +99,18 @@ const RiderDashboard = () => {
     }
   };
 
+  const handleClaimOrder = async (orderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const { error } = await supabase.rpc("claim_order_by_rider", { _order_id: orderId });
+      if (error) throw error;
+      toast({ title: "Delivery Order Claimed! 🚴" });
+      fetchOrders();
+    } catch (error: any) {
+      toast({ title: "Error Claiming Order", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/rider/login");
@@ -119,9 +131,13 @@ const RiderDashboard = () => {
     }
   };
 
-  const filteredOrders = filter === "available" ? [] : orders.filter((o) => {
-    if (filter === "active") return o.status !== "delivered" && o.status !== "cancelled";
-    if (filter === "delivered") return o.status === "delivered";
+  const filteredOrders = orders.filter((o) => {
+    const isUnassigned = !o.assigned_rider_id;
+    const isAssignedToMe = o.assigned_rider_id === user?.id;
+
+    if (filter === "available") return isUnassigned && o.status !== "delivered" && o.status !== "cancelled";
+    if (filter === "active") return (isAssignedToMe || isUnassigned) && o.status !== "delivered" && o.status !== "cancelled";
+    if (filter === "delivered") return isAssignedToMe && o.status === "delivered";
     return true;
   });
 
@@ -316,13 +332,22 @@ const RiderDashboard = () => {
                           >
                             <Phone className="w-3.5 h-3.5" /> Call
                           </a>
-                          {isActive && (
+                          {!order.assigned_rider_id ? (
                             <button
-                              onClick={(e) => handleMarkDelivered(order.id, e)}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-[#4ade80] to-[#16a34a] text-white rounded-xl text-xs font-bold shadow-md shadow-green-500/20 hover:opacity-90 transition-opacity"
+                              onClick={(e) => handleClaimOrder(order.id, e)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 hover:opacity-90 transition-opacity"
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Mark Delivered
+                              <Bike className="w-3.5 h-3.5" /> Claim Delivery 🚴
                             </button>
+                          ) : (
+                            isActive && (
+                              <button
+                                onClick={(e) => handleMarkDelivered(order.id, e)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-[#4ade80] to-[#16a34a] text-white rounded-xl text-xs font-bold shadow-md shadow-green-500/20 hover:opacity-90 transition-opacity"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Mark Delivered
+                              </button>
+                            )
                           )}
                         </div>
                       </motion.div>

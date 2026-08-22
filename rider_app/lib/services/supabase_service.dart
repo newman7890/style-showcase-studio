@@ -104,7 +104,24 @@ class SupabaseService {
     return data != null;
   }
 
-  // Fetch all orders
+  // Claim an unassigned order atomically via RPC
+  static Future<void> claimOrder(String orderId) async {
+    await client.rpc('claim_order_by_rider', params: {'_order_id': orderId});
+  }
+
+  // Fetch available unassigned orders
+  static Future<List<Map<String, dynamic>>> fetchAvailableOrders() async {
+    final response = await client
+        .from('orders')
+        .select('*')
+        .filter('assigned_rider_id', 'is', null)
+        .neq('status', 'delivered')
+        .neq('status', 'cancelled')
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  // Fetch all orders assigned to current rider
   static Future<List<Map<String, dynamic>>> fetchOrders() async {
     final response = await client
         .from('orders')

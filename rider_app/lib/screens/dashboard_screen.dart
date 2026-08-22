@@ -85,11 +85,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _handleClaimOrder(String orderId) async {
+    try {
+      await SupabaseService.claimOrder(orderId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Delivery Order Claimed Successfully! 🚴'),
+            backgroundColor: AppTheme.primary,
+          ),
+        );
+      }
+      _fetchOrders();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '').replaceAll('AuthApiException(message: ', '').replaceAll(RegExp(r',\s*statusCode.*$'), '')),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
   List<Map<String, dynamic>> get _filteredOrders {
+    final currentUserId = SupabaseService.currentUser?.id;
     return _orders.where((o) {
       final status = o['status'] as String? ?? '';
-      if (_filter == 'active') return status != 'delivered' && status != 'cancelled';
-      if (_filter == 'delivered') return status == 'delivered';
+      final assignedRiderId = o['assigned_rider_id'] as String?;
+
+      if (_filter == 'available') {
+        return assignedRiderId == null && status != 'delivered' && status != 'cancelled';
+      }
+      if (_filter == 'active') {
+        return (assignedRiderId == currentUserId || assignedRiderId == null) && status != 'delivered' && status != 'cancelled';
+      }
+      if (_filter == 'delivered') {
+        return assignedRiderId == currentUserId && status == 'delivered';
+      }
       return true;
     }).toList();
   }
@@ -321,6 +355,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final status = order['status'] as String? ?? 'pending';
     final colors = statusStyle[status] ?? statusStyle['pending']!;
     final isActive = status != 'delivered' && status != 'cancelled';
+    final isUnassigned = order['assigned_rider_id'] == null;
     final trackingCode = order['tracking_code'] as String? ??
         (order['id'] as String? ?? '').substring(0, 8).toUpperCase();
     final createdAt = order['created_at'] != null
@@ -427,7 +462,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Row(
               children: [
                 _buildCallButton(order['shipping_phone'] ?? ''),
-                if (isActive) ...[
+                if (isUnassigned) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _handleClaimOrder(order['id']),
+                      child: Container(
+                        height: 36,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                          ),
+                          boxShadow: [
+                            BoxShadow(color: Colors.blue.withValues(alpha: 0.2), blurRadius: 12),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(LucideIcons.bike, size: 14, color: Colors.white),
+                            SizedBox(width: 6),
+                            Text('Claim Delivery 🚴', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else if (isActive) ...[
                   const SizedBox(width: 8),
                   Expanded(
                     child: GestureDetector(
