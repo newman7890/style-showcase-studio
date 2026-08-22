@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const paystackSecretKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    const paystackSecretKey = Deno.env.get("PAYSTACK_SECRET_KEY") || Deno.env.get("Paystack_Live_Secret_Key");
     if (!paystackSecretKey) throw new Error("Paystack secret key not configured");
 
     const parsed = Schema.safeParse(await req.json());
