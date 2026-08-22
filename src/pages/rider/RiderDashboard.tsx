@@ -22,6 +22,7 @@ interface Order {
   shipping_city: string;
   shipping_region: string;
   tracking_code: string | null;
+  assigned_rider_id?: string | null;
   created_at: string | null;
 }
 
@@ -102,7 +103,7 @@ const RiderDashboard = () => {
   const handleClaimOrder = async (orderId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const { error } = await supabase.rpc("claim_order_by_rider", { _order_id: orderId });
+      const { error } = await (supabase as any).rpc("claim_order_by_rider", { _order_id: orderId });
       if (error) throw error;
       toast({ title: "Delivery Order Claimed! 🚴" });
       fetchOrders();
