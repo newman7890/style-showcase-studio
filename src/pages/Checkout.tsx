@@ -464,7 +464,7 @@ const Checkout = () => {
             return;
           }
           showMomoOtpState(
-            chargeResult.userMessage || chargeResult.display_text || "Your provider sent an OTP to your phone. Enter the code to continue."
+            chargeResult.display_text || chargeResult.userMessage || "Check your phone SMS or dial *110# for your Mobile Money authorization code."
           );
           return;
         }
@@ -865,11 +865,12 @@ const Checkout = () => {
           )}
           {momoDialogMode === "otp" && (
             <div className="space-y-4">
-              <div className="border border-border bg-secondary/30 px-4 py-3 text-xs text-muted-foreground space-y-1">
-                <p>{momoDialogHint}</p>
-                <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  💡 If testing in Paystack Test Mode, enter <strong>123456</strong> to proceed.
-                </p>
+              <div className="border border-border bg-secondary/30 px-4 py-3 text-xs text-muted-foreground space-y-1.5">
+                <p className="font-medium text-foreground">{momoDialogHint}</p>
+                <div className="text-[11px] text-muted-foreground pt-1 border-t space-y-1">
+                  <p>📲 <strong>Telecel (Vodafone):</strong> Dial <code className="bg-muted px-1 rounded font-mono">*110#</code> &rarr; Option 4 (Make Payment) &rarr; Option 1 (Generate Voucher) to get your 6-digit code.</p>
+                  <p>📲 <strong>MTN / AirtelTigo:</strong> Check your SMS inbox or wait a few seconds for the provider code.</p>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="momo-otp" className="text-xs uppercase tracking-wider">OTP code</Label>
