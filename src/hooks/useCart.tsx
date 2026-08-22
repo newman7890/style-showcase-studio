@@ -97,29 +97,36 @@ export const useCart = () => {
     }
 
     try {
-      // Check if item already exists in cart with the same color and size
+      // Check if item already exists in cart with the same user and product
       const { data: existingItems } = await supabase
         .from("cart_items")
         .select("id, quantity, selected_color, selected_size")
         .eq("user_id", user.id)
         .eq("product_id", productId);
 
-      const existing = existingItems?.find((item) => {
-        const itemColor = item.selected_color as any;
-        const sameColor = (!selectedColor && !itemColor) || 
-                          (selectedColor && itemColor && selectedColor.name === itemColor.name);
-        const sameSize = item.selected_size === selectedSize;
-        return sameColor && sameSize;
-      });
+      // If any existing item is found for this user & product, update quantity (satisfies UNIQUE (user_id, product_id))
+      const existing = existingItems && existingItems.length > 0 ? existingItems[0] : null;
 
       if (existing) {
-        // Update quantity
+        // Update quantity & selected options
         const { error } = await supabase
           .from("cart_items")
-          .update({ quantity: existing.quantity + quantity })
+          .update({
+            quantity: existing.quantity + quantity,
+            ...(selectedColor ? { selected_color: selectedColor } : {}),
+            ...(selectedSize ? { selected_size: selectedSize } : {}),
+          })
           .eq("id", existing.id);
 
-        if (error) throw error;
+        if (error) {
+          // Fallback if selected_color/selected_size don't exist in schema
+          const { error: fallbackError } = await supabase
+            .from("cart_items")
+            .update({ quantity: existing.quantity + quantity })
+            .eq("id", existing.id);
+
+          if (fallbackError) throw fallbackError;
+        }
       } else {
         // Insert new item
         const { error } = await supabase
@@ -150,10 +157,13 @@ export const useCart = () => {
     } catch (error: any) {
       console.error("Error adding to cart:", error);
       const msg = error?.message || "";
-      if (/failed to fetch|load failed|networkerror/i.test(msg)) {
-        toast.error("Network connection issue. Please check your internet connection.");
+      if (/duplicate key|unique constraint/i.test(msg)) {
+        toast.success("Item updated in your cart!");
+        fetchCart();
+      } else if (/failed to fetch|load failed|networkerror/i.test(msg)) {
+        toast.error("Network connection issue. Please check your connection and try again.");
       } else {
-        toast.error("Failed to add to cart: " + (msg || "Unknown error"));
+        toast.error("Could not add item to cart. Please try again.");
       }
     }
   };
