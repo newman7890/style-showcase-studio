@@ -76,16 +76,19 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const orderId = event.data.metadata?.order_id;
+    const orderId = (event.data.metadata as any)?.order_id;
+    const checkoutDetails = (event.data.metadata as any)?.checkout_details;
+    const userId = (event.data.metadata as any)?.user_id;
 
     switch (event.event) {
       case "charge.success": {
-        // Payment confirmed - mark order as confirmed
+        // Payment confirmed - mark existing order as confirmed OR create new order from checkoutDetails
         if (orderId) {
           const { error } = await supabase
             .from("orders")
             .update({ 
               status: "confirmed",
+              payment_status: "paid",
               updated_at: new Date().toISOString()
             })
             .eq("id", orderId);
@@ -94,6 +97,45 @@ const handler = async (req: Request): Promise<Response> => {
             console.error("Error updating order status:", error);
           } else {
             console.log(`Order ${orderId} payment confirmed`);
+          }
+        } else if (checkoutDetails && userId) {
+          const paidAmountGhs = event.data.amount / 100;
+          const trackingCode = "TRK" + Array.from({ length: 8 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 30)]).join("");
+          const { data: newOrder, error: createErr } = await supabase
+            .from("orders")
+            .insert({
+              user_id: userId,
+              tracking_code: trackingCode,
+              total_amount: paidAmountGhs,
+              shipping_name: checkoutDetails.shipping_name,
+              shipping_email: checkoutDetails.shipping_email,
+              shipping_phone: checkoutDetails.shipping_phone,
+              shipping_address: checkoutDetails.shipping_address,
+              shipping_city: checkoutDetails.shipping_city,
+              shipping_region: checkoutDetails.shipping_region,
+              shipping_town: checkoutDetails.shipping_town || null,
+              delivery_fee: checkoutDetails.delivery_fee || 0,
+              discount_code: checkoutDetails.discount_code || null,
+              discount_amount: checkoutDetails.discount_amount || null,
+              payment_method: (event.data.metadata as any)?.payment_method || "bank_card",
+              status: "confirmed",
+              payment_status: "paid",
+            })
+            .select()
+            .single();
+
+          if (!createErr && newOrder && checkoutDetails.items && Array.isArray(checkoutDetails.items)) {
+            const itemsToInsert = checkoutDetails.items.map((item: any) => ({
+              order_id: newOrder.id,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              price: item.price,
+              selected_color: item.selected_color || null,
+              selected_size: item.selected_size || null,
+            }));
+            await supabase.from("order_items").insert(itemsToInsert);
+            await supabase.from("cart_items").delete().eq("user_id", userId);
+            console.log(`Webhook created confirmed order ${newOrder.id} for user ${userId}`);
           }
         }
         break;
