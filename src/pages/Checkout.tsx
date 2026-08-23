@@ -92,6 +92,8 @@ const Checkout = () => {
       .select("region, city, town, fee, is_default")
       .eq("is_active", true)
       .then(({ data }) => {
+        if (data) setDeliveryFees(data as any);
+      });
   }, []);
 
   const availableTowns = useMemo(() => {
