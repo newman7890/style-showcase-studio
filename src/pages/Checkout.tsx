@@ -789,9 +789,7 @@ const Checkout = () => {
                     </span>
                     <span>
                       {formData.shipping_region
-                        ? deliveryFee > 0
-                          ? `GH₵${deliveryFee.toFixed(2)}`
-                          : "Free"
+                        ? `GH₵${deliveryFee.toFixed(2)}`
                         : "Select region"}
                     </span>
                   </div>
