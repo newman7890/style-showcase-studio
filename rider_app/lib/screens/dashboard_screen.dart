@@ -167,10 +167,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final currentUserId = SupabaseService.currentUser?.id;
     return _orders.where((o) {
       final status = (o['status'] as String? ?? '').toLowerCase();
+      final paymentStatus = (o['payment_status'] as String? ?? '').toLowerCase();
       final assignedRiderId = o['assigned_rider_id'] as String?;
 
+      final isPaidOrConfirmed = (paymentStatus == 'paid') ||
+          (status == 'confirmed' || status == 'processing' || status == 'shipped');
+
       if (_filter == 'available') {
-        return assignedRiderId == null && status != 'delivered' && status != 'cancelled';
+        return assignedRiderId == null && isPaidOrConfirmed && status != 'pending' && status != 'delivered' && status != 'cancelled';
       }
       if (_filter == 'my_orders') {
         return assignedRiderId == currentUserId && status != 'delivered' && status != 'cancelled';

@@ -132,23 +132,30 @@ class SupabaseService {
     await client.rpc('claim_order_by_rider', params: {'_order_id': orderId});
   }
 
-  // Fetch available unassigned orders
+  // Fetch available unassigned orders (paid / confirmed only)
   static Future<List<Map<String, dynamic>>> fetchAvailableOrders() async {
     final response = await client
         .from('orders')
         .select('*')
         .filter('assigned_rider_id', 'is', null)
+        .or('payment_status.eq.paid,status.in.(confirmed,processing,shipped)')
+        .neq('status', 'pending')
         .neq('status', 'delivered')
         .neq('status', 'cancelled')
+        .neq('status', 'refunded')
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
-  // Fetch all orders assigned to current rider
+  // Fetch all orders assigned to current rider or available paid orders
   static Future<List<Map<String, dynamic>>> fetchOrders() async {
+    final uid = currentUser?.id;
     final response = await client
         .from('orders')
         .select('*')
+        .or('assigned_rider_id.eq.${uid ?? ''},and(payment_status.eq.paid,assigned_rider_id.is.null),and(status.in.(confirmed,processing,shipped),assigned_rider_id.is.null)')
+        .neq('status', 'cancelled')
+        .neq('status', 'refunded')
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
