@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Package, Tag, Loader2, X, Smartphone, CreditCard, AlertTriangle } from "lucide-react";
@@ -92,9 +92,22 @@ const Checkout = () => {
       .select("region, city, town, fee, is_default")
       .eq("is_active", true)
       .then(({ data }) => {
-        if (data) setDeliveryFees(data as any);
-      });
   }, []);
+
+  const availableTowns = useMemo(() => {
+    if (!formData.shipping_region) return [];
+    const reg = formData.shipping_region.trim().toLowerCase();
+    const city = formData.shipping_city ? formData.shipping_city.trim().toLowerCase() : "";
+    const set = new Set<string>();
+    deliveryFees.forEach((f) => {
+      if (f.region.trim().toLowerCase() === reg && f.town && f.town.trim()) {
+        if (!city || !f.city || f.city.trim().toLowerCase() === city) {
+          set.add(f.town.trim());
+        }
+      }
+    });
+    return Array.from(set).sort();
+  }, [deliveryFees, formData.shipping_region, formData.shipping_city]);
 
   // Fee resolution with fallback: exact town → city → region → default
   const deliveryFee = (() => {
@@ -580,10 +593,23 @@ const Checkout = () => {
                         className="mt-1.5 rounded-none border-border bg-transparent h-12 focus:ring-0 focus:border-foreground" placeholder="City (e.g., Accra, Kumasi)" />
                     </div>
                     <div className="md:col-span-2">
-                      <Label htmlFor="shipping_town" className="text-xs uppercase tracking-wider text-muted-foreground">Town / Sub-Area (Optional)</Label>
-                      <Input id="shipping_town" name="shipping_town" value={formData.shipping_town} onChange={handleChange}
-                        className="mt-1.5 rounded-none border-border bg-transparent h-12 focus:ring-0 focus:border-foreground" placeholder="e.g., East Legon, Osu, Madina, Spintex, Adum" />
-
+                      <Label htmlFor="shipping_town" className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Town / Sub-Area {availableTowns.length > 0 ? `(${availableTowns.length} towns registered)` : "(Optional)"}
+                      </Label>
+                      <Input
+                        id="shipping_town"
+                        name="shipping_town"
+                        list="available-towns-list"
+                        value={formData.shipping_town}
+                        onChange={handleChange}
+                        className="mt-1.5 rounded-none border-border bg-transparent h-12 focus:ring-0 focus:border-foreground"
+                        placeholder="e.g. East Legon, Osu, Madina, Spintex, Pokuase..."
+                      />
+                      <datalist id="available-towns-list">
+                        {availableTowns.map((townName) => (
+                          <option key={townName} value={townName} />
+                        ))}
+                      </datalist>
                     </div>
                     <div className="md:col-span-2">
                       <Label htmlFor="shipping_address" className="text-xs uppercase tracking-wider text-muted-foreground">{t("streetAddress")}</Label>
