@@ -5,6 +5,7 @@ import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/order_detail_screen.dart';
+import 'screens/help_support_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +46,15 @@ class RiderApp extends StatelessWidget {
           final orderId = settings.name!.replaceFirst('/order/', '');
           return MaterialPageRoute(
             builder: (_) => OrderDetailScreen(orderId: orderId),
+          );
+        }
+
+        // Handle /support route with optional orderId parameter
+        if (settings.name != null && settings.name!.startsWith('/support')) {
+          final uri = Uri.parse(settings.name!);
+          final orderId = uri.queryParameters['orderId'];
+          return MaterialPageRoute(
+            builder: (_) => HelpSupportScreen(orderId: orderId),
           );
         }
 

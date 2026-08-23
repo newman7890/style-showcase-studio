@@ -51,6 +51,13 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _checkExistingSession() async {
     final user = SupabaseService.currentUser;
     if (user != null) {
+      final isSuspended = await SupabaseService.isRiderSuspended(user.id);
+      if (isSuspended) {
+        await SupabaseService.signOut();
+        _showSnack('Account Suspended: Your rider account has been suspended by an Administrator.', isError: true);
+        return;
+      }
+
       final isRider = await SupabaseService.checkRiderRole(user.id);
       if (isRider && mounted) {
         Navigator.of(context).pushReplacementNamed('/dashboard');
@@ -91,6 +98,12 @@ class _LoginScreenState extends State<LoginScreen>
 
       final userId = response.user?.id;
       if (userId == null) throw Exception('Login failed.');
+
+      final isSuspended = await SupabaseService.isRiderSuspended(userId);
+      if (isSuspended) {
+        await SupabaseService.signOut();
+        throw Exception('Account Suspended: Your rider account has been suspended by an Administrator. Please contact support.');
+      }
 
       final isRider = await SupabaseService.checkRiderRole(userId);
       if (!isRider) {

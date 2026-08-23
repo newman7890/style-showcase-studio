@@ -29,6 +29,10 @@ import {
   FileText,
   ShieldCheck,
   Check,
+  LifeBuoy,
+  MessageSquare,
+  AlertCircle,
+  Send,
 } from "lucide-react";
 
 interface AccessCode {
@@ -50,6 +54,21 @@ interface RiderProfile {
   access_code: string;
   status: string;
   created_at: string;
+}
+
+interface SupportTicket {
+  id: string;
+  rider_id: string;
+  order_id: string | null;
+  category: string;
+  subject: string;
+  description: string;
+  status: string;
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  rider_name?: string;
+  rider_phone?: string;
 }
 
 interface DeliveryOrder {
@@ -77,8 +96,17 @@ export const RiderManagement = () => {
   const { toast } = useToast();
   const [accessCodes, setAccessCodes] = useState<AccessCode[]>([]);
   const [riders, setRiders] = useState<RiderProfile[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [ticketStatusFilter, setTicketStatusFilter] = useState("all");
+
+  // Ticket modal state
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [ticketModalOpen, setTicketModalOpen] = useState(false);
+  const [adminReplyNotes, setAdminReplyNotes] = useState("");
+  const [updatingTicketStatus, setUpdatingTicketStatus] = useState("open");
+  const [savingTicket, setSavingTicket] = useState(false);
   
   // Access Code Generation form state
   const [assignedName, setAssignedName] = useState("");
@@ -99,12 +127,26 @@ export const RiderManagement = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [codesRes, ridersRes] = await Promise.all([
+      const [codesRes, ridersRes, ticketsRes] = await Promise.all([
         supabase.from("rider_access_codes" as any).select("*").order("created_at", { ascending: false }),
         supabase.from("rider_profiles" as any).select("*").order("created_at", { ascending: false }),
+        supabase.from("rider_support_tickets" as any).select("*").order("created_at", { ascending: false }),
       ]);
       if (codesRes.data) setAccessCodes(codesRes.data as any);
-      if (ridersRes.data) setRiders(ridersRes.data as any);
+      const riderList = (ridersRes.data as unknown as RiderProfile[]) || [];
+      setRiders(riderList);
+
+      if (ticketsRes.data) {
+        const enrichedTickets = (ticketsRes.data as any[]).map((t) => {
+          const matchedRider = riderList.find((r) => r.user_id === t.rider_id);
+          return {
+            ...t,
+            rider_name: matchedRider ? matchedRider.full_name : "Unknown Rider",
+            rider_phone: matchedRider ? matchedRider.phone_number : "N/A",
+          };
+        });
+        setTickets(enrichedTickets);
+      }
     } catch (err: any) {
       toast({ title: "Error loading rider data", description: err.message, variant: "destructive" });
     } finally {
@@ -191,6 +233,47 @@ export const RiderManagement = () => {
     }
   };
 
+  const handleOpenTicketDetails = (ticket: SupportTicket) => {
+    setSelectedTicket(ticket);
+    setAdminReplyNotes(ticket.admin_notes || "");
+    setUpdatingTicketStatus(ticket.status || "open");
+    setTicketModalOpen(true);
+  };
+
+  const handleSaveTicketResponse = async () => {
+    if (!selectedTicket) return;
+    setSavingTicket(true);
+
+    try {
+      const { error } = await supabase
+        .from("rider_support_tickets" as any)
+        .update({
+          admin_notes: adminReplyNotes.trim() || null,
+          status: updatingTicketStatus,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", selectedTicket.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Ticket Updated! 🎟️",
+        description: "Admin response saved and status updated for the rider.",
+      });
+
+      setTicketModalOpen(false);
+      fetchData();
+    } catch (err: any) {
+      toast({
+        title: "Failed to update ticket",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingTicket(false);
+    }
+  };
+
   const filteredRiders = riders.filter(
     (r) =>
       r.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -215,12 +298,15 @@ export const RiderManagement = () => {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="riders">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-xl">
           <TabsTrigger value="riders" className="gap-2">
             <Bike className="w-4 h-4" /> Registered Riders ({riders.length})
           </TabsTrigger>
           <TabsTrigger value="codes" className="gap-2">
             <ShieldCheck className="w-4 h-4" /> Access Codes ({accessCodes.filter((c) => !c.is_used).length} unused)
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2">
+            <LifeBuoy className="w-4 h-4 text-emerald-600" /> Rider Reports ({tickets.filter((t) => t.status === "open").length})
           </TabsTrigger>
         </TabsList>
 
@@ -414,6 +500,92 @@ export const RiderManagement = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ─── TAB 3: RIDER SUPPORT TICKETS & REPORTS ────────────────────────── */}
+        <TabsContent value="reports" className="space-y-6 mt-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-xl font-semibold">Rider Issue Reports & Support Tickets</h2>
+              <p className="text-xs text-muted-foreground">
+                Review, respond to, and resolve support requests submitted by delivery riders.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={ticketStatusFilter}
+                onChange={(e) => setTicketStatusFilter(e.target.value)}
+                className="text-xs border rounded-md px-3 py-2 bg-background font-medium"
+              >
+                <option value="all">All Statuses ({tickets.length})</option>
+                <option value="open">Open Only ({tickets.filter((t) => t.status === "open").length})</option>
+                <option value="in_progress">In Progress ({tickets.filter((t) => t.status === "in_progress").length})</option>
+                <option value="resolved">Resolved ({tickets.filter((t) => t.status === "resolved").length})</option>
+              </select>
+            </div>
+          </div>
+
+          {tickets.filter((t) => ticketStatusFilter === "all" || t.status === ticketStatusFilter).length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center text-muted-foreground text-sm">
+                No support tickets found matching this filter.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {tickets
+                .filter((t) => ticketStatusFilter === "all" || t.status === ticketStatusFilter)
+                .map((ticket) => {
+                  const isResolved = ticket.status === "resolved";
+                  const isInProgress = ticket.status === "in_progress";
+
+                  return (
+                    <Card
+                      key={ticket.id}
+                      onClick={() => handleOpenTicketDetails(ticket)}
+                      className="cursor-pointer hover:border-primary/50 transition-all hover:shadow-md relative overflow-hidden"
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <Badge variant="outline" className="mb-2 uppercase text-[10px] tracking-wider font-semibold">
+                              {ticket.category.replace("_", " ")}
+                            </Badge>
+                            <CardTitle className="text-base font-bold line-clamp-1">{ticket.subject}</CardTitle>
+                          </div>
+                          <Badge
+                            className={
+                              isResolved
+                                ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                : isInProgress
+                                ? "bg-amber-100 text-amber-800 border-amber-300"
+                                : "bg-blue-100 text-blue-800 border-blue-300"
+                            }
+                          >
+                            {ticket.status.toUpperCase()}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-xs">
+                        <p className="text-muted-foreground line-clamp-2">{ticket.description}</p>
+                        <div className="flex justify-between items-center pt-2 border-t text-[11px] text-muted-foreground">
+                          <span className="font-semibold text-foreground flex items-center gap-1">
+                            <User className="w-3 h-3 text-primary" /> {ticket.rider_name} ({ticket.rider_phone})
+                          </span>
+                          <span>{new Date(ticket.created_at).toLocaleDateString()}</span>
+                        </div>
+                        {ticket.admin_notes && (
+                          <div className="bg-primary/5 p-2 rounded border border-primary/20 text-[11px]">
+                            <span className="font-semibold text-primary block mb-0.5">Admin Response:</span>
+                            <span className="text-muted-foreground line-clamp-1">{ticket.admin_notes}</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* ─── RIDER PROFILE & DELIVERIES HISTORY MODAL DIALOG ────────────────────── */}
@@ -585,6 +757,87 @@ export const RiderManagement = () => {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── TICKET DETAILS & ADMIN RESPONSE MODAL DIALOG ────────────────────── */}
+      <Dialog open={ticketModalOpen} onOpenChange={setTicketModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <LifeBuoy className="w-5 h-5 text-emerald-600" />
+              Manage Rider Support Ticket
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedTicket && (
+            <div className="space-y-5 pt-2">
+              <div className="bg-secondary/40 p-4 rounded-xl border space-y-2">
+                <div className="flex justify-between items-center">
+                  <Badge variant="outline" className="uppercase text-[10px]">
+                    {selectedTicket.category.replace("_", " ")}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    Submitted {new Date(selectedTicket.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <h3 className="font-bold text-base text-foreground">{selectedTicket.subject}</h3>
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap">{selectedTicket.description}</p>
+              </div>
+
+              <div className="flex items-center justify-between text-xs bg-background p-3 rounded-lg border">
+                <div>
+                  <span className="text-muted-foreground block">Rider Info:</span>
+                  <span className="font-bold text-foreground">{selectedTicket.rider_name}</span> ({selectedTicket.rider_phone})
+                </div>
+                <a
+                  href={`tel:${selectedTicket.rider_phone}`}
+                  className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1.5 rounded-md font-semibold hover:bg-primary/20 transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5" /> Call Rider
+                </a>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">TICKET STATUS</Label>
+                <select
+                  value={updatingTicketStatus}
+                  onChange={(e) => setUpdatingTicketStatus(e.target.value)}
+                  className="w-full text-xs border rounded-lg p-2.5 bg-background font-medium"
+                >
+                  <option value="open">OPEN (Awaiting Review)</option>
+                  <option value="in_progress">IN PROGRESS (Being Resolved)</option>
+                  <option value="resolved">RESOLVED (Completed)</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">ADMIN RESPONSE NOTE (Visible to Rider)</Label>
+                <textarea
+                  value={adminReplyNotes}
+                  onChange={(e) => setAdminReplyNotes(e.target.value)}
+                  placeholder="Type instructions, resolution notes, or reply to the rider..."
+                  rows={4}
+                  className="w-full text-xs border rounded-lg p-3 bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" type="button" onClick={() => setTicketModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveTicketResponse}
+                  disabled={savingTicket}
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                >
+                  {savingTicket ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Save Response & Notify Rider
+                </Button>
               </div>
             </div>
           )}

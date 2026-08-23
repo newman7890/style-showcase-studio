@@ -43,7 +43,7 @@ const ContactUs = () => {
   ];
 
   const faqItems = [
-    { question: "How do I track my order?", path: "/track-order" },
+    { question: "How do I track my order?", path: "/track" },
     { question: "What is your return policy?", path: "/settings/privacy" },
     { question: "How do I change my password?", path: "/settings/password" },
     { question: "How do I update my address?", path: "/profile/address" },

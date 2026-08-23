@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
-import { getPaystackSecretKey } from "../_shared/paystack.ts";
+import { getAllPaystackSecretKeys } from "../_shared/paystack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,8 +52,6 @@ const handler = async (req: Request): Promise<Response> => {
         status: 401, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
-
-    const paystackSecretKey = getPaystackSecretKey();
 
     const rawBody = await req.json();
     const parsed = PaymentSchema.safeParse(rawBody);
@@ -144,15 +142,75 @@ const handler = async (req: Request): Promise<Response> => {
 
         const { data: sellerProfile } = await adminClient
           .from("seller_profiles")
-          .select("paystack_subaccount_code")
+          .select("id, paystack_subaccount_code, momo_number, momo_provider, bank_code, account_number, business_name, store_name, email, phone, commission_override")
           .eq("user_id", primarySellerId)
           .maybeSingle();
 
-        if (sellerProfile?.paystack_subaccount_code) {
-          sellerSubaccountCode = sellerProfile.paystack_subaccount_code;
-          const totalCommissionGHS = orderItems.reduce((acc, item) => acc + (Number(item.commission_amount) || 0), 0);
-          totalCommissionInPesewas = Math.round(totalCommissionGHS * 100);
-          console.log(`Split payment active: Subaccount ${sellerSubaccountCode}, Transaction Charge (Platform Commission): ${totalCommissionInPesewas} pesewas`);
+        if (sellerProfile) {
+          if (sellerProfile.paystack_subaccount_code) {
+            sellerSubaccountCode = sellerProfile.paystack_subaccount_code;
+          } else {
+            // Auto-create Paystack subaccount on the fly if seller has payout details!
+            try {
+              const paystackSecretKey = allKeys[0]?.secretKey || Deno.env.get("PAYSTACK_SECRET_KEY");
+              if (paystackSecretKey) {
+                const momoProviderMap: Record<string, string> = {
+                  "mtn": "MTN", "MTN": "MTN", "mtn_momo": "MTN",
+                  "vodafone": "VOD", "vod": "VOD", "VOD": "VOD", "telecel": "VOD", "telecel_cash": "VOD",
+                  "airteltigo": "ATL", "atl": "ATL", "ATL": "ATL", "tigo": "ATL", "tigo_cash": "ATL"
+                };
+                let bankCode = sellerProfile.bank_code || "";
+                if (!bankCode && sellerProfile.momo_provider) {
+                  bankCode = momoProviderMap[sellerProfile.momo_provider] || sellerProfile.momo_provider.toUpperCase();
+                }
+                if (!bankCode) bankCode = "MTN";
+
+                const accountNumber = (sellerProfile.account_number || sellerProfile.momo_number || "").trim();
+                if (accountNumber) {
+                  const businessName = (sellerProfile.business_name || sellerProfile.store_name || "Seller Store").trim();
+                  const percentageCharge = sellerProfile.commission_override != null ? Number(sellerProfile.commission_override) : 10;
+
+                  const subPayload: Record<string, unknown> = {
+                    business_name: businessName,
+                    bank_code: bankCode.trim(),
+                    account_number: accountNumber,
+                    percentage_charge: percentageCharge,
+                  };
+                  if (sellerProfile.email) subPayload.primary_contact_email = sellerProfile.email;
+                  if (sellerProfile.phone) subPayload.primary_contact_phone = sellerProfile.phone;
+
+                  console.log("Auto-creating Paystack subaccount for seller:", primarySellerId);
+                  const subRes = await fetch("https://api.paystack.co/subaccount", {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${paystackSecretKey}`,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(subPayload),
+                  });
+                  const subData = await subRes.json();
+                  if (subRes.ok && subData.status && subData.data?.subaccount_code) {
+                    sellerSubaccountCode = subData.data.subaccount_code;
+                    await adminClient
+                      .from("seller_profiles")
+                      .update({ paystack_subaccount_code: sellerSubaccountCode, updated_at: new Date().toISOString() })
+                      .eq("id", sellerProfile.id);
+                    console.log("Subaccount created & saved on-the-fly:", sellerSubaccountCode);
+                  } else {
+                    console.warn("On-the-fly subaccount creation notice:", subData.message);
+                  }
+                }
+              }
+            } catch (subErr) {
+              console.error("Error in on-the-fly subaccount creation:", subErr);
+            }
+          }
+
+          if (sellerSubaccountCode) {
+            const totalCommissionGHS = orderItems.reduce((acc, item) => acc + (Number(item.commission_amount) || 0), 0);
+            totalCommissionInPesewas = Math.round(totalCommissionGHS * 100);
+            console.log(`Split payment active: Subaccount ${sellerSubaccountCode}, Transaction Charge (Platform Commission): ${totalCommissionInPesewas} pesewas`);
+          }
         }
       }
     }
@@ -191,33 +249,55 @@ const handler = async (req: Request): Promise<Response> => {
       };
     }
 
-    console.log("Paystack payload:", JSON.stringify(paystackPayload));
+    const allKeys = getAllPaystackSecretKeys();
+    console.log(`Found ${allKeys.length} configured Paystack secret keys.`);
 
-    const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${paystackSecretKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(paystackPayload),
-    });
+    let paystackData: any = null;
+    let successfulKeyConfig = allKeys[0];
+    let lastPaystackError = "";
 
-    const paystackData = await paystackResponse.json();
-    console.log("Paystack response:", JSON.stringify(paystackData));
+    for (const keyConfig of allKeys) {
+      console.log(`Trying Paystack secret key from source: ${keyConfig.sourceName} (prefix: ${keyConfig.secretKey.substring(0, 7)}...)`);
+      try {
+        const response = await fetch("https://api.paystack.co/transaction/initialize", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${keyConfig.secretKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(paystackPayload),
+        });
 
-    if (!paystackData.status) {
-      throw new Error(paystackData.message || "Failed to initialize payment");
+        const resData = await response.json();
+        console.log(`Paystack response for ${keyConfig.sourceName}:`, JSON.stringify(resData));
+
+        if (resData.status) {
+          paystackData = resData;
+          successfulKeyConfig = keyConfig;
+          break;
+        } else {
+          lastPaystackError = resData.message || "Failed to initialize payment";
+          console.warn(`Paystack key ${keyConfig.sourceName} rejected: ${lastPaystackError}`);
+        }
+      } catch (err) {
+        console.error(`Fetch error with key ${keyConfig.sourceName}:`, err);
+      }
     }
 
-    console.log(`Payment initialized successfully. Reference: ${paystackData.data.reference}`);
+    if (!paystackData || !paystackData.status) {
+      throw new Error(lastPaystackError || "Paystack payment initialization failed across all configured keys.");
+    }
+
+    console.log(`Payment initialized successfully using ${successfulKeyConfig.sourceName}. Reference: ${paystackData.data.reference}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         authorizationUrl: paystackData.data.authorization_url,
+        authorization_url: paystackData.data.authorization_url,
         accessCode: paystackData.data.access_code,
         reference: paystackData.data.reference,
-        publicKey: Deno.env.get("PAYSTACK_PUBLIC_KEY") || "",
+        publicKey: successfulKeyConfig.publicKey,
         channels,
       }),
       {

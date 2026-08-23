@@ -80,7 +80,10 @@ const OrderHistory = () => {
       });
       if (error) throw error;
 
-      if (data.accessCode && (window as any).PaystackPop && data.publicKey) {
+      if (data.authorizationUrl) {
+        window.location.href = data.authorizationUrl;
+        return;
+      } else if (data.accessCode && (window as any).PaystackPop && data.publicKey) {
         const handler = (window as any).PaystackPop.setup({
           key: data.publicKey,
           email: order.shipping_email,
@@ -119,9 +122,6 @@ const OrderHistory = () => {
           },
         });
         handler.openIframe();
-        return;
-      } else if (data.authorizationUrl) {
-        window.location.href = data.authorizationUrl;
         return;
       } else {
         throw new Error("Failed to initialize payment");

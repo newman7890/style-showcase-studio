@@ -93,15 +93,38 @@ class SupabaseService {
     });
   }
 
-  // Check if user has rider role
+  // Check if user has rider role (or admin role)
   static Future<bool> checkRiderRole(String userId) async {
-    final data = await client
+    final roles = await client
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'rider')
-        .maybeSingle();
-    return data != null;
+        .eq('user_id', userId);
+        
+    return roles.any((r) => r['role'] == 'rider' || r['role'] == 'admin');
+  }
+
+  // Check if rider account is suspended by an admin
+  static Future<bool> isRiderSuspended(String userId) async {
+    try {
+      final isAdmin = await client
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('role', 'admin')
+          .maybeSingle() != null;
+
+      if (isAdmin) return false;
+
+      final profile = await client
+          .from('rider_profiles')
+          .select('status')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      return profile != null && profile['status'] == 'suspended';
+    } catch (e) {
+      return false;
+    }
   }
 
   // Claim an unassigned order atomically via RPC
@@ -191,15 +214,14 @@ class SupabaseService {
     }
   }
 
-  // Mark order as delivered
+  // Mark order as shipped (in transit) via RPC
+  static Future<void> markShipped(String orderId) async {
+    await client.rpc('mark_order_shipped_by_rider', params: {'_order_id': orderId});
+  }
+
+  // Mark order as delivered via RPC
   static Future<void> markDelivered(String orderId) async {
-    await client
-        .from('orders')
-        .update({
-          'status': 'delivered',
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', orderId);
+    await client.rpc('mark_order_delivered_by_rider', params: {'_order_id': orderId});
   }
 
   // Realtime stream for orders
@@ -208,5 +230,73 @@ class SupabaseService {
         .from('orders')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false);
+  }
+
+  // Fetch Hub info for an order (from order_items origin_hub_id or active hubs fallback)
+  static Future<Map<String, dynamic>?> fetchHubForOrder(String orderId) async {
+    try {
+      final itemRes = await client
+          .from('order_items')
+          .select('origin_hub_id')
+          .eq('order_id', orderId)
+          .not('origin_hub_id', 'is', null)
+          .limit(1)
+          .maybeSingle();
+
+      final hubId = itemRes?['origin_hub_id'];
+      if (hubId != null) {
+        final hubRes = await client
+            .from('hubs')
+            .select('id, name, address, region, contact_phone')
+            .eq('id', hubId)
+            .maybeSingle();
+        if (hubRes != null) return hubRes;
+      }
+
+      final fallbackHub = await client
+          .from('hubs')
+          .select('id, name, address, region, contact_phone')
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+
+      return fallbackHub;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Create a rider support ticket
+  static Future<void> createSupportTicket({
+    required String subject,
+    required String description,
+    required String category,
+    String? orderId,
+  }) async {
+    final userId = currentUser?.id;
+    if (userId == null) throw Exception('User not authenticated.');
+
+    await client.from('rider_support_tickets').insert({
+      'rider_id': userId,
+      'order_id': orderId,
+      'subject': subject,
+      'description': description,
+      'category': category,
+      'status': 'open',
+    });
+  }
+
+  // Fetch support tickets for current rider
+  static Future<List<Map<String, dynamic>>> fetchSupportTickets() async {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+
+    final response = await client
+        .from('rider_support_tickets')
+        .select('*')
+        .eq('rider_id', userId)
+        .order('created_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response);
   }
 }

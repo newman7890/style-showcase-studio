@@ -448,10 +448,17 @@ const Checkout = () => {
         return;
       }
 
-      if (data?.authorization_url) {
-        window.location.href = data.authorization_url;
+      console.log("initialize-payment response data:", JSON.stringify(data));
+
+      // Always redirect to Paystack's hosted checkout page (most reliable path)
+      const redirectUrl = data?.authorizationUrl || data?.authorization_url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
         return;
-      } else if (data?.accessCode && (window as any).PaystackPop && data?.publicKey) {
+      }
+
+      // Fallback: try inline popup only if redirect URL is missing
+      if (data?.accessCode && (window as any).PaystackPop && data?.publicKey) {
         try {
           const handler = (window as any).PaystackPop.setup({
             key: data.publicKey,
@@ -473,13 +480,10 @@ const Checkout = () => {
           return;
         } catch (popupError) {
           console.error("Paystack popup initialization failed:", popupError);
-          if (data.authorization_url) {
-            window.location.href = data.authorization_url;
-            return;
-          }
         }
       }
 
+      console.error("Payment initialization: no redirect URL or popup available. Full response:", data);
       toast.error("Payment initialization failed. Please try again.");
       setSubmitting(false);
     } catch (error: any) {

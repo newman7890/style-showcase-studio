@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate, hasRole } from "../_shared/auth.ts";
-import { getPaystackSecretKey } from "../_shared/paystack.ts";
+import { getAllPaystackSecretKeys } from "../_shared/paystack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,8 +33,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const paystackSecretKey = getPaystackSecretKey();
-
     const parsed = VerifySchema.safeParse(await req.json());
     if (!parsed.success) {
       return new Response(
@@ -45,21 +43,36 @@ const handler = async (req: Request): Promise<Response> => {
     const { reference } = parsed.data;
     console.log(`Verifying payment with reference: ${reference}`);
 
-    // Verify transaction with Paystack
-    const paystackResponse = await fetch(
-      `https://api.paystack.co/transaction/verify/${reference}`,
-      {
-        headers: {
-          Authorization: `Bearer ${paystackSecretKey}`,
-        },
+    const allKeys = getAllPaystackSecretKeys();
+    let paystackData: any = null;
+    let lastError = "";
+
+    for (const keyConfig of allKeys) {
+      try {
+        console.log(`Trying verify with secret key from source: ${keyConfig.sourceName}`);
+        const response = await fetch(
+          `https://api.paystack.co/transaction/verify/${reference}`,
+          {
+            headers: {
+              Authorization: `Bearer ${keyConfig.secretKey}`,
+            },
+          }
+        );
+        const resData = await response.json();
+        console.log(`Paystack verify response for ${keyConfig.sourceName}:`, JSON.stringify(resData));
+        if (resData.status) {
+          paystackData = resData;
+          break;
+        } else {
+          lastError = resData.message || "Failed to verify transaction";
+        }
+      } catch (e) {
+        console.error(`Error verifying with key ${keyConfig.sourceName}:`, e);
       }
-    );
+    }
 
-    const paystackData = await paystackResponse.json();
-    console.log("Paystack verification response:", JSON.stringify(paystackData));
-
-    if (!paystackData.status) {
-      throw new Error(paystackData.message || "Failed to verify payment");
+    if (!paystackData || !paystackData.status) {
+      throw new Error(lastError || "Failed to verify payment across configured keys");
     }
 
     const transaction = paystackData.data;
@@ -128,7 +141,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (isSuccessful && orderId && !amountMismatch) {
       const { error: updateError } = await supabase
         .from("orders")
-        .update({ status: "confirmed", updated_at: new Date().toISOString() })
+        .update({ status: "confirmed", payment_status: "paid", updated_at: new Date().toISOString() })
         .eq("id", orderId);
 
       if (updateError) {

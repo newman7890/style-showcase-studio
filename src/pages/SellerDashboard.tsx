@@ -714,8 +714,8 @@ const SellerDashboard = () => {
             <Card className="overflow-hidden min-w-0">
               <CardContent className="p-3 sm:p-5 min-w-0">
                 <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Total sales</div>
-                <div className="text-sm sm:text-xl font-bold truncate mt-0.5" title={`GH₵${Number(summary?.total_gross ?? 0).toFixed(2)}`}>
-                  GH₵{Number(summary?.total_gross ?? 0).toFixed(2)}
+                <div className="text-sm sm:text-xl font-bold truncate mt-0.5" title={`GH₵${Number(summary?.total_sales ?? summary?.total_gross ?? 0).toFixed(2)}`}>
+                  GH₵{Number(summary?.total_sales ?? summary?.total_gross ?? 0).toFixed(2)}
                 </div>
               </CardContent>
             </Card>
@@ -730,8 +730,8 @@ const SellerDashboard = () => {
             <Card className="overflow-hidden min-w-0">
               <CardContent className="p-3 sm:p-5 min-w-0">
                 <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Pending payout</div>
-                <div className="text-sm sm:text-xl font-bold truncate mt-0.5 text-amber-600 dark:text-amber-400" title={`GH₵${Number(summary?.pending_earnings ?? 0).toFixed(2)}`}>
-                  GH₵{Number(summary?.pending_earnings ?? 0).toFixed(2)}
+                <div className="text-sm sm:text-xl font-bold truncate mt-0.5 text-amber-600 dark:text-amber-400" title={`GH₵${Number(summary?.pending_payout ?? summary?.pending_earnings ?? 0).toFixed(2)}`}>
+                  GH₵{Number(summary?.pending_payout ?? summary?.pending_earnings ?? 0).toFixed(2)}
                 </div>
               </CardContent>
             </Card>
@@ -1172,15 +1172,15 @@ const SellerDashboard = () => {
               <Card>
                 <CardHeader><CardTitle>Payout summary</CardTitle></CardHeader>
                 <CardContent className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span>Gross sales</span><span>GH₵{Number(summary?.total_gross ?? 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Platform commission</span><span>-GH₵{Number(summary?.total_commission ?? 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between font-semibold border-t pt-2"><span>Your earnings</span><span>GH₵{Number(summary?.total_earnings ?? 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Paid out</span><span>GH₵{Number(summary?.paid_earnings ?? 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Pending payout</span><span>GH₵{Number(summary?.pending_earnings ?? 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>Gross sales</span><span>GH₵{Number(summary?.total_sales ?? summary?.total_gross ?? 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>Platform commission (10%)</span><span>-GH₵{Number(summary?.total_commission ?? 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between font-semibold border-t pt-2"><span>Your net earnings</span><span>GH₵{Number(summary?.total_earnings ?? 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>Paid out to subaccount</span><span>GH₵{Number(summary?.paid_payout ?? summary?.paid_earnings ?? 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>Pending payout</span><span>GH₵{Number(summary?.pending_payout ?? summary?.pending_earnings ?? 0).toFixed(2)}</span></div>
                 </CardContent>
               </Card>
               <p className="text-xs text-muted-foreground mt-4">
-                Payouts are processed by the platform. Automated Paystack split payouts are coming soon.
+                Automated Paystack split payouts are active. 90% of your sale is routed directly to your registered Mobile Money or Bank account via your Paystack Subaccount upon customer checkout.
               </p>
             </TabsContent>
 

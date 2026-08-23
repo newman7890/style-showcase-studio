@@ -14,7 +14,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> _orders = [];
   bool _loading = true;
   bool _refreshing = false;
-  String _filter = 'active'; // active | delivered | all
+  String _filter = 'available'; // available | my_orders | delivered | all
   int _activeTab = 0; // 0 = orders, 1 = profile
 
   static const Map<String, Map<String, Color>> statusStyle = {
@@ -39,6 +39,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _fetchOrders() async {
     try {
+      final user = SupabaseService.currentUser;
+      if (user != null) {
+        final isSuspended = await SupabaseService.isRiderSuspended(user.id);
+        if (isSuspended && mounted) {
+          await SupabaseService.signOut();
+          if (!mounted) return;
+          Navigator.of(context).pushReplacementNamed('/login');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Account Suspended: Your rider account has been suspended by an Administrator.'),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+          return;
+        }
+      }
+
       final data = await SupabaseService.fetchOrders();
       if (mounted) setState(() => _orders = data);
     } catch (e) {
@@ -89,6 +106,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       await SupabaseService.claimOrder(orderId);
       if (mounted) {
+        setState(() {
+          final idx = _orders.indexWhere((o) => o['id'] == orderId);
+          if (idx != -1) {
+            _orders[idx]['assigned_rider_id'] = SupabaseService.currentUser?.id;
+            if (_orders[idx]['status'] == 'pending') {
+              _orders[idx]['status'] = 'processing';
+            }
+          }
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Delivery Order Claimed Successfully! 🚴'),
@@ -109,31 +135,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _handleMarkShipped(String orderId) async {
+    try {
+      await SupabaseService.markShipped(orderId);
+      if (mounted) {
+        setState(() {
+          final idx = _orders.indexWhere((o) => o['id'] == orderId);
+          if (idx != -1) {
+            _orders[idx]['status'] = 'shipped';
+            _orders[idx]['assigned_rider_id'] = SupabaseService.currentUser?.id;
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order Status Updated: Shipped / On the Way 🚚'),
+            backgroundColor: Color(0xFFC084FC),
+          ),
+        );
+      }
+      _fetchOrders();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
+        );
+      }
+    }
+  }
+
   List<Map<String, dynamic>> get _filteredOrders {
     final currentUserId = SupabaseService.currentUser?.id;
     return _orders.where((o) {
-      final status = o['status'] as String? ?? '';
+      final status = (o['status'] as String? ?? '').toLowerCase();
       final assignedRiderId = o['assigned_rider_id'] as String?;
 
       if (_filter == 'available') {
         return assignedRiderId == null && status != 'delivered' && status != 'cancelled';
       }
-      if (_filter == 'active') {
-        return (assignedRiderId == currentUserId || assignedRiderId == null) && status != 'delivered' && status != 'cancelled';
+      if (_filter == 'my_orders') {
+        return assignedRiderId == currentUserId && status != 'delivered' && status != 'cancelled';
       }
       if (_filter == 'delivered') {
-        return assignedRiderId == currentUserId && status == 'delivered';
+        return status == 'delivered' && assignedRiderId == currentUserId;
+      }
+      if (_filter == 'all') {
+        // Show unclaimed orders OR orders claimed by this rider
+        return assignedRiderId == null || assignedRiderId == currentUserId;
       }
       return true;
     }).toList();
   }
 
-  int get _activeCount => _orders.where((o) {
-    final s = o['status'] as String? ?? '';
-    return s != 'delivered' && s != 'cancelled';
+  int get _availableCount => _orders.where((o) {
+    final s = (o['status'] as String? ?? '').toLowerCase();
+    return o['assigned_rider_id'] == null && s != 'delivered' && s != 'cancelled';
   }).length;
 
-  int get _deliveredCount => _orders.where((o) => o['status'] == 'delivered').length;
+  int get _myOrdersCount => _orders.where((o) {
+    final s = (o['status'] as String? ?? '').toLowerCase();
+    final currentUserId = SupabaseService.currentUser?.id;
+    return o['assigned_rider_id'] == currentUserId && s != 'delivered' && s != 'cancelled';
+  }).length;
+
+  int get _deliveredCount => _orders.where((o) {
+    final s = (o['status'] as String? ?? '').toLowerCase();
+    final currentUserId = SupabaseService.currentUser?.id;
+    return s == 'delivered' && o['assigned_rider_id'] == currentUserId;
+  }).length;
 
   @override
   Widget build(BuildContext context) {
@@ -248,8 +316,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       child: Row(
         children: [
-          Expanded(child: _buildStatCard('Active', _activeCount, const Color(0xFFFBBF24), LucideIcons.package)),
-          const SizedBox(width: 12),
+          Expanded(child: _buildStatCard('Available', _availableCount, const Color(0xFF3B82F6), LucideIcons.bike)),
+          const SizedBox(width: 8),
+          Expanded(child: _buildStatCard('My Orders', _myOrdersCount, const Color(0xFFFBBF24), LucideIcons.package)),
+          const SizedBox(width: 8),
           Expanded(child: _buildStatCard('Delivered', _deliveredCount, const Color(0xFF4ADE80), LucideIcons.checkCircle2)),
         ],
       ),
@@ -258,7 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildStatCard(String label, int count, Color color, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
@@ -269,55 +339,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             children: [
               Container(
-                width: 28, height: 28,
+                width: 24, height: 24,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, size: 14, color: color),
+                child: Icon(icon, size: 12, color: color),
               ),
-              const SizedBox(width: 8),
-              Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.w500)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text('$count', style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text('$count', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
   Widget _buildFilterPills() {
+    final pills = [
+      {'id': 'available', 'label': 'Available'},
+      {'id': 'my_orders', 'label': 'My Orders'},
+      {'id': 'delivered', 'label': 'Delivered'},
+      {'id': 'all', 'label': 'All'},
+    ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-      child: Row(
-        children: ['active', 'delivered', 'all'].map((f) {
-          final isSelected = _filter == f;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => setState(() => _filter = f),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.primary : Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: isSelected
-                      ? [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.2), blurRadius: 12)]
-                      : null,
-                ),
-                child: Text(
-                  f[0].toUpperCase() + f.substring(1),
-                  style: TextStyle(
-                    color: isSelected ? const Color(0xFF0A1A0A) : Colors.white.withValues(alpha: 0.5),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: pills.map((p) {
+            final f = p['id']!;
+            final isSelected = _filter == f;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => setState(() => _filter = f),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.primary : Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: isSelected
+                        ? [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.2), blurRadius: 12)]
+                        : null,
+                  ),
+                  child: Text(
+                    p['label']!,
+                    style: TextStyle(
+                      color: isSelected ? const Color(0xFF0A1A0A) : Colors.white.withValues(alpha: 0.5),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -355,7 +441,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final status = order['status'] as String? ?? 'pending';
     final colors = statusStyle[status] ?? statusStyle['pending']!;
     final isActive = status != 'delivered' && status != 'cancelled';
-    final isUnassigned = order['assigned_rider_id'] == null;
+    final isUnassigned = order['assigned_rider_id'] == null && isActive;
     final trackingCode = order['tracking_code'] as String? ??
         (order['id'] as String? ?? '').substring(0, 8).toUpperCase();
     final createdAt = order['created_at'] != null
@@ -489,7 +575,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                   ),
-                ] else if (isActive) ...[
+                ] else if (isActive && status == 'shipped') ...[
                   const SizedBox(width: 8),
                   Expanded(
                     child: GestureDetector(
@@ -510,7 +596,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             Icon(LucideIcons.checkCircle2, size: 14, color: Colors.white),
                             SizedBox(width: 6),
-                            Text('Mark Delivered', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                            Text('Complete Delivery', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else if (isActive) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _handleMarkShipped(order['id']),
+                      child: Container(
+                        height: 36,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                          ),
+                          boxShadow: [
+                            BoxShadow(color: Colors.purple.withValues(alpha: 0.2), blurRadius: 12),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(LucideIcons.truck, size: 14, color: Colors.white),
+                            SizedBox(width: 6),
+                            Text('Start Delivery 🚚', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -557,7 +670,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Stats summary
           Row(
             children: [
-              Expanded(child: _buildProfileStatCard('Pending', _activeCount)),
+              Expanded(child: _buildProfileStatCard('My Orders', _myOrdersCount)),
               const SizedBox(width: 12),
               Expanded(child: _buildProfileStatCard('Delivered', _deliveredCount)),
             ],
@@ -581,7 +694,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          // Help & Support button
+          GestureDetector(
+            onTap: () => Navigator.of(context).pushNamed('/support'),
+            child: Container(
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: AppTheme.primary.withValues(alpha: 0.15),
+                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(LucideIcons.lifeBuoy, size: 18, color: AppTheme.primary),
+                  SizedBox(width: 10),
+                  Text('Help & Support Center', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
 
           // Sign Out button
           GestureDetector(
