@@ -14,4 +14,12 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    sourcemap: false, // Disables source maps so hackers cannot see original TypeScript files
+    minify: "esbuild",
+  },
+  esbuild: {
+    drop: ["console", "debugger"], // Removes all console.log and debugger statements
+    legalComments: "none", // Strips out all comments
+  },
 }));
