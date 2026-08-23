@@ -18,6 +18,15 @@ const VerifySchema = z.object({
     .regex(/^[A-Za-z0-9_-]+$/, "Invalid reference format"),
 });
 
+const generateTrackingCode = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "TRK";
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("verify-payment function called");
 
@@ -49,7 +58,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const keyConfig of allKeys) {
       try {
-        console.log(`Trying verify with secret key from source: ${keyConfig.sourceName}`);
         const response = await fetch(
           `https://api.paystack.co/transaction/verify/${reference}`,
           {
@@ -59,7 +67,6 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
         const resData = await response.json();
-        console.log(`Paystack verify response for ${keyConfig.sourceName}:`, JSON.stringify(resData));
         if (resData.status) {
           paystackData = resData;
           break;
@@ -77,49 +84,26 @@ const handler = async (req: Request): Promise<Response> => {
 
     const transaction = paystackData.data;
     const isSuccessful = transaction.status === "success";
-    const orderId = transaction.metadata?.order_id;
+    const metadata = transaction.metadata || {};
+    let orderId = metadata.order_id;
+    const checkoutDetails = metadata.checkout_details;
+    const userId = metadata.user_id || auth.userId;
 
     console.log("Transaction details:", JSON.stringify({
       status: transaction.status,
       gateway_response: transaction.gateway_response,
-      channel: transaction.channel,
       amount: transaction.amount,
-      currency: transaction.currency,
       reference: transaction.reference,
       orderId,
+      hasCheckoutDetails: !!checkoutDetails,
     }));
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify the order belongs to the caller (admins are also allowed) and fetch stored total.
-    let storedTotal: number | null = null;
-    if (orderId) {
-      const isAdmin = await hasRole(auth.userId, "admin");
-      const { data: ownerCheck } = await supabase
-        .from("orders").select("user_id,total_amount").eq("id", orderId).maybeSingle();
-      if (!ownerCheck || (!isAdmin && ownerCheck.user_id !== auth.userId)) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403, headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
-      storedTotal = Number(ownerCheck.total_amount);
-    }
-
-    // Detect under-payment: paid amount must match stored order total (within 1 pesewa tolerance).
-    let amountMismatch = false;
-    if (isSuccessful && orderId && storedTotal !== null && Number.isFinite(storedTotal)) {
-      const paidGhs = transaction.amount / 100;
-      if (Math.abs(paidGhs - storedTotal) > 0.01) {
-        amountMismatch = true;
-        console.error(`Amount mismatch on order ${orderId}: paid=${paidGhs} expected=${storedTotal}`);
-      }
-    }
-
-    // Build a user-friendly failure reason
     let friendlyError: string | null = null;
+
     if (!isSuccessful) {
       const gw = (transaction.gateway_response || "").toLowerCase();
       if (gw.includes("insufficient")) {
@@ -130,58 +114,114 @@ const handler = async (req: Request): Promise<Response> => {
         friendlyError = "Payment was not completed. Please approve the prompt on your phone and try again.";
       } else if (gw.includes("timeout") || gw.includes("timed out")) {
         friendlyError = "Payment timed out. Please try again and approve the prompt quickly.";
-      } else if (transaction.status === "failed") {
-        friendlyError = `Payment failed: ${transaction.gateway_response || "Unknown error"}. Please try again.`;
       } else {
-        friendlyError = `Payment was not successful (${transaction.gateway_response || transaction.status}). Please try again.`;
+        friendlyError = `Payment failed (${transaction.gateway_response || transaction.status}). Please try again.`;
       }
-      console.log("Payment failed — friendly error:", friendlyError);
+      console.log("Payment not successful:", friendlyError);
+
+      // If existing pending order was attached, cancel it
+      if (orderId) {
+        await supabase
+          .from("orders")
+          .update({ status: "cancelled", updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          status: transaction.status,
+          friendlyError,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
-    if (isSuccessful && orderId && !amountMismatch) {
-      const { error: updateError } = await supabase
-        .from("orders")
-        .update({ status: "confirmed", payment_status: "paid", updated_at: new Date().toISOString() })
-        .eq("id", orderId);
+    // Payment is SUCCESSFUL!
+    if (isSuccessful) {
+      if (orderId) {
+        // 1. Existing order case: update to paid/confirmed
+        const { error: updateError } = await supabase
+          .from("orders")
+          .update({ status: "confirmed", payment_status: "paid", updated_at: new Date().toISOString() })
+          .eq("id", orderId);
 
-      if (updateError) {
-        console.error("Error updating order status:", updateError);
-      } else {
-        console.log(`Order ${orderId} confirmed`);
+        if (updateError) {
+          console.error("Error updating order status:", updateError);
+        } else {
+          console.log(`Order ${orderId} confirmed`);
+        }
+      } else if (checkoutDetails) {
+        // 2. New checkout case: create order ONLY NOW upon successful payment!
+        const paidAmountGhs = transaction.amount / 100;
+        const trackingCode = generateTrackingCode();
+
+        console.log(`Creating NEW confirmed order for user ${userId}, amount ${paidAmountGhs}`);
+
+        const { data: newOrder, error: createErr } = await supabase
+          .from("orders")
+          .insert({
+            user_id: userId,
+            tracking_code: trackingCode,
+            total_amount: paidAmountGhs,
+            shipping_name: checkoutDetails.shipping_name,
+            shipping_email: checkoutDetails.shipping_email,
+            shipping_phone: checkoutDetails.shipping_phone,
+            shipping_address: checkoutDetails.shipping_address,
+            shipping_city: checkoutDetails.shipping_city,
+            shipping_region: checkoutDetails.shipping_region,
+            shipping_town: checkoutDetails.shipping_town || null,
+            delivery_fee: checkoutDetails.delivery_fee || 0,
+            discount_code: checkoutDetails.discount_code || null,
+            discount_amount: checkoutDetails.discount_amount || null,
+            payment_method: metadata.payment_method || "bank_card",
+            status: "confirmed",
+            payment_status: "paid",
+          })
+          .select()
+          .single();
+
+        if (createErr || !newOrder) {
+          console.error("Error creating order after payment:", createErr);
+          throw new Error("Failed to record order after payment success");
+        }
+
+        orderId = newOrder.id;
+
+        // Insert order items
+        if (checkoutDetails.items && Array.isArray(checkoutDetails.items) && checkoutDetails.items.length > 0) {
+          const itemsToInsert = checkoutDetails.items.map((item: any) => ({
+            order_id: newOrder.id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: item.price,
+            selected_color: item.selected_color || null,
+            selected_size: item.selected_size || null,
+          }));
+
+          const { error: itemsErr } = await supabase.from("order_items").insert(itemsToInsert);
+          if (itemsErr) {
+            console.error("Error inserting order items:", itemsErr);
+          }
+        }
+
+        // Clear customer cart
+        if (userId) {
+          await supabase.from("cart_items").delete().eq("user_id", userId);
+        }
       }
-    } else if ((!isSuccessful || amountMismatch) && orderId) {
-      const { error: cancelError } = await supabase
-        .from("orders")
-        .update({ status: "cancelled", updated_at: new Date().toISOString() })
-        .eq("id", orderId);
-
-      if (cancelError) {
-        console.error("Error cancelling order:", cancelError);
-      } else {
-        console.log(`Order ${orderId} cancelled${amountMismatch ? " (amount mismatch)" : ""}`);
-      }
-    }
-
-    if (amountMismatch) {
-      friendlyError = "Payment amount did not match the order total. The order has been cancelled.";
     }
 
     return new Response(
       JSON.stringify({
-        success: isSuccessful && !amountMismatch,
-        status: amountMismatch ? "amount_mismatch" : transaction.status,
+        success: true,
+        status: transaction.status,
         amount: transaction.amount / 100,
         orderId,
         paidAt: transaction.paid_at,
-        channel: transaction.channel,
         reference: transaction.reference,
-        gatewayResponse: transaction.gateway_response,
-        friendlyError,
       }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";

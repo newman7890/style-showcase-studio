@@ -433,26 +433,38 @@ const Checkout = () => {
 
     setSubmitting(true);
     try {
-      const orderItems = cartItems.map((item) => ({ product_id: item.product_id, quantity: item.quantity, price: item.products.price, selected_color: (item as any).selected_color || null, selected_size: (item as any).selected_size || null }));
-      const orderId = await createOrder({
-        total_amount: finalTotal, shipping_name: formData.shipping_name, shipping_email: formData.shipping_email,
-        shipping_phone: formData.shipping_phone, shipping_address: formData.shipping_address, shipping_city: formData.shipping_city,
-        shipping_region: formData.shipping_region, payment_method: paymentMethod,
-        discount_code: appliedDiscount?.code || null, discount_amount: appliedDiscount?.amount || null,
-        delivery_fee: deliveryFee,
-      }, orderItems);
-      if (!orderId) { setSubmitting(false); return; }
+      const orderItems = cartItems.map((item) => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.products.price,
+        selected_color: (item as any).selected_color || null,
+        selected_size: (item as any).selected_size || null,
+      }));
 
-      // Delegate 100% to Paystack payment initialization (Mobile Money, Card, USSD, etc.)
+      const checkoutDetails = {
+        shipping_name: formData.shipping_name,
+        shipping_email: formData.shipping_email,
+        shipping_phone: formData.shipping_phone,
+        shipping_address: formData.shipping_address,
+        shipping_city: formData.shipping_city,
+        shipping_region: formData.shipping_region,
+        shipping_town: formData.shipping_town || null,
+        delivery_fee: deliveryFee,
+        discount_code: appliedDiscount?.code || null,
+        discount_amount: appliedDiscount?.amount || null,
+        items: orderItems,
+      };
+
+      // Initialize Paystack directly without pre-creating any database record
       const callbackUrl = `${window.location.origin}/payment/callback`;
       const { data, error } = await supabase.functions.invoke("initialize-payment", {
         body: {
-          orderId,
           email: formData.shipping_email,
           amount: finalTotal,
           paymentMethod,
           mobileNumber: momoNumber || formData.shipping_phone,
           callbackUrl,
+          checkoutDetails,
         },
       });
 
@@ -488,7 +500,7 @@ const Checkout = () => {
             },
             onClose: () => {
               setSubmitting(false);
-              toast.info("Payment cancelled.");
+              toast.info("Payment cancelled. No order was placed.");
             },
           });
           handler.openIframe();
