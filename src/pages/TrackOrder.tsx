@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Package, Truck, CheckCircle, Clock, Search, MapPin, XCircle } from "lucide-react";
+import { Package, Truck, CheckCircle, Clock, Search, MapPin, XCircle, Shield, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/Header";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Order {
   id: string;
@@ -35,6 +37,8 @@ const TrackOrder = () => {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deliveryOtp, setDeliveryOtp] = useState<string | null>(null);
+  const { user } = useAuth();
 
 
   useEffect(() => {
@@ -71,6 +75,25 @@ const TrackOrder = () => {
       setLoading(false);
     }
   };
+
+  // Fetch OTP for shipped orders when user is authenticated
+  useEffect(() => {
+    const fetchOtp = async () => {
+      if (order && order.status === "shipped" && user) {
+        try {
+          const { data } = await (supabase.rpc as any)("get_delivery_otp_for_customer", {
+            _order_id: order.id,
+          });
+          setDeliveryOtp(typeof data === "string" ? data : null);
+        } catch {
+          setDeliveryOtp(null);
+        }
+      } else {
+        setDeliveryOtp(null);
+      }
+    };
+    fetchOtp();
+  }, [order, user]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,6 +248,35 @@ const TrackOrder = () => {
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Delivery OTP for shipped orders */}
+              {order.status === "shipped" && deliveryOtp && (
+                <div className="mt-6 bg-primary/5 border border-primary/20 rounded-xl p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <span className="font-semibold text-primary">Delivery Code</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl font-bold font-mono tracking-[0.3em]">
+                      {deliveryOtp}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(deliveryOtp);
+                        toast.success("Delivery code copied!");
+                      }}
+                    >
+                      <Copy className="w-4 h-4 mr-1" />
+                      Copy
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-3">
+                    Give this code to your delivery rider to confirm receipt of your package.
+                  </p>
                 </div>
               )}
             </div>

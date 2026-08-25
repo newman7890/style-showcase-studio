@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Package, Clock, Truck, CheckCircle, AlertCircle, Copy, XCircle, RefreshCw, Wifi, Loader2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Package, Clock, Truck, CheckCircle, AlertCircle, Copy, XCircle, RefreshCw, Wifi, Loader2, RotateCcw, KeyRound, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,9 +28,28 @@ const OrderHistory = () => {
   const { orders, loading, refetchOrders } = useOrders();
   const { t } = useLanguage();
   const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
+  const [deliveryOtps, setDeliveryOtps] = useState<Record<string, string>>({});
 
   const canRetryPayment = (status: string) =>
     ["cancelled", "payment_failed", "pending"].includes(status);
+
+  // Fetch delivery OTPs for shipped orders
+  useEffect(() => {
+    const fetchOtps = async () => {
+      const shippedOrders = orders.filter((o) => o.status === "shipped");
+      const otpMap: Record<string, string> = {};
+      for (const order of shippedOrders) {
+        try {
+          const { data } = await (supabase.rpc as any)("get_delivery_otp_for_customer", {
+            _order_id: order.id,
+          });
+          if (data && typeof data === "string") otpMap[order.id] = data;
+        } catch {}
+      }
+      setDeliveryOtps(otpMap);
+    };
+    if (orders.length > 0) fetchOtps();
+  }, [orders]);
 
   // Set up realtime updates
   const handleRealtimeUpdate = useCallback(() => {
@@ -246,6 +265,35 @@ const OrderHistory = () => {
                           Track
                         </Button>
                       </Link>
+                    </div>
+                  )}
+
+                  {/* Delivery OTP */}
+                  {order.status === "shipped" && deliveryOtps[order.id] && (
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Shield className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-semibold text-primary">Delivery Code</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl font-bold font-mono tracking-[0.3em]">
+                          {deliveryOtps[order.id]}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          onClick={() => {
+                            navigator.clipboard.writeText(deliveryOtps[order.id]);
+                            toast.success("Delivery code copied!");
+                          }}
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Give this code to your delivery rider to confirm receipt
+                      </p>
                     </div>
                   )}
 

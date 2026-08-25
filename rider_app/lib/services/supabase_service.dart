@@ -231,6 +231,14 @@ class SupabaseService {
     await client.rpc('mark_order_delivered_by_rider', params: {'_order_id': orderId});
   }
 
+  // Confirm delivery with OTP code (proof of delivery)
+  static Future<void> confirmDeliveryOtp(String orderId, String otpCode) async {
+    await client.rpc('confirm_delivery_otp', params: {
+      '_order_id': orderId,
+      '_otp': otpCode,
+    });
+  }
+
   // Realtime stream for orders
   static Stream<List<Map<String, dynamic>>> ordersStream() {
     return client

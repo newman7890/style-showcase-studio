@@ -24,9 +24,9 @@ const statusMessages: Record<string, { subject: string; heading: string; message
     message: "Great news! We've started processing your order. Our team is preparing your items for shipment.",
   },
   shipped: {
-    subject: "Your order has been shipped",
+    subject: "Your order has been shipped — Delivery Code Inside",
     heading: "Order Shipped 🚚",
-    message: "Your order is on its way! You can track your package using the tracking code below.",
+    message: "Your order is on its way! When your rider arrives, please share the delivery code below to confirm receipt.",
   },
   delivered: {
     subject: "Your order has been delivered",
@@ -141,6 +141,14 @@ const handler = async (req: Request): Promise<Response> => {
             <p style="margin: 5px 0;"><strong>Tracking Code:</strong> <span style="font-family: monospace; background: #e9ecef; padding: 2px 8px; border-radius: 4px;">${escapeHtml(order.tracking_code)}</span></p>
             <p style="margin: 5px 0;"><strong>Total:</strong> GH₵${escapeHtml(Number(order.total_amount).toFixed(2))}</p>
           </div>
+          
+          ${order.delivery_otp && orderStatus === 'shipped' ? `
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 24px; margin: 20px 0; text-align: center;">
+              <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Your Delivery Code</p>
+              <p style="color: white; font-size: 36px; font-weight: bold; font-family: monospace; letter-spacing: 8px; margin: 0 0 12px 0;">${escapeHtml(order.delivery_otp)}</p>
+              <p style="color: rgba(255,255,255,0.8); font-size: 13px; margin: 0;">Give this code to your delivery rider to confirm receipt of your package.</p>
+            </div>
+          ` : ''}
           
           <div style="text-align: center; margin: 30px 0;">
             <a href="${escapeHtml(trackingUrl)}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">Track Your Order</a>

@@ -93,28 +93,262 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Future<void> _handleMarkDelivered() async {
     if (_order == null) return;
-    setState(() => _updating = true);
-    try {
-      await SupabaseService.markDelivered(_order!['id']);
-      if (mounted) {
-        setState(() {
-          _order!['status'] = 'delivered';
-          _order!['payment_status'] = 'paid';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order Delivered ✅'), backgroundColor: AppTheme.primary),
+    _showOtpVerificationSheet();
+  }
+
+  void _showOtpVerificationSheet() {
+    final controllers = List.generate(6, (_) => TextEditingController());
+    final focusNodes = List.generate(6, (_) => FocusNode());
+    bool verifying = false;
+    String? errorText;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void submitOtp() async {
+              final otp = controllers.map((c) => c.text).join();
+              if (otp.length != 6) {
+                setSheetState(() => errorText = 'Please enter all 6 digits');
+                return;
+              }
+
+              setSheetState(() {
+                verifying = true;
+                errorText = null;
+              });
+
+              final nav = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+
+              try {
+                await SupabaseService.confirmDeliveryOtp(_order!['id'], otp);
+                if (ctx.mounted) {
+                  Navigator.of(ctx).pop();
+                }
+                if (mounted) {
+                  setState(() {
+                    _order!['status'] = 'delivered';
+                    _order!['payment_status'] = 'paid';
+                  });
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Delivery Confirmed! OTP Verified.'),
+                      backgroundColor: AppTheme.primary,
+                    ),
+                  );
+                  nav.pop();
+                }
+              } catch (e) {
+                String msg = e.toString();
+                if (msg.contains('Invalid OTP')) {
+                  msg = 'Wrong code. Please ask the customer again.';
+                } else if (msg.contains('expired')) {
+                  msg = 'OTP expired. Please contact support.';
+                } else if (msg.contains('suspended')) {
+                  msg = 'Your account is suspended.';
+                }
+                setSheetState(() {
+                  verifying = false;
+                  errorText = msg;
+                });
+                // Clear all fields on error
+                for (var c in controllers) {
+                  c.clear();
+                }
+                focusNodes[0].requestFocus();
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle bar
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Icon
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.primary.withValues(alpha: 0.15),
+                      ),
+                      child: const Icon(
+                        LucideIcons.shieldCheck,
+                        color: AppTheme.primary,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Title
+                    const Text(
+                      'Enter Delivery Code',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ask the customer for the 6-digit code\nthey received via email',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // OTP input fields
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(6, (i) {
+                        return Container(
+                          width: 46,
+                          height: 56,
+                          margin: EdgeInsets.only(
+                            left: i == 0 ? 0 : 6,
+                            right: i == 2 ? 12 : 0, // gap in the middle
+                          ),
+                          child: TextField(
+                            controller: controllers[i],
+                            focusNode: focusNodes[i],
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            maxLength: 1,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              filled: true,
+                              fillColor: Colors.white.withValues(alpha: 0.08),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: errorText != null
+                                      ? Colors.red.shade400
+                                      : Colors.white.withValues(alpha: 0.15),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppTheme.primary,
+                                  width: 2,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: errorText != null
+                                      ? Colors.red.shade400
+                                      : Colors.white.withValues(alpha: 0.15),
+                                ),
+                              ),
+                            ),
+                            onChanged: (val) {
+                              if (val.isNotEmpty && i < 5) {
+                                focusNodes[i + 1].requestFocus();
+                              }
+                              if (val.isEmpty && i > 0) {
+                                focusNodes[i - 1].requestFocus();
+                              }
+                              // Auto-submit when all 6 digits entered
+                              final otp = controllers.map((c) => c.text).join();
+                              if (otp.length == 6) {
+                                submitOtp();
+                              }
+                            },
+                          ),
+                        );
+                      }),
+                    ),
+
+                    // Error message
+                    if (errorText != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        errorText!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.red.shade400,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    // Confirm button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: verifying ? null : submitOtp,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: verifying
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.black,
+                                ),
+                              )
+                            : const Icon(LucideIcons.checkCircle2, size: 20),
+                        label: Text(
+                          verifying ? 'Verifying...' : 'Confirm Delivery',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
         );
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _updating = false);
-    }
+      },
+    );
   }
 
   Future<void> _openInMaps(String address) async {
