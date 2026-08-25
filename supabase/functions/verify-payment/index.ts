@@ -230,17 +230,20 @@ const handler = async (req: Request): Promise<Response> => {
           .select()
           .single();
 
-        // Schema fallback if payment_reference column is missing on remote database
-        if (createErr && (createErr.message?.includes("payment_reference") || createErr.code === "42703")) {
-          console.warn("payment_reference column missing on orders table, retrying insert without payment_reference...");
-          delete insertPayload.payment_reference;
-          const retryRes = await supabase
-            .from("orders")
-            .insert(insertPayload)
-            .select()
-            .single();
-          newOrder = retryRes.data;
-          createErr = retryRes.error;
+        // Dynamic schema fallback: if any column is missing in schema cache (code 42703), strip it and retry!
+        if (createErr && (createErr.code === "42703" || createErr.message?.includes("column"))) {
+          console.warn("Schema column missing, retrying insert after stripping missing column:", createErr.message);
+          const match = createErr.message?.match(/column\s+(?:orders\.)?['"]?([a-z0-9_]+)['"]?/i);
+          if (match && match[1] && match[1] in insertPayload) {
+            delete insertPayload[match[1]];
+            const retryRes = await supabase
+              .from("orders")
+              .insert(insertPayload)
+              .select()
+              .single();
+            newOrder = retryRes.data;
+            createErr = retryRes.error;
+          }
         }
 
         if (createErr || !newOrder) {
