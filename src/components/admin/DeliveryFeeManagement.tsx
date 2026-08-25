@@ -85,8 +85,8 @@ export const DeliveryFeeManagement = () => {
     }
   };
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (isInitial = false) => {
+    if (isInitial) setLoading(true);
     const [feesRes, auditRes] = await Promise.all([
       supabase.from("delivery_fees").select("*").order("is_default", { ascending: false }).order("region", { ascending: true }),
       supabase.from("delivery_fee_audit").select("*").order("created_at", { ascending: false }).limit(100),
@@ -96,15 +96,17 @@ export const DeliveryFeeManagement = () => {
       const fetched = (feesRes.data as unknown as DeliveryFee[]) ?? [];
       setFees(fetched);
       // Auto expand regions on first load
-      const regionNames = Array.from(new Set(fetched.map((f) => f.region)));
-      setExpandedRegions(regionNames);
+      if (isInitial) {
+        const regionNames = Array.from(new Set(fetched.map((f) => f.region)));
+        setExpandedRegions(regionNames);
+      }
     }
     if (!auditRes.error) setAudit((auditRes.data as AuditEntry[]) ?? []);
-    setLoading(false);
+    if (isInitial) setLoading(false);
   };
 
   useEffect(() => {
-    load();
+    load(true);
   }, []);
 
   const updateField = (id: string, patch: Partial<DeliveryFee>) => {

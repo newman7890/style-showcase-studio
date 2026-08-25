@@ -121,11 +121,11 @@ export const RiderManagement = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchData(true);
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (isInitial = false) => {
+    if (isInitial) setLoading(true);
     try {
       const [codesRes, ridersRes, ticketsRes] = await Promise.all([
         supabase.from("rider_access_codes" as any).select("*").order("created_at", { ascending: false }),
@@ -150,7 +150,7 @@ export const RiderManagement = () => {
     } catch (err: any) {
       toast({ title: "Error loading rider data", description: err.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
