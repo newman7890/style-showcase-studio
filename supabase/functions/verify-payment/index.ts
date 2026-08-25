@@ -204,33 +204,54 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`Creating NEW confirmed order for user ${userId}, amount ${paidAmountGhs}`);
 
-        const { data: newOrder, error: createErr } = await supabase
+        const insertPayload: Record<string, any> = {
+          user_id: userId,
+          tracking_code: trackingCode,
+          total_amount: paidAmountGhs,
+          shipping_name: checkoutDetails.shipping_name,
+          shipping_email: checkoutDetails.shipping_email,
+          shipping_phone: checkoutDetails.shipping_phone,
+          shipping_address: checkoutDetails.shipping_address,
+          shipping_city: checkoutDetails.shipping_city,
+          shipping_region: checkoutDetails.shipping_region,
+          shipping_town: checkoutDetails.shipping_town || null,
+          delivery_fee: checkoutDetails.delivery_fee || 0,
+          discount_code: checkoutDetails.discount_code || null,
+          discount_amount: checkoutDetails.discount_amount || null,
+          payment_method: metadata.payment_method || "bank_card",
+          payment_reference: reference,
+          status: "confirmed",
+          payment_status: "paid",
+        };
+
+        let { data: newOrder, error: createErr } = await supabase
           .from("orders")
-          .insert({
-            user_id: userId,
-            tracking_code: trackingCode,
-            total_amount: paidAmountGhs,
-            shipping_name: checkoutDetails.shipping_name,
-            shipping_email: checkoutDetails.shipping_email,
-            shipping_phone: checkoutDetails.shipping_phone,
-            shipping_address: checkoutDetails.shipping_address,
-            shipping_city: checkoutDetails.shipping_city,
-            shipping_region: checkoutDetails.shipping_region,
-            shipping_town: checkoutDetails.shipping_town || null,
-            delivery_fee: checkoutDetails.delivery_fee || 0,
-            discount_code: checkoutDetails.discount_code || null,
-            discount_amount: checkoutDetails.discount_amount || null,
-            payment_method: metadata.payment_method || "bank_card",
-            payment_reference: reference,
-            status: "confirmed",
-            payment_status: "paid",
-          })
+          .insert(insertPayload)
           .select()
           .single();
 
+        // Schema fallback if payment_reference column is missing on remote database
+        if (createErr && (createErr.message?.includes("payment_reference") || createErr.code === "42703")) {
+          console.warn("payment_reference column missing on orders table, retrying insert without payment_reference...");
+          delete insertPayload.payment_reference;
+          const retryRes = await supabase
+            .from("orders")
+            .insert(insertPayload)
+            .select()
+            .single();
+          newOrder = retryRes.data;
+          createErr = retryRes.error;
+        }
+
         if (createErr || !newOrder) {
           console.error("Error creating order after payment:", createErr);
-          throw new Error("Failed to record order after payment success");
+          return new Response(
+            JSON.stringify({
+              success: false,
+              friendlyError: `Failed to record order: ${createErr?.message || "Unknown database error"}`,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
         }
 
         orderId = newOrder.id;
