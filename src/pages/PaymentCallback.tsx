@@ -17,6 +17,25 @@ const PaymentCallback = () => {
   const { clearCart } = useCart();
   const { user, loading: authLoading } = useAuth();
 
+  const getFunctionErrorMessage = async (error: unknown) => {
+    if (error && typeof error === "object" && "context" in error) {
+      const response = (error as { context?: Response }).context;
+      if (response && typeof response.json === "function") {
+        try {
+          const payload = await response.json();
+          if (payload && typeof payload === "object") {
+            const result = payload as { friendlyError?: unknown; error?: unknown; message?: unknown };
+            if (typeof result.friendlyError === "string" && result.friendlyError.trim()) return result.friendlyError;
+            if (typeof result.error === "string" && result.error.trim()) return result.error;
+            if (typeof result.message === "string" && result.message.trim()) return result.message;
+          }
+        } catch {}
+      }
+    }
+    if (error instanceof Error) return error.message;
+    return null;
+  };
+
   useEffect(() => {
     const verifyPayment = async () => {
       const reference = searchParams.get("reference") || searchParams.get("trxref");
@@ -34,7 +53,8 @@ const PaymentCallback = () => {
 
         if (error) {
           console.error("verify-payment edge function error:", error);
-          setErrorMessage(error.message || "Failed to verify payment with server.");
+          const msg = await getFunctionErrorMessage(error);
+          setErrorMessage(msg || "Failed to verify payment with server.");
           setStatus("failed");
           return;
         }
@@ -51,7 +71,8 @@ const PaymentCallback = () => {
         }
       } catch (error: any) {
         console.error("Payment verification error:", error);
-        setErrorMessage(error?.message || "An unexpected error occurred while verifying payment.");
+        const msg = await getFunctionErrorMessage(error);
+        setErrorMessage(msg || "An unexpected error occurred while verifying payment.");
         setStatus("failed");
       }
     };

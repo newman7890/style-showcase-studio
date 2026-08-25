@@ -80,30 +80,46 @@ const handler = async (req: Request): Promise<Response> => {
     let paystackData: any = null;
     let lastError = "";
 
-    for (const keyConfig of allKeys) {
-      try {
-        const response = await fetch(
-          `https://api.paystack.co/transaction/verify/${reference}`,
-          {
-            headers: {
-              Authorization: `Bearer ${keyConfig.secretKey}`,
-            },
-          }
-        );
-        const resData = await response.json();
-        if (resData.status) {
-          paystackData = resData;
-          break;
-        } else {
-          lastError = resData.message || "Failed to verify transaction";
-        }
-      } catch (e) {
-        console.error(`Error verifying with key ${keyConfig.sourceName}:`, e);
+    // Retry up to 3 times with 1.2s delay to allow Paystack backend propagation
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        console.log(`Retrying Paystack verification attempt ${attempt + 1}...`);
       }
+
+      for (const keyConfig of allKeys) {
+        try {
+          const response = await fetch(
+            `https://api.paystack.co/transaction/verify/${reference}`,
+            {
+              headers: {
+                Authorization: `Bearer ${keyConfig.secretKey}`,
+              },
+            }
+          );
+          const resData = await response.json();
+          if (resData.status) {
+            paystackData = resData;
+            break;
+          } else {
+            lastError = resData.message || "Failed to verify transaction";
+          }
+        } catch (e) {
+          console.error(`Error verifying with key ${keyConfig.sourceName}:`, e);
+        }
+      }
+
+      if (paystackData?.status) break;
     }
 
     if (!paystackData || !paystackData.status) {
-      throw new Error(lastError || "Failed to verify payment across configured keys");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          friendlyError: lastError || "Failed to verify payment across configured keys. Please check reference.",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     const transaction = paystackData.data;
@@ -263,8 +279,8 @@ const handler = async (req: Request): Promise<Response> => {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     console.error("Error in verify-payment function:", errorMessage);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ success: false, friendlyError: errorMessage }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
