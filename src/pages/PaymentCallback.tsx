@@ -37,6 +37,8 @@ const PaymentCallback = () => {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+
     const verifyPayment = async () => {
       const reference = searchParams.get("reference") || searchParams.get("trxref");
       
@@ -47,8 +49,14 @@ const PaymentCallback = () => {
       }
 
       try {
+        // Ensure session token is attached explicitly
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
         const { data, error } = await supabase.functions.invoke("verify-payment", {
           body: { reference },
+          headers,
         });
 
         if (error) {

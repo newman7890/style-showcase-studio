@@ -89,6 +89,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       for (const keyConfig of allKeys) {
         try {
+          console.log(`Trying verify with secret key from ${keyConfig.sourceName}...`);
           const response = await fetch(
             `https://api.paystack.co/transaction/verify/${reference}`,
             {
@@ -98,11 +99,14 @@ const handler = async (req: Request): Promise<Response> => {
             }
           );
           const resData = await response.json();
+          console.log(`Paystack response for key ${keyConfig.sourceName}:`, JSON.stringify(resData));
           if (resData.status) {
             paystackData = resData;
             break;
           } else {
-            lastError = resData.message || "Failed to verify transaction";
+            if (resData.message && !resData.message.toLowerCase().includes("invalid key")) {
+              lastError = resData.message;
+            }
           }
         } catch (e) {
           console.error(`Error verifying with key ${keyConfig.sourceName}:`, e);
