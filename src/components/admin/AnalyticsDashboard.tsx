@@ -82,15 +82,14 @@ export const AnalyticsDashboard = () => {
         .select("user_id, full_name");
 
       // 4. Fetch Seller Earnings
-      const { data: earnings } = await supabase
-        .from("seller_earnings")
+      const { data: earnings } = await (supabase.from as any)("seller_earnings")
         .select("platform_fee");
 
       const revenueSum = (orders || [])
-        .filter((o) => o.payment_status === "paid" || o.status === "delivered" || o.status === "shipped")
+        .filter((o: any) => o.payment_status === "paid" || o.status === "delivered" || o.status === "shipped")
         .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
-      const commSum = (earnings || []).reduce((sum, e) => sum + Number(e.platform_fee || 0), 0);
+      const commSum = (earnings || []).reduce((sum: number, e: any) => sum + Number(e.platform_fee || 0), 0);
 
       setTotalRevenue(revenueSum);
       setTotalOrders((orders || []).length);
@@ -103,7 +102,7 @@ export const AnalyticsDashboard = () => {
       const regionMap = new Map<string, { count: number; revenue: number }>();
       const statusMap = new Map<string, number>();
 
-      (orders || []).forEach((o) => {
+      (orders || []).forEach((o: any) => {
         // Status Distribution
         const st = o.status || "pending";
         statusMap.set(st, (statusMap.get(st) || 0) + 1);
