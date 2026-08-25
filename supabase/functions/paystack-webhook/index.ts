@@ -79,9 +79,24 @@ const handler = async (req: Request): Promise<Response> => {
     const orderId = (event.data.metadata as any)?.order_id;
     const checkoutDetails = (event.data.metadata as any)?.checkout_details;
     const userId = (event.data.metadata as any)?.user_id;
+    const reference = event.data.reference;
 
     switch (event.event) {
       case "charge.success": {
+        // Idempotency check: if order with this reference already exists, do nothing
+        if (reference) {
+          const { data: existing } = await supabase
+            .from("orders")
+            .select("id")
+            .eq("payment_reference", reference)
+            .maybeSingle();
+
+          if (existing) {
+            console.log(`Webhook: Order ${existing.id} already exists for reference ${reference}`);
+            break;
+          }
+        }
+
         // Payment confirmed - mark existing order as confirmed OR create new order from checkoutDetails
         if (orderId) {
           const { error } = await supabase
@@ -89,6 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
             .update({ 
               status: "confirmed",
               payment_status: "paid",
+              payment_reference: reference,
               updated_at: new Date().toISOString()
             })
             .eq("id", orderId);
@@ -118,6 +134,7 @@ const handler = async (req: Request): Promise<Response> => {
               discount_code: checkoutDetails.discount_code || null,
               discount_amount: checkoutDetails.discount_amount || null,
               payment_method: (event.data.metadata as any)?.payment_method || "bank_card",
+              payment_reference: reference,
               status: "confirmed",
               payment_status: "paid",
             })

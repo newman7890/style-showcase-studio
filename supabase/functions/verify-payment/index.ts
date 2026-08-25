@@ -35,11 +35,12 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+  try {
     const auth = await authenticate(req);
-    if (!auth) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+    if (auth) {
+      console.log(`verify-payment authenticated user: ${auth.userId}`);
+    } else {
+      console.log("verify-payment called without active auth session — will use metadata.user_id");
     }
 
     const parsed = VerifySchema.safeParse(await req.json());
@@ -51,6 +52,30 @@ const handler = async (req: Request): Promise<Response> => {
     }
     const { reference } = parsed.data;
     console.log(`Verifying payment with reference: ${reference}`);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Idempotency check: if order with this payment_reference already exists, return it!
+    const { data: existingOrder } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("payment_reference", reference)
+      .maybeSingle();
+
+    if (existingOrder) {
+      console.log(`Order ${existingOrder.id} already exists for reference ${reference}`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: "success",
+          orderId: existingOrder.id,
+          reference,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     const allKeys = getAllPaystackSecretKeys();
     let paystackData: any = null;
@@ -87,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
     const metadata = transaction.metadata || {};
     let orderId = metadata.order_id;
     const checkoutDetails = metadata.checkout_details;
-    const userId = metadata.user_id || auth.userId;
+    const userId = metadata.user_id || auth?.userId;
 
     console.log("Transaction details:", JSON.stringify({
       status: transaction.status,
@@ -96,11 +121,8 @@ const handler = async (req: Request): Promise<Response> => {
       reference: transaction.reference,
       orderId,
       hasCheckoutDetails: !!checkoutDetails,
+      userId,
     }));
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     let friendlyError: string | null = null;
 
@@ -143,7 +165,12 @@ const handler = async (req: Request): Promise<Response> => {
         // 1. Existing order case: update to paid/confirmed
         const { error: updateError } = await supabase
           .from("orders")
-          .update({ status: "confirmed", payment_status: "paid", updated_at: new Date().toISOString() })
+          .update({ 
+            status: "confirmed", 
+            payment_status: "paid", 
+            payment_reference: reference,
+            updated_at: new Date().toISOString() 
+          })
           .eq("id", orderId);
 
         if (updateError) {
@@ -175,6 +202,7 @@ const handler = async (req: Request): Promise<Response> => {
             discount_code: checkoutDetails.discount_code || null,
             discount_amount: checkoutDetails.discount_amount || null,
             payment_method: metadata.payment_method || "bank_card",
+            payment_reference: reference,
             status: "confirmed",
             payment_status: "paid",
           })
@@ -208,6 +236,15 @@ const handler = async (req: Request): Promise<Response> => {
         // Clear customer cart
         if (userId) {
           await supabase.from("cart_items").delete().eq("user_id", userId);
+        }
+
+        // Send order confirmation notification
+        try {
+          await supabase.functions.invoke("send-order-notification", {
+            body: { orderId: newOrder.id, status: "confirmed" },
+          });
+        } catch (notifErr) {
+          console.error("Error invoking order confirmation notification:", notifErr);
         }
       }
     }
