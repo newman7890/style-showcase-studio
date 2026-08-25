@@ -71,8 +71,9 @@ serve(async (req: Request) => {
     }
 
     const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
-    const isEscalationRequested = /human|agent|person|admin|representative|manager|speak to|talk to|connect me/i.test(lastUserMsg);
 
+    // 1. Check for Human Support Escalation Request
+    const isEscalationRequested = /human|agent|person|admin|representative|manager|speak to|talk to|connect me/i.test(lastUserMsg);
     if (isEscalationRequested) {
       return new Response(
         JSON.stringify({ 
@@ -100,103 +101,105 @@ serve(async (req: Request) => {
       console.error("Error fetching products for chat:", e);
     }
 
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const apiKey = OPENAI_API_KEY || LOVABLE_API_KEY;
+    const apiKey = GEMINI_API_KEY || OPENAI_API_KEY || LOVABLE_API_KEY;
 
-    // Smart fallback if API Key is not configured
-    if (!apiKey) {
-      let fallbackMessage = "Welcome to Trades Point! How can I help you today? Feel free to ask about our products, order tracking, or delivery fees.";
-
-      if (lastUserMsg.includes("sell") || lastUserMsg.includes("what do you") || lastUserMsg.includes("offer") || lastUserMsg.includes("catalog") || lastUserMsg.includes("item") || lastUserMsg.includes("shop")) {
-        fallbackMessage = `We sell top quality fashion, clothing, footwear, accessories, and art collections on our store! 🛍️\n\nSome of our popular items include:\n${productsListText || "• Quality Clothing & Apparel\n• Stylish Shoes & Sneakers\n• Modern Accessories"}\n\nYou can browse our full catalog directly on the home page!`;
-      } else if (lastUserMsg.includes("track") || lastUserMsg.includes("order") || lastUserMsg.includes("my package")) {
-        if (auth && userOrdersContext.includes("Order ID:")) {
-          fallbackMessage = `Here are your recent orders:\n${userOrdersContext.replace("\nCustomer's Recent Orders:\n", "")}\n\nYou can track live updates on your Profile > Orders page!`;
-        } else if (auth) {
-          fallbackMessage = "You currently have no recent orders. Once you place an order, you can track its status live right here!";
-        } else {
-          fallbackMessage = "To track your order, please sign in to your account or enter your Order ID on our Track Order page!";
-        }
-      } else if (lastUserMsg.includes("hi") || lastUserMsg.includes("hello") || lastUserMsg.includes("hey") || lastUserMsg.includes("sup")) {
-        fallbackMessage = "Hello there! 👋 Welcome to Trades Point. How can I assist you with your shopping today?";
-      } else if (lastUserMsg.includes("delivery") || lastUserMsg.includes("shipping") || lastUserMsg.includes("fee") || lastUserMsg.includes("cost")) {
-        fallbackMessage = "We deliver across all major towns and regions in Ghana! Delivery fees are calculated dynamically based on your region during checkout.";
-      } else if (lastUserMsg.includes("return") || lastUserMsg.includes("refund") || lastUserMsg.includes("policy")) {
-        fallbackMessage = "We offer a 7-day return policy for unused items in original packaging. If you need assistance with a return, our team is happy to help!";
-      }
-
-      return new Response(
-        JSON.stringify({ message: fallbackMessage }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Prepare system prompt with store context & products
-    let storeContext = "";
-    if (productsListText) {
-      storeContext = `\nFeatured Products in Store:\n${productsListText}`;
-    }
-
-    const systemPrompt = `You are a friendly AI customer support assistant for "Trades Point" (Tagline: "Shop More. Save More. Live Better.").
-${storeContext}
+    // 2. If Gemini API Key is available, use Gemini 1.5 Flash directly
+    if (GEMINI_API_KEY) {
+      try {
+        const storeInfo = productsListText ? `Available Store Products:\n${productsListText}` : "";
+        const systemInstruction = `You are a warm, friendly, human-like customer support agent for "Trades Point" (Tagline: "Shop More. Save More. Live Better.").
+${storeInfo}
 ${userOrdersContext}
 
 Guidelines:
-- Do your absolute best to answer and resolve the customer's questions directly (orders, products, shipping, returns).
-- When asked what you sell, list clothing, shoes, fashion accessories, and featured items in store.
-- Be friendly, helpful, and concise.
-- For refunds/returns, explain the store policy (7-day return policy for unused items).
-- If the customer explicitly asks to talk to a human, live agent, or admin, politely inform them that you are transferring their session to live admin support.`;
+- Talk naturally like a real friendly human customer service representative.
+- Answer greeting messages ("sup", "how are you", "hello") with a friendly personal reply.
+- Answer store catalog questions ("what do you sell", "what items do you have") by describing clothing, footwear, accessories, and listing items.
+- Keep responses concise, clear, and helpful.`;
 
-    const aiEndpoint = OPENAI_API_KEY 
-      ? "https://api.openai.com/v1/chat/completions" 
-      : "https://ai.gateway.lovable.dev/v1/chat/completions";
-    const aiModel = OPENAI_API_KEY ? "gpt-4o-mini" : "google/gemini-3-flash-preview";
+        const contentsPayload = messages.map((m) => ({
+          role: m.role === "user" ? "user" : "model",
+          parts: [{ text: m.content }],
+        }));
 
-    const response = await fetch(aiEndpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: aiModel,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-      }),
-    });
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                { role: "user", parts: [{ text: `System Instruction: ${systemInstruction}` }] },
+                ...contentsPayload,
+              ],
+            }),
+          }
+        );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-
-      let fallbackMessage = "We sell top quality fashion, clothing, footwear, and accessories! How can I help you today?";
-      if (lastUserMsg.includes("track") || lastUserMsg.includes("order")) {
-        fallbackMessage = auth
-          ? "To view and track your recent orders, please check the Account > Orders section on your profile page."
-          : "To track your order, please log in to your account to view your active orders.";
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            return new Response(JSON.stringify({ message: text }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+      } catch (geminiErr) {
+        console.error("Gemini API call failed:", geminiErr);
       }
-
-      return new Response(
-        JSON.stringify({ message: fallbackMessage }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
-    const data = await response.json();
-    const message = data.choices?.[0]?.message?.content || "I couldn't process that request.";
+    // 3. Smart Conversational Fallback Engine (when API keys are not set)
+    let fallbackMessage = "";
+
+    // A. Casual Greetings / Pleasantries
+    if (/^(hi|hello|hey|sup|howdy|good morning|good afternoon|good evening|how are you|how far|xup|yo)\b/i.test(lastUserMsg) || lastUserMsg.includes("how are you")) {
+      const greetingReplies = [
+        "Hey there! 👋 I'm doing great, thanks for asking! How's your day going? How can I help you on Trades Point today?",
+        "Hello! I'm doing awesome! 😊 Welcome to Trades Point. Are you looking for anything specific today?",
+        "Hi! Doing great! 👋 How can I assist you with your shopping or order today?",
+      ];
+      fallbackMessage = greetingReplies[Math.floor(Math.random() * greetingReplies.length)];
+    } 
+    // B. What do you sell / Product Catalog Questions
+    else if (lastUserMsg.includes("sell") || lastUserMsg.includes("what do you") || lastUserMsg.includes("offer") || lastUserMsg.includes("catalog") || lastUserMsg.includes("items") || lastUserMsg.includes("website") || lastUserMsg.includes("product")) {
+      fallbackMessage = `We sell high quality fashion apparel, footwear, stylish accessories, and art collections! 🛍️\n\nHere are some items currently in store:\n${productsListText || "• Quality Shirts & Dresses\n• Sneakers & Shoes\n• Fashion Accessories"}\n\nYou can browse all items on our home page!`;
+    }
+    // C. Order Tracking Questions
+    else if (lastUserMsg.includes("track") || lastUserMsg.includes("order") || lastUserMsg.includes("package") || lastUserMsg.includes("delivery status")) {
+      if (auth && userOrdersContext.includes("Order ID:")) {
+        fallbackMessage = `Here are your recent orders:\n${userOrdersContext.replace("\nCustomer's Recent Orders:\n", "")}\n\nYou can track live updates on your Profile > Orders page!`;
+      } else if (auth) {
+        fallbackMessage = "You currently have no active orders. Once you place an order, you can track its status live right here!";
+      } else {
+        fallbackMessage = "To track your order status, please sign in to your account or visit our Track Order page with your tracking code!";
+      }
+    }
+    // D. Shipping / Delivery Fees
+    else if (lastUserMsg.includes("delivery") || lastUserMsg.includes("shipping") || lastUserMsg.includes("fee") || lastUserMsg.includes("cost") || lastUserMsg.includes("location")) {
+      fallbackMessage = "We deliver across all regions and major towns in Ghana! 🚚 Delivery fees are calculated dynamically based on your region during checkout.";
+    }
+    // E. Returns / Refunds
+    else if (lastUserMsg.includes("return") || lastUserMsg.includes("refund") || lastUserMsg.includes("policy") || lastUserMsg.includes("exchange")) {
+      fallbackMessage = "We have a 7-day return policy for unused items in original packaging. If you need help returning an item, our support team will guide you!";
+    }
+    // F. General / Default Fallback
+    else {
+      fallbackMessage = "I'm here to help! You can ask me about our fashion catalog, delivery fees, order tracking, or request to speak directly with a human admin agent anytime!";
+    }
 
     return new Response(
-      JSON.stringify({ message }),
+      JSON.stringify({ message: fallbackMessage }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Error in ai-chat:", error);
     return new Response(
-      JSON.stringify({ message: "Welcome to Trades Point! How can I assist you with your shopping today?" }),
+      JSON.stringify({ message: "Hello! Welcome to Trades Point. How can I help you today?" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
