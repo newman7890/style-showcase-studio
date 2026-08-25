@@ -174,7 +174,7 @@ class SupabaseService {
     return response;
   }
 
-  // Fetch order items with product info
+  // Fetch order items with product info (batch fetched for high performance)
   static Future<List<Map<String, dynamic>>> fetchOrderItems(String orderId) async {
     final response = await client
         .from('order_items')
@@ -183,20 +183,30 @@ class SupabaseService {
         
     final items = List<Map<String, dynamic>>.from(response);
     
-    // Fetch products separately to avoid PGRST116 on joined queries if RLS blocks products
-    for (var item in items) {
-      if (item['product_id'] != null) {
-        try {
-          final product = await client
-              .from('products')
-              .select('name, image, seller_id')
-              .eq('id', item['product_id'])
-              .maybeSingle();
-          item['products'] = product;
-        } catch (e) {
+    final productIds = items
+        .map((i) => i['product_id']?.toString())
+        .where((id) => id != null && id.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (productIds.isNotEmpty) {
+      try {
+        final products = await client
+            .from('products')
+            .select('id, name, image, seller_id')
+            .in_('id', productIds);
+        final productMap = {for (var p in products) (p['id'] as dynamic).toString(): p};
+        for (var item in items) {
+          final pid = item['product_id']?.toString();
+          item['products'] = pid != null ? productMap[pid] : null;
+        }
+      } catch (e) {
+        for (var item in items) {
           item['products'] = null;
         }
-      } else {
+      }
+    } else {
+      for (var item in items) {
         item['products'] = null;
       }
     }

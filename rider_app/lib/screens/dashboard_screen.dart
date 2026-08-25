@@ -103,25 +103,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _handleClaimOrder(String orderId) async {
+    // Optimistically update UI instantly (0ms latency on tap)
+    if (mounted) {
+      setState(() {
+        final idx = _orders.indexWhere((o) => o['id'] == orderId);
+        if (idx != -1) {
+          _orders[idx]['assigned_rider_id'] = SupabaseService.currentUser?.id;
+          _orders[idx]['status'] = 'processing';
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Delivery Order Claimed Successfully! 🚴'),
+          backgroundColor: AppTheme.primary,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
     try {
       await SupabaseService.claimOrder(orderId);
-      if (mounted) {
-        setState(() {
-          final idx = _orders.indexWhere((o) => o['id'] == orderId);
-          if (idx != -1) {
-            _orders[idx]['assigned_rider_id'] = SupabaseService.currentUser?.id;
-            _orders[idx]['status'] = 'processing';
-          }
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Delivery Order Claimed Successfully! 🚴'),
-            backgroundColor: AppTheme.primary,
-          ),
-        );
-      }
       _fetchOrders();
     } catch (e) {
+      _fetchOrders();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -134,25 +138,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _handleMarkShipped(String orderId) async {
+    // Optimistically update UI instantly (0ms latency on tap)
+    if (mounted) {
+      setState(() {
+        final idx = _orders.indexWhere((o) => o['id'] == orderId);
+        if (idx != -1) {
+          _orders[idx]['status'] = 'shipped';
+          _orders[idx]['assigned_rider_id'] = SupabaseService.currentUser?.id;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order Status Updated: Shipped / On the Way 🚚'),
+          backgroundColor: Color(0xFFC084FC),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
     try {
       await SupabaseService.markShipped(orderId);
-      if (mounted) {
-        setState(() {
-          final idx = _orders.indexWhere((o) => o['id'] == orderId);
-          if (idx != -1) {
-            _orders[idx]['status'] = 'shipped';
-            _orders[idx]['assigned_rider_id'] = SupabaseService.currentUser?.id;
-          }
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order Status Updated: Shipped / On the Way 🚚'),
-            backgroundColor: Color(0xFFC084FC),
-          ),
-        );
-      }
       _fetchOrders();
     } catch (e) {
+      _fetchOrders();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),

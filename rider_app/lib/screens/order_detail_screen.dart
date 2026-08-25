@@ -35,11 +35,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Future<void> _fetchOrder() async {
     try {
-      final order = await SupabaseService.fetchOrder(widget.orderId);
-      final items = await SupabaseService.fetchOrderItems(widget.orderId);
-      final hub = await SupabaseService.fetchHubForOrder(widget.orderId);
+      final results = await Future.wait([
+        SupabaseService.fetchOrder(widget.orderId),
+        SupabaseService.fetchOrderItems(widget.orderId),
+        SupabaseService.fetchHubForOrder(widget.orderId),
+      ]);
 
-      // Process items (flatten products array)
+      final order = results[0] as Map<String, dynamic>;
+      final items = results[1] as List<Map<String, dynamic>>;
+      final hub = results[2] as Map<String, dynamic>?;
+
       final processedItems = items.map((item) {
         final products = item['products'];
         if (products is List && products.isNotEmpty) {
