@@ -221,10 +221,10 @@ export const AIChatbot = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-sm">
-                      {isEscalated ? "Live Admin Support" : "AI Support Assistant"}
+                      {isEscalated ? "Live Customer Support" : "AI Support Assistant"}
                     </h3>
                     <p className="text-xs text-primary-foreground/70">
-                      {isEscalated ? "Connected to Admin Agent 💬" : "24/7 Instant Answers"}
+                      {isEscalated ? "Connected to Support Specialist 💬" : "24/7 Instant Answers"}
                     </p>
                   </div>
                 </div>
@@ -299,7 +299,7 @@ export const AIChatbot = () => {
                       >
                         {message.role === "admin" && (
                           <p className="font-bold text-[10px] text-emerald-600 dark:text-emerald-400">
-                            {message.senderName || "Support Agent"} (Admin)
+                            {message.senderName || "Support Specialist"}
                           </p>
                         )}
                         <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
@@ -321,7 +321,7 @@ export const AIChatbot = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder={isEscalated ? "Type your message to Admin..." : "Type your question..."}
+                  placeholder={isEscalated ? "Type your message to Support..." : "Type your question..."}
                   className="flex-1 text-xs h-9"
                   disabled={isLoading}
                 />

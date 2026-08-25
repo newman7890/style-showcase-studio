@@ -77,7 +77,7 @@ serve(async (req: Request) => {
     if (isEscalationRequested) {
       return new Response(
         JSON.stringify({ 
-          message: "I understand you would like to speak with a human support agent. I have connected your conversation directly to our live admin support team. An admin representative will join this chat shortly!", 
+          message: "I understand you'd like to speak with a live support representative! I have connected your chat directly to our Customer Support Team. A support specialist will join you right here shortly! 😊", 
           escalate: true 
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
