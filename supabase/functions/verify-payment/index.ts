@@ -273,6 +273,13 @@ const handler = async (req: Request): Promise<Response> => {
           const { error: itemsErr } = await supabase.from("order_items").insert(itemsToInsert);
           if (itemsErr) {
             console.error("Error inserting order items:", itemsErr);
+          } else {
+            // Record seller earnings for this order
+            try {
+              await supabase.rpc("record_order_seller_earnings", { _order_id: newOrder.id });
+            } catch (earningsErr) {
+              console.error("Error recording seller earnings:", earningsErr);
+            }
           }
         }
 

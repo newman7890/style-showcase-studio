@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductManagement } from "@/components/admin/ProductManagement";
 import { OrderManagement } from "@/components/admin/OrderManagement";
 import { CustomerList } from "@/components/admin/CustomerList";
-import { SalesAnalytics } from "@/components/admin/SalesAnalytics";
+import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
+import { SellerPayoutsManagement } from "@/components/admin/SellerPayoutsManagement";
 import { DiscountManagement } from "@/components/admin/DiscountManagement";
 import { TestimonialManagement } from "@/components/admin/TestimonialManagement";
 import { NewArrivalsManagement } from "@/components/admin/NewArrivalsManagement";
@@ -136,6 +137,10 @@ const Admin = () => {
                     <Megaphone className="w-4 h-4" />
                     <span className="hidden sm:inline">Marketing</span>
                   </TabsTrigger>
+                  <TabsTrigger value="payouts" className="flex items-center gap-2">
+                    <Percent className="w-4 h-4" />
+                    <span className="hidden sm:inline">Seller Payouts</span>
+                  </TabsTrigger>
                 </>
               )}
               <TabsTrigger value="analytics" className="flex items-center gap-2">
@@ -149,12 +154,11 @@ const Admin = () => {
             <TabsContent value="hubs"><HubManagement /></TabsContent>
             <TabsContent value="riders"><RiderManagement /></TabsContent>
             <TabsContent value="platform"><PlatformSettingsManagement /></TabsContent>
-
+            <TabsContent value="payouts"><SellerPayoutsManagement /></TabsContent>
 
             <TabsContent value="products">
               <ProductManagement />
             </TabsContent>
-
 
             <TabsContent value="new-arrivals">
               <NewArrivalsManagement />
@@ -189,7 +193,7 @@ const Admin = () => {
             </TabsContent>
 
             <TabsContent value="analytics">
-              <SalesAnalytics />
+              <AnalyticsDashboard />
             </TabsContent>
           </Tabs>
         </div>
