@@ -86,7 +86,7 @@ const PaymentCallback = () => {
     };
 
     verifyPayment();
-  }, [searchParams]);
+  }, [searchParams, authLoading]);
 
   // Clear cart once auth is ready and we have a signed-in user.
   useEffect(() => {
