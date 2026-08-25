@@ -194,7 +194,7 @@ class SupabaseService {
         final products = await client
             .from('products')
             .select('id, name, image, seller_id')
-            .in_('id', productIds);
+            .filter('id', 'in', productIds);
         final productMap = {for (var p in products) (p['id'] as dynamic).toString(): p};
         for (var item in items) {
           final pid = item['product_id']?.toString();
