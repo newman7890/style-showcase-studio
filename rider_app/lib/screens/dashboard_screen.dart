@@ -110,9 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final idx = _orders.indexWhere((o) => o['id'] == orderId);
           if (idx != -1) {
             _orders[idx]['assigned_rider_id'] = SupabaseService.currentUser?.id;
-            if (_orders[idx]['status'] == 'pending') {
-              _orders[idx]['status'] = 'processing';
-            }
+            _orders[idx]['status'] = 'processing';
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(

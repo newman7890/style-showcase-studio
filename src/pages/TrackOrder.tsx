@@ -103,7 +103,12 @@ const TrackOrder = () => {
   const getCurrentStep = () => {
     if (!order) return -1;
     if (order.status === "cancelled") return -2;
-    return statusSteps.findIndex((step) => step.key === order.status);
+    if (order.status === "pending" || order.status === "confirmed") return 0;
+    if (order.status === "processing") return 1;
+    if (order.status === "shipped") return 2;
+    if (order.status === "delivered") return 3;
+    const idx = statusSteps.findIndex((step) => step.key === order.status);
+    return idx >= 0 ? idx : 0;
   };
 
   const currentStep = getCurrentStep();
