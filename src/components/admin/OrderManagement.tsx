@@ -57,7 +57,8 @@ interface Order {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  pending: { label: "Pending", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20", icon: <Clock className="w-3 h-3" /> },
+  pending: { label: "Order Placed", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: <Clock className="w-3 h-3" /> },
+  confirmed: { label: "Order Placed", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: <Clock className="w-3 h-3" /> },
   processing: { label: "Processing", color: "bg-blue-500/10 text-blue-600 border-blue-500/20", icon: <Package className="w-3 h-3" /> },
   shipped: { label: "Shipped", color: "bg-purple-500/10 text-purple-600 border-purple-500/20", icon: <Truck className="w-3 h-3" /> },
   delivered: { label: "Delivered", color: "bg-green-500/10 text-green-600 border-green-500/20", icon: <CheckCircle className="w-3 h-3" /> },

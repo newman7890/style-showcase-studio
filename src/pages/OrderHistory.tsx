@@ -12,7 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Package }> = {
-  pending: { label: "Pending", color: "bg-yellow-500", icon: Clock },
+  pending: { label: "Order Placed", color: "bg-emerald-600", icon: Clock },
+  confirmed: { label: "Order Placed", color: "bg-emerald-600", icon: Clock },
   processing: { label: "Processing", color: "bg-blue-500", icon: Package },
   shipped: { label: "Shipped", color: "bg-purple-500", icon: Truck },
   delivered: { label: "Delivered", color: "bg-green-500", icon: CheckCircle },
