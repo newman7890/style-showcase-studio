@@ -746,11 +746,61 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
+  Future<void> _handleClaimOrder() async {
+    if (_order == null) return;
+    setState(() => _updating = true);
+    try {
+      await SupabaseService.claimOrder(_order!['id']);
+      if (mounted) {
+        setState(() {
+          _order!['assigned_rider_id'] = SupabaseService.currentUser?.id;
+          _order!['status'] = 'processing';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Delivery Order Claimed Successfully! 🚴'),
+            backgroundColor: AppTheme.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
   Widget _buildActionButtons() {
     final status = _order?['status'] as String? ?? 'pending';
+    final isUnassigned = _order?['assigned_rider_id'] == null;
     final isShipped = status == 'shipped';
 
-    if (isShipped) {
+    if (isUnassigned) {
+      return SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: ElevatedButton.icon(
+          onPressed: _updating ? null : _handleClaimOrder,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3B82F6),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+          ),
+          icon: _updating
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(LucideIcons.bike, size: 20),
+          label: Text(
+            _updating ? 'Updating...' : 'Claim Delivery Order 🚴',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+    } else if (isShipped) {
       return SizedBox(
         width: double.infinity,
         height: 52,
@@ -778,7 +828,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         child: ElevatedButton.icon(
           onPressed: _updating ? null : _handleMarkShipped,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF3B82F6),
+            backgroundColor: const Color(0xFF8B5CF6),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 0,
