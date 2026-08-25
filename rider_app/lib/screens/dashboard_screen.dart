@@ -81,94 +81,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _handleMarkDelivered(String orderId) async {
-    try {
-      await SupabaseService.markDelivered(orderId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order Delivered ✅'),
-            backgroundColor: AppTheme.primary,
-          ),
-        );
-      }
-      _fetchOrders();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
-        );
-      }
-    }
-  }
-
-  Future<void> _handleClaimOrder(String orderId) async {
-    // Optimistically update UI instantly (0ms latency on tap)
-    if (mounted) {
-      setState(() {
-        final idx = _orders.indexWhere((o) => o['id'] == orderId);
-        if (idx != -1) {
-          _orders[idx]['assigned_rider_id'] = SupabaseService.currentUser?.id;
-          _orders[idx]['status'] = 'processing';
-        }
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Delivery Order Claimed Successfully! 🚴'),
-          backgroundColor: AppTheme.primary,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-
-    try {
-      await SupabaseService.claimOrder(orderId);
-      _fetchOrders();
-    } catch (e) {
-      _fetchOrders();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '').replaceAll('AuthApiException(message: ', '').replaceAll(RegExp(r',\s*statusCode.*$'), '')),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _handleMarkShipped(String orderId) async {
-    // Optimistically update UI instantly (0ms latency on tap)
-    if (mounted) {
-      setState(() {
-        final idx = _orders.indexWhere((o) => o['id'] == orderId);
-        if (idx != -1) {
-          _orders[idx]['status'] = 'shipped';
-          _orders[idx]['assigned_rider_id'] = SupabaseService.currentUser?.id;
-        }
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order Status Updated: Shipped / On the Way 🚚'),
-          backgroundColor: Color(0xFFC084FC),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-
-    try {
-      await SupabaseService.markShipped(orderId);
-      _fetchOrders();
-    } catch (e) {
-      _fetchOrders();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
-        );
-      }
-    }
-  }
-
   List<Map<String, dynamic>> get _filteredOrders {
     final currentUserId = SupabaseService.currentUser?.id;
     return _orders.where((o) {
@@ -450,8 +362,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final status = order['status'] as String? ?? 'pending';
     final colors = statusStyle[status] ?? statusStyle['pending']!;
-    final isActive = status != 'delivered' && status != 'cancelled';
-    final isUnassigned = order['assigned_rider_id'] == null && isActive;
     final trackingCode = order['tracking_code'] as String? ??
         (order['id'] as String? ?? '').substring(0, 8).toUpperCase();
     final createdAt = order['created_at'] != null
@@ -551,29 +461,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCallButton(String phone) {
-    return GestureDetector(
-      onTap: () {
-        // url_launcher would be used here for tel: links
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(LucideIcons.phone, size: 14, color: Colors.white.withValues(alpha: 0.7)),
-            const SizedBox(width: 6),
-            Text('Call', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
