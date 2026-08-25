@@ -23,6 +23,7 @@ import { ProductApprovalsManagement } from "@/components/admin/ProductApprovalsM
 import { PlatformSettingsManagement } from "@/components/admin/PlatformSettingsManagement";
 import { HubManagement } from "@/components/admin/HubManagement";
 import { MarketingBannerManagement } from "@/components/admin/MarketingBannerManagement";
+import { CustomerSupportChat } from "@/components/admin/CustomerSupportChat";
 import { RiderManagement } from "@/components/admin/RiderManagement";
 
 const Admin = () => {
@@ -141,6 +142,10 @@ const Admin = () => {
                     <Percent className="w-4 h-4" />
                     <span className="hidden sm:inline">Seller Payouts</span>
                   </TabsTrigger>
+                  <TabsTrigger value="live-support" className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="hidden sm:inline">Live Support</span>
+                  </TabsTrigger>
                 </>
               )}
               <TabsTrigger value="analytics" className="flex items-center gap-2">
@@ -155,6 +160,7 @@ const Admin = () => {
             <TabsContent value="riders"><RiderManagement /></TabsContent>
             <TabsContent value="platform"><PlatformSettingsManagement /></TabsContent>
             <TabsContent value="payouts"><SellerPayoutsManagement /></TabsContent>
+            <TabsContent value="live-support"><CustomerSupportChat /></TabsContent>
 
             <TabsContent value="products">
               <ProductManagement />

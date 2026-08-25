@@ -36,8 +36,7 @@ const ContactUs = () => {
       description: "Chat with us in real-time",
       value: "Available 24/7",
       action: () => {
-        // In a real app, this would open a chat widget
-        alert("Live chat feature coming soon!");
+        window.dispatchEvent(new CustomEvent("open-ai-chat"));
       },
     },
   ];

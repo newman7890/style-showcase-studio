@@ -37,7 +37,6 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Optional authentication — allow both guests and logged in users to chat
     const auth = await authenticate(req);
     let userOrdersContext = "";
 
@@ -75,14 +74,25 @@ serve(async (req: Request) => {
       );
     }
 
-    // Fallback if API key is not yet set in Supabase secrets
+    const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
+    const isEscalationRequested = /human|agent|person|admin|representative|manager|speak to|talk to|connect me/i.test(lastUserMsg);
+
+    if (isEscalationRequested) {
+      return new Response(
+        JSON.stringify({ 
+          message: "I understand you would like to speak with a human support agent. I have connected your conversation directly to our live admin support team. An admin representative will join this chat shortly!", 
+          escalate: true 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!apiKey) {
-      const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
       let fallbackMessage = "Welcome to Trades Point! How can I help you today?";
 
       if (lastUserMsg.includes("track") || lastUserMsg.includes("order")) {
         if (auth && userOrdersContext.includes("Order ID:")) {
-          fallbackMessage = `Here are your recent orders:\n${userOrdersContext.replace("\\nCustomer's Recent Orders:\\n", "")}\n\nYou can also view full details on your Profile / Orders page!`;
+          fallbackMessage = `Here are your recent orders:\n${userOrdersContext.replace("\nCustomer's Recent Orders:\n", "")}\n\nYou can also view full details on your Profile / Orders page!`;
         } else if (auth) {
           fallbackMessage = "You currently have no recent orders. Once you place an order, you can track it live right here!";
         } else {
@@ -116,17 +126,15 @@ serve(async (req: Request) => {
       console.error("Error fetching context:", e);
     }
 
-    const systemPrompt = `You are a helpful AI shopping assistant for "Trades Point" (Tagline: "Shop More. Save More. Live Better.").
+    const systemPrompt = `You are a helpful AI customer support assistant for "Trades Point" (Tagline: "Shop More. Save More. Live Better.").
 ${storeContext}
 ${userOrdersContext}
 
 Guidelines:
-- Be friendly, helpful, and concise
-- When asked about orders, use the Customer's Recent Orders provided above
-- Recommend products based on customer needs
-- For refunds/returns, explain the store policy (7-day return policy for unused items)
-- If you don't know something, be honest and suggest contacting customer support
-- Respond in the same language as the customer's message`;
+- Do your absolute best to answer and resolve the customer's questions directly (orders, products, shipping, returns).
+- Be friendly, helpful, and concise.
+- For refunds/returns, explain the store policy (7-day return policy for unused items).
+- If the customer explicitly asks to talk to a human, live agent, or admin, politely inform them that you are transferring their session to live admin support.`;
 
     const aiEndpoint = OPENAI_API_KEY 
       ? "https://api.openai.com/v1/chat/completions" 
@@ -152,10 +160,7 @@ Guidelines:
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
 
-      // Provide helpful fallback if AI service errors
-      const lastUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
       let fallbackMessage = "Thank you for reaching out! How can I assist you today?";
-
       if (lastUserMsg.includes("track") || lastUserMsg.includes("order")) {
         fallbackMessage = auth
           ? "To view and track your recent orders, please check the Account > Orders section on your profile page."
@@ -183,4 +188,3 @@ Guidelines:
     );
   }
 });
-

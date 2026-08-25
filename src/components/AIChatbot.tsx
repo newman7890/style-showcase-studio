@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Loader2, Bot, User, Package, HelpCircle } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Bot, User, Package, HelpCircle, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Message {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "admin";
   content: string;
+  senderName?: string;
 }
 
 export const AIChatbot = () => {
@@ -18,9 +18,18 @@ export const AIChatbot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isEscalated, setIsEscalated] = useState(false);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { t } = useLanguage();
+
+  useEffect(() => {
+    const handleOpenChat = () => setIsOpen(true);
+    window.addEventListener("open-ai-chat", handleOpenChat);
+    return () => window.removeEventListener("open-ai-chat", handleOpenChat);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -28,25 +37,122 @@ export const AIChatbot = () => {
     }
   }, [messages]);
 
+  // Subscribe to Realtime messages when a session is active
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const channel = supabase
+      .channel(`chat_messages_${sessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload: any) => {
+          const newMsg = payload.new;
+          if (newMsg.sender_type === "admin") {
+            setMessages((prev) => [
+              ...prev,
+              { role: "admin", content: newMsg.message, senderName: newMsg.sender_name || "Support Agent" },
+            ]);
+            setIsEscalated(true);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [sessionId]);
+
+  const ensureSession = async (): Promise<string> => {
+    if (sessionId) return sessionId;
+
+    try {
+      const { data, error } = await (supabase.from as any)("chat_sessions")
+        .insert({
+          user_id: user?.id || null,
+          customer_name: user?.user_metadata?.full_name || user?.email || "Guest Customer",
+          customer_email: user?.email || null,
+          status: "ai_active",
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        setSessionId(data.id);
+        return data.id;
+      }
+    } catch (e) {
+      console.error("Session creation error:", e);
+    }
+    const tempId = `temp-${Date.now()}`;
+    setSessionId(tempId);
+    return tempId;
+  };
+
   const handleSend = async (overrideMessage?: string) => {
     const messageToSend = (overrideMessage ?? input).trim();
     if (!messageToSend || isLoading) return;
 
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: messageToSend }]);
+    const newMessages: Message[] = [...messages, { role: "user", content: messageToSend }];
+    setMessages(newMessages);
     setIsLoading(true);
 
     try {
+      const currentSessionId = await ensureSession();
+
+      // Log user message in DB
+      if (currentSessionId && !currentSessionId.startsWith("temp-")) {
+        await (supabase.from as any)("chat_messages").insert({
+          session_id: currentSessionId,
+          sender_type: "user",
+          message: messageToSend,
+        });
+      }
+
+      // If escalated to live human admin, wait for admin response
+      if (isEscalated) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Call AI Edge Function
       const response = await supabase.functions.invoke("ai-chat", {
         body: {
-          messages: [...messages, { role: "user", content: messageToSend }],
+          messages: newMessages.map((m) => ({
+            role: m.role === "admin" ? "assistant" : m.role,
+            content: m.content,
+          })),
         },
       });
 
       if (response.error) throw response.error;
 
       const assistantMessage = response.data?.message || "I apologize, I couldn't process that request.";
+      const shouldEscalate = response.data?.escalate === true;
+
       setMessages((prev) => [...prev, { role: "assistant", content: assistantMessage }]);
+
+      if (currentSessionId && !currentSessionId.startsWith("temp-")) {
+        await (supabase.from as any)("chat_messages").insert({
+          session_id: currentSessionId,
+          sender_type: "assistant",
+          message: assistantMessage,
+        });
+
+        if (shouldEscalate) {
+          setIsEscalated(true);
+          await (supabase.from as any)("chat_sessions")
+            .update({ status: "escalated", updated_at: new Date().toISOString() })
+            .eq("id", currentSessionId);
+        }
+      }
     } catch (error) {
       console.error("Chat error:", error);
       setMessages((prev) => [
@@ -71,11 +177,12 @@ export const AIChatbot = () => {
   const quickActions = [
     { icon: Package, label: "Track my order", message: "I want to track my order" },
     { icon: HelpCircle, label: "Product help", message: "I need help finding a product" },
+    { icon: UserCheck, label: "Speak to human agent", message: "I want to talk to a human support agent" },
   ];
 
   return (
     <>
-      {/* Chat Button */}
+      {/* Floating Chat Button */}
       <motion.button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-24 right-4 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center"
@@ -87,7 +194,6 @@ export const AIChatbot = () => {
         <MessageCircle className="w-6 h-6" />
       </motion.button>
 
-      {/* Chat Window */}
       {/* Chat Window */}
       <AnimatePresence>
         {isOpen && (
@@ -105,17 +211,21 @@ export const AIChatbot = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 100, scale: 0.9 }}
               className="fixed z-50 bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden
-                         inset-4 md:inset-auto md:bottom-24 md:right-4 md:w-96 md:h-[500px] md:max-h-[calc(100vh-120px)]"
+                         inset-4 md:inset-auto md:bottom-24 md:right-4 md:w-96 md:h-[520px] md:max-h-[calc(100vh-120px)]"
             >
-              {/* Header - Sticky */}
+              {/* Header */}
               <div className="sticky top-0 bg-primary text-primary-foreground p-4 flex items-center justify-between z-10 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-                    <Bot className="w-5 h-5" />
+                    {isEscalated ? <UserCheck className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
                   </div>
                   <div>
-                    <h3 className="font-semibold">AI Assistant</h3>
-                    <p className="text-xs text-primary-foreground/70">Here to help you</p>
+                    <h3 className="font-semibold text-sm">
+                      {isEscalated ? "Live Admin Support" : "AI Support Assistant"}
+                    </h3>
+                    <p className="text-xs text-primary-foreground/70">
+                      {isEscalated ? "Connected to Admin Agent 💬" : "24/7 Instant Answers"}
+                    </p>
                   </div>
                 </div>
                 <Button
@@ -128,113 +238,101 @@ export const AIChatbot = () => {
                 </Button>
               </div>
 
-              {/* Messages - Scrollable area */}
-              <div 
+              {/* Messages Area */}
+              <div
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-4 scroll-smooth
-                           [&::-webkit-scrollbar]:w-2 
-                           [&::-webkit-scrollbar-track]:bg-muted 
-                           [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 
-                           [&::-webkit-scrollbar-thumb]:rounded-full 
-                           hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50"
+                className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
               >
                 {messages.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground mb-4">
-                      Hi! I'm your AI assistant. How can I help you today?
+                  <div className="text-center py-6">
+                    <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-sm font-medium mb-1">Welcome to Live Support!</p>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      I'm your 24/7 AI assistant. Ask me anything or request a human agent anytime.
                     </p>
                     <div className="space-y-2">
                       {quickActions.map((action, index) => (
                         <button
                           key={index}
-                          onClick={() => {
-                            handleSend(action.message);
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors w-full"
+                          onClick={() => handleSend(action.message)}
+                          className="w-full p-2.5 rounded-lg border border-border hover:bg-accent text-left text-xs flex items-center gap-2 transition-colors"
                         >
-                          <action.icon className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm">{action.label}</span>
+                          <action.icon className="w-4 h-4 text-primary shrink-0" />
+                          <span>{action.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {messages.map((message, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-start gap-2.5 ${
+                        message.role === "user" ? "flex-row-reverse" : "flex-row"
+                      }`}
+                    >
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 ${
+                          message.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : message.role === "admin"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-muted text-muted-foreground"
+                        }`}
                       >
-                        <div
-                          className={`flex items-start gap-2 max-w-[80%] ${
-                            message.role === "user" ? "flex-row-reverse" : ""
-                          }`}
-                        >
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                              message.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-secondary"
-                            }`}
-                          >
-                            {message.role === "user" ? (
-                              <User className="w-4 h-4" />
-                            ) : (
-                              <Bot className="w-4 h-4" />
-                            )}
-                          </div>
-                          <div
-                            className={`px-4 py-2 rounded-2xl ${
-                              message.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-secondary"
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                    {isLoading && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex items-center gap-2"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                        {message.role === "user" ? (
+                          <User className="w-4 h-4" />
+                        ) : message.role === "admin" ? (
+                          <UserCheck className="w-4 h-4" />
+                        ) : (
                           <Bot className="w-4 h-4" />
-                        </div>
-                        <div className="bg-secondary px-4 py-2 rounded-2xl">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        </div>
-                      </motion.div>
-                    )}
+                        )}
+                      </div>
+                      <div
+                        className={`max-w-[80%] p-3 rounded-2xl text-xs space-y-1 ${
+                          message.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-tr-none"
+                            : message.role === "admin"
+                            ? "bg-emerald-500/10 border border-emerald-500/30 text-foreground rounded-tl-none"
+                            : "bg-muted text-foreground rounded-tl-none"
+                        }`}
+                      >
+                        {message.role === "admin" && (
+                          <p className="font-bold text-[10px] text-emerald-600 dark:text-emerald-400">
+                            {message.senderName || "Support Agent"} (Admin)
+                          </p>
+                        )}
+                        <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+                {isLoading && (
+                  <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span>Processing response...</span>
                   </div>
                 )}
               </div>
 
-              {/* Input - Sticky footer */}
-              <div className="sticky bottom-0 p-4 border-t border-border bg-background shrink-0">
-                <div className="flex gap-2">
-                  <Input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder={t("aiChatPlaceholder")}
-                    disabled={isLoading}
-                    className="flex-1"
-                  />
-                  <Button onClick={() => handleSend()} disabled={isLoading || !input.trim()}>
-                    {isLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
+              {/* Input Area */}
+              <div className="p-3 border-t border-border bg-background flex items-center gap-2 shrink-0">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder={isEscalated ? "Type your message to Admin..." : "Type your question..."}
+                  className="flex-1 text-xs h-9"
+                  disabled={isLoading}
+                />
+                <Button
+                  size="icon"
+                  onClick={() => handleSend()}
+                  disabled={!input.trim() || isLoading}
+                  className="h-9 w-9 shrink-0"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
               </div>
             </motion.div>
           </>
