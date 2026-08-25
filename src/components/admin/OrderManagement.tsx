@@ -347,6 +347,18 @@ export const OrderManagement = () => {
                 </div>
               </div>
 
+              {selectedOrder.status === "delivered" && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-1 text-sm">
+                  <div className="flex items-center gap-2 font-medium text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Proof of Delivery: Verified via Customer 6-Digit OTP 🔐</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This order was successfully completed. The customer provided their secret 6-digit PIN code to the rider upon package arrival to confirm proof of delivery.
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center justify-between text-sm">
                 <div>
                   <span className="text-muted-foreground">Payment Method: </span>
