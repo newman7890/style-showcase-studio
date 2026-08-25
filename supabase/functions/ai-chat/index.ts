@@ -61,10 +61,6 @@ serve(async (req: Request) => {
       userOrdersContext = `\nCustomer is not logged in. If they ask to track an order, ask them to log in or provide their Order ID.`;
     }
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const apiKey = OPENAI_API_KEY || LOVABLE_API_KEY;
-
     const body = await req.json().catch(() => ({}));
     const messages = sanitizeMessages((body as any)?.messages);
     if (messages.length === 0) {
@@ -87,19 +83,47 @@ serve(async (req: Request) => {
       );
     }
 
-    if (!apiKey) {
-      let fallbackMessage = "Welcome to Trades Point! How can I help you today?";
+    // Fetch store products dynamically for rich responses
+    let productsListText = "";
+    try {
+      const supabase = createClient(SUPABASE_URL, ANON_KEY);
+      const { data: products } = await supabase
+        .from("products")
+        .select("name, category, price")
+        .gt("stock", 0)
+        .limit(6);
 
-      if (lastUserMsg.includes("track") || lastUserMsg.includes("order")) {
+      if (products && products.length > 0) {
+        productsListText = products.map((p: any) => `• ${p.name} (GH₵${p.price})`).join("\n");
+      }
+    } catch (e) {
+      console.error("Error fetching products for chat:", e);
+    }
+
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = OPENAI_API_KEY || LOVABLE_API_KEY;
+
+    // Smart fallback if API Key is not configured
+    if (!apiKey) {
+      let fallbackMessage = "Welcome to Trades Point! How can I help you today? Feel free to ask about our products, order tracking, or delivery fees.";
+
+      if (lastUserMsg.includes("sell") || lastUserMsg.includes("what do you") || lastUserMsg.includes("offer") || lastUserMsg.includes("catalog") || lastUserMsg.includes("item") || lastUserMsg.includes("shop")) {
+        fallbackMessage = `We sell top quality fashion, clothing, footwear, accessories, and art collections on our store! 🛍️\n\nSome of our popular items include:\n${productsListText || "• Quality Clothing & Apparel\n• Stylish Shoes & Sneakers\n• Modern Accessories"}\n\nYou can browse our full catalog directly on the home page!`;
+      } else if (lastUserMsg.includes("track") || lastUserMsg.includes("order") || lastUserMsg.includes("my package")) {
         if (auth && userOrdersContext.includes("Order ID:")) {
-          fallbackMessage = `Here are your recent orders:\n${userOrdersContext.replace("\nCustomer's Recent Orders:\n", "")}\n\nYou can also view full details on your Profile / Orders page!`;
+          fallbackMessage = `Here are your recent orders:\n${userOrdersContext.replace("\nCustomer's Recent Orders:\n", "")}\n\nYou can track live updates on your Profile > Orders page!`;
         } else if (auth) {
-          fallbackMessage = "You currently have no recent orders. Once you place an order, you can track it live right here!";
+          fallbackMessage = "You currently have no recent orders. Once you place an order, you can track its status live right here!";
         } else {
-          fallbackMessage = "To track your order, please log in to your account or visit the Account > Orders section on our website.";
+          fallbackMessage = "To track your order, please sign in to your account or enter your Order ID on our Track Order page!";
         }
-      } else if (lastUserMsg.includes("product") || lastUserMsg.includes("help") || lastUserMsg.includes("find")) {
-        fallbackMessage = "You can browse our latest fashion collection directly from the home page or search by categories!";
+      } else if (lastUserMsg.includes("hi") || lastUserMsg.includes("hello") || lastUserMsg.includes("hey") || lastUserMsg.includes("sup")) {
+        fallbackMessage = "Hello there! 👋 Welcome to Trades Point. How can I assist you with your shopping today?";
+      } else if (lastUserMsg.includes("delivery") || lastUserMsg.includes("shipping") || lastUserMsg.includes("fee") || lastUserMsg.includes("cost")) {
+        fallbackMessage = "We deliver across all major towns and regions in Ghana! Delivery fees are calculated dynamically based on your region during checkout.";
+      } else if (lastUserMsg.includes("return") || lastUserMsg.includes("refund") || lastUserMsg.includes("policy")) {
+        fallbackMessage = "We offer a 7-day return policy for unused items in original packaging. If you need assistance with a return, our team is happy to help!";
       }
 
       return new Response(
@@ -110,28 +134,17 @@ serve(async (req: Request) => {
 
     // Prepare system prompt with store context & products
     let storeContext = "";
-    try {
-      const supabase = createClient(SUPABASE_URL, ANON_KEY);
-      const { data: products } = await supabase
-        .from("products")
-        .select("name, category, price, stock, description")
-        .gt("stock", 0)
-        .limit(20);
-
-      if (products && products.length > 0) {
-        storeContext += `\nAvailable Products:\n` + 
-          products.map((p: any) => `- ${p.name} (${p.category}): $${p.price} - ${p.description || "In stock"}`).join("\n");
-      }
-    } catch (e) {
-      console.error("Error fetching context:", e);
+    if (productsListText) {
+      storeContext = `\nFeatured Products in Store:\n${productsListText}`;
     }
 
-    const systemPrompt = `You are a helpful AI customer support assistant for "Trades Point" (Tagline: "Shop More. Save More. Live Better.").
+    const systemPrompt = `You are a friendly AI customer support assistant for "Trades Point" (Tagline: "Shop More. Save More. Live Better.").
 ${storeContext}
 ${userOrdersContext}
 
 Guidelines:
 - Do your absolute best to answer and resolve the customer's questions directly (orders, products, shipping, returns).
+- When asked what you sell, list clothing, shoes, fashion accessories, and featured items in store.
 - Be friendly, helpful, and concise.
 - For refunds/returns, explain the store policy (7-day return policy for unused items).
 - If the customer explicitly asks to talk to a human, live agent, or admin, politely inform them that you are transferring their session to live admin support.`;
@@ -160,7 +173,7 @@ Guidelines:
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
 
-      let fallbackMessage = "Thank you for reaching out! How can I assist you today?";
+      let fallbackMessage = "We sell top quality fashion, clothing, footwear, and accessories! How can I help you today?";
       if (lastUserMsg.includes("track") || lastUserMsg.includes("order")) {
         fallbackMessage = auth
           ? "To view and track your recent orders, please check the Account > Orders section on your profile page."
@@ -183,7 +196,7 @@ Guidelines:
   } catch (error) {
     console.error("Error in ai-chat:", error);
     return new Response(
-      JSON.stringify({ message: "To track your order or view active items, please sign in or visit your profile's Order section!" }),
+      JSON.stringify({ message: "Welcome to Trades Point! How can I assist you with your shopping today?" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
