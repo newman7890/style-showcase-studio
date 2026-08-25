@@ -35,7 +35,6 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-  try {
     const auth = await authenticate(req);
     if (auth) {
       console.log(`verify-payment authenticated user: ${auth.userId}`);
