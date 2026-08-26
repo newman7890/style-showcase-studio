@@ -181,24 +181,24 @@ const GiftCardsComingSoon = () => {
                 </span>
               </motion.div>
             ) : (
-              <form onSubmit={handleNotify} className="flex flex-col sm:flex-row items-center gap-3 max-w-md mx-auto">
-                <div className="relative flex-1 w-full">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <form onSubmit={handleNotify} className="w-full max-w-md mx-auto">
+                <div className="relative flex items-center bg-white border border-gray-200 rounded-full shadow-sm hover:shadow-md focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-900/10 transition-all p-1.5">
+                  <Mail className="w-5 h-5 text-gray-400 ml-3.5 shrink-0" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    className="w-full h-13 pl-11 pr-4 bg-white border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-gray-300 focus:shadow-md transition-all placeholder:text-gray-400"
+                    className="w-full h-11 pl-3 pr-32 bg-transparent text-sm font-medium outline-none text-gray-900 placeholder:text-gray-400"
                   />
+                  <Button
+                    type="submit"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 h-10 rounded-full bg-gray-900 hover:bg-gray-800 text-white px-5 text-xs font-bold shadow-md transition-all hover:scale-105 active:scale-95 whitespace-nowrap flex items-center gap-1.5"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    Notify Me
+                  </Button>
                 </div>
-                <Button
-                  type="submit"
-                  className="h-13 rounded-xl bg-gray-900 hover:bg-gray-800 text-white px-8 font-semibold shadow-xl shadow-gray-900/15 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
-                >
-                  <Bell className="w-4 h-4 mr-2" />
-                  Notify Me
-                </Button>
               </form>
             )}
           </motion.div>
