@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
-import { ChevronDown, SlidersHorizontal, CheckCircle2, User, Mail, MessageSquare, Loader2, X, Search } from "lucide-react";
+import { ChevronDown, SlidersHorizontal, CheckCircle2, User, Mail, MessageSquare, Loader2, X, Search, Gift, Bell, Sparkles, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
 
 export const GIFT_CARD_PRODUCT_ID = "9e160ab4-358b-49ea-b1db-f2030997184a";
 
@@ -59,7 +60,181 @@ const GRADIENTS = [
   "from-fuchsia-500 to-pink-400"
 ];
 
+/* ─── Coming Soon page shown to non-admin users ─── */
+const GiftCardsComingSoon = () => {
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+  const navigate = useNavigate();
+
+  const handleNotify = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      toast.error("Please enter your email address");
+      return;
+    }
+    setSubscribed(true);
+    toast.success("You'll be notified when Gift Cards launch!");
+  };
+
+  return (
+    <div className="bg-[#f0f4f8] min-h-screen font-plus-jakarta pb-24">
+      <Header />
+      <main className="pt-24 px-4 md:px-8 max-w-[1200px] mx-auto flex items-center justify-center min-h-[calc(100vh-6rem)]">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full max-w-2xl text-center"
+        >
+          {/* Animated gift icon */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
+            className="relative mx-auto w-32 h-32 mb-8"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-400/30 to-pink-400/30 rounded-full blur-2xl animate-pulse" />
+            <div className="relative w-32 h-32 bg-gradient-to-br from-amber-400 to-pink-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-pink-500/25 rotate-3">
+              <Gift className="w-14 h-14 text-white" />
+            </div>
+            <motion.div
+              animate={{ y: [-4, 4, -4] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+              className="absolute -top-2 -right-2"
+            >
+              <Sparkles className="w-8 h-8 text-amber-400" />
+            </motion.div>
+          </motion.div>
+
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200/60 rounded-full px-5 py-2 mb-6"
+          >
+            <Clock className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-semibold text-amber-700">Coming Soon</span>
+          </motion.div>
+
+          {/* Heading */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight leading-tight mb-4"
+          >
+            Gift Cards are
+            <br />
+            <span className="bg-gradient-to-r from-amber-500 via-pink-500 to-purple-500 bg-clip-text text-transparent">
+              on their way
+            </span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="text-lg text-gray-500 max-w-md mx-auto mb-10 font-medium"
+          >
+            We're building something special. Send instant digital gift cards to your friends 
+            and family for any occasion. Stay tuned!
+          </motion.p>
+
+          {/* Preview cards */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="flex justify-center gap-4 mb-12"
+          >
+            {[
+              { gradient: "from-pink-500 to-rose-400", label: "Fashion", angle: "-6deg" },
+              { gradient: "from-blue-500 to-cyan-400", label: "Tech", angle: "0deg" },
+              { gradient: "from-emerald-500 to-teal-400", label: "Home", angle: "6deg" },
+            ].map((card, i) => (
+              <motion.div
+                key={card.label}
+                initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
+                animate={{ opacity: 1, scale: 1, rotate: card.angle }}
+                transition={{ delay: 0.7 + i * 0.1 }}
+                className={`w-28 h-40 md:w-36 md:h-48 rounded-2xl bg-gradient-to-br ${card.gradient} relative overflow-hidden shadow-xl p-4 flex flex-col justify-between`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50 pointer-events-none" />
+                <div className="absolute -right-6 -top-6 w-20 h-20 bg-white/10 rounded-full blur-xl pointer-events-none" />
+                <h3 className="text-white text-lg font-bold tracking-tight opacity-90 relative z-10">{card.label}</h3>
+                <div className="self-end bg-black/20 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 relative z-10">
+                  <span className="text-white/90 text-[10px] font-semibold">Gift Card</span>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Notify form */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 }}
+          >
+            {subscribed ? (
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="inline-flex items-center gap-3 bg-emerald-50 border border-emerald-200/60 rounded-2xl px-8 py-4"
+              >
+                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                <span className="text-sm font-semibold text-emerald-700">
+                  You're on the list! We'll notify you at launch.
+                </span>
+              </motion.div>
+            ) : (
+              <form onSubmit={handleNotify} className="flex flex-col sm:flex-row items-center gap-3 max-w-md mx-auto">
+                <div className="relative flex-1 w-full">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className="w-full h-13 pl-11 pr-4 bg-white border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-gray-300 focus:shadow-md transition-all placeholder:text-gray-400"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="h-13 rounded-xl bg-gray-900 hover:bg-gray-800 text-white px-8 font-semibold shadow-xl shadow-gray-900/15 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                >
+                  <Bell className="w-4 h-4 mr-2" />
+                  Notify Me
+                </Button>
+              </form>
+            )}
+          </motion.div>
+
+          {/* Back link */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.1 }}
+            className="mt-8"
+          >
+            <button
+              onClick={() => navigate("/")}
+              className="text-sm text-gray-400 hover:text-gray-600 font-medium transition-colors"
+            >
+              ← Back to Shopping
+            </button>
+          </motion.div>
+        </motion.div>
+      </main>
+      <BottomNav />
+    </div>
+  );
+};
+
+/* ─── Full Gift Card catalog (admin only) ─── */
 const GiftCards = () => {
+  const { isAdmin, loading: authLoading } = useAuth();
+
   const [giftCards, setGiftCards] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -169,9 +344,11 @@ const GiftCards = () => {
   };
 
   useEffect(() => {
-    setCurrentPage(1);
-    loadCatalog();
-  }, [searchQuery]);
+    if (isAdmin) {
+      setCurrentPage(1);
+      loadCatalog();
+    }
+  }, [searchQuery, isAdmin]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,6 +421,24 @@ const GiftCards = () => {
       setIsAdding(false);
     }
   };
+
+  // Show loading spinner while auth state is resolving
+  if (authLoading) {
+    return (
+      <div className="bg-[#f0f4f8] min-h-screen font-plus-jakarta pb-24">
+        <Header />
+        <main className="pt-24 flex items-center justify-center min-h-[calc(100vh-6rem)]">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  // Non-admin users see the Coming Soon page
+  if (!isAdmin) {
+    return <GiftCardsComingSoon />;
+  }
 
   return (
     <div className="bg-[#f0f4f8] min-h-screen font-plus-jakarta pb-24">

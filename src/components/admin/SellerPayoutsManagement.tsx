@@ -82,18 +82,22 @@ export const SellerPayoutsManagement = () => {
       });
 
       (earnings || []).forEach((e) => {
-        const item = map.get(e.seller_id);
-        if (item) {
-          item.gross_sales += Number(e.gross_amount || 0);
-          item.platform_fee += Number(e.platform_fee || 0);
-          item.net_earnings += Number(e.net_amount || 0);
+        if (e.seller_id) {
+          const item = map.get(e.seller_id);
+          if (item) {
+            item.gross_sales += Number(e.gross_amount || 0);
+            item.platform_fee += Number(e.platform_fee || 0);
+            item.net_earnings += Number(e.net_amount || 0);
+          }
         }
       });
 
       (payouts || []).forEach((p) => {
-        const item = map.get(p.seller_id);
-        if (item && p.status === "completed") {
-          item.paid_out += Number(p.amount || 0);
+        if (p.seller_id) {
+          const item = map.get(p.seller_id);
+          if (item && p.status === "completed") {
+            item.paid_out += Number(p.amount || 0);
+          }
         }
       });
 

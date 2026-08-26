@@ -1032,6 +1032,108 @@ export type Database = {
           },
         ]
       }
+      seller_earnings: {
+        Row: {
+          created_at: string
+          gross_amount: number
+          id: string
+          net_amount: number
+          order_id: string | null
+          order_item_id: string | null
+          platform_fee: number
+          seller_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          order_id?: string | null
+          order_item_id?: string | null
+          platform_fee?: number
+          seller_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          order_id?: string | null
+          order_item_id?: string | null
+          platform_fee?: number
+          seller_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_earnings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_earnings_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_earnings_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          payout_method: string | null
+          payout_reference: string | null
+          seller_id: string | null
+          status: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payout_method?: string | null
+          payout_reference?: string | null
+          seller_id?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payout_method?: string | null
+          payout_reference?: string | null
+          seller_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_payouts_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seller_profiles: {
         Row: {
           account_name: string | null
