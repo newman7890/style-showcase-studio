@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Loader2, Bot, User, Package, HelpCircle, UserCheck } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Bot, User, Package, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -177,7 +177,6 @@ export const AIChatbot = () => {
   const quickActions = [
     { icon: Package, label: "Track my order", message: "I want to track my order" },
     { icon: HelpCircle, label: "Product help", message: "I need help finding a product" },
-    { icon: UserCheck, label: "Speak to human agent", message: "I want to talk to a human support agent" },
   ];
 
   return (
@@ -248,7 +247,7 @@ export const AIChatbot = () => {
                     <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                     <p className="text-sm font-medium mb-1">Welcome to Live Support!</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      I'm your 24/7 AI assistant. Ask me anything or request a human agent anytime.
+                      I'm your 24/7 AI assistant. Ask me anything about products, orders, or store policies.
                     </p>
                     <div className="space-y-2">
                       {quickActions.map((action, index) => (
