@@ -1,3 +1,4 @@
+import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -52,75 +53,77 @@ const ConditionalChatbot = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <LanguageProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <NetworkStatus />
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/products" element={<Navigate to="/department/home" replace />} />
-              <Route path="/department/:slug" element={<Department />} />
-              <Route path="/art" element={<ArtGallery />} />
-              <Route path="/product/:id" element={<ProductDetail />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/gift-cards" element={<GiftCards />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
-              <Route path="/track" element={<TrackOrder />} />
-              <Route path="/track/:trackingCode" element={<TrackOrder />} />
-              <Route path="/track-order" element={<TrackOrder />} />
-              <Route path="/track-order/:trackingCode" element={<TrackOrder />} />
-              <Route path="/favorites" element={<Favorites />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/profile/personal" element={<PersonalInformation />} />
-              <Route path="/profile/notifications" element={<Notifications />} />
-              <Route path="/profile/address" element={<Address />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/settings/language" element={<Language />} />
-              <Route path="/settings/contact" element={<ContactUs />} />
-              <Route path="/settings/password" element={<ChangePassword />} />
-              <Route path="/settings/privacy" element={<PrivacyPolicy />} />
-              <Route path="/orders" element={<OrderHistory />} />
-              <Route path="/payment/callback" element={<PaymentCallback />} />
-              <Route path="/wishlist/:token" element={<SharedWishlist />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute requireAdmin>
-                    <Admin />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/sell" element={<Sell />} />
-              <Route
-                path="/seller"
-                element={
-                  <SellerProtectedRoute>
-                    <SellerDashboard />
-                  </SellerProtectedRoute>
-                }
-              />
-              {/* Rider Delivery App Routes */}
-              <Route path="/rider/login" element={<RiderLogin />} />
-              <Route path="/rider/dashboard" element={
-                <RiderProtectedRoute><RiderDashboard /></RiderProtectedRoute>
-              } />
-              <Route path="/rider/order/:id" element={
-                <RiderProtectedRoute><RiderOrderDetail /></RiderProtectedRoute>
-              } />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <ConditionalChatbot />
-          </BrowserRouter>
-        </LanguageProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <LanguageProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <NetworkStatus />
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/products" element={<Navigate to="/department/home" replace />} />
+                <Route path="/department/:slug" element={<Department />} />
+                <Route path="/art" element={<ArtGallery />} />
+                <Route path="/product/:id" element={<ProductDetail />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/gift-cards" element={<GiftCards />} />
+                <Route path="/checkout" element={<Checkout />} />
+                <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
+                <Route path="/track" element={<TrackOrder />} />
+                <Route path="/track/:trackingCode" element={<TrackOrder />} />
+                <Route path="/track-order" element={<TrackOrder />} />
+                <Route path="/track-order/:trackingCode" element={<TrackOrder />} />
+                <Route path="/favorites" element={<Favorites />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/profile/personal" element={<PersonalInformation />} />
+                <Route path="/profile/notifications" element={<Notifications />} />
+                <Route path="/profile/address" element={<Address />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/settings/language" element={<Language />} />
+                <Route path="/settings/contact" element={<ContactUs />} />
+                <Route path="/settings/password" element={<ChangePassword />} />
+                <Route path="/settings/privacy" element={<PrivacyPolicy />} />
+                <Route path="/orders" element={<OrderHistory />} />
+                <Route path="/payment/callback" element={<PaymentCallback />} />
+                <Route path="/wishlist/:token" element={<SharedWishlist />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <Admin />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/sell" element={<Sell />} />
+                <Route
+                  path="/seller"
+                  element={
+                    <SellerProtectedRoute>
+                      <SellerDashboard />
+                    </SellerProtectedRoute>
+                  }
+                />
+                {/* Rider Delivery App Routes */}
+                <Route path="/rider/login" element={<RiderLogin />} />
+                <Route path="/rider/dashboard" element={
+                  <RiderProtectedRoute><RiderDashboard /></RiderProtectedRoute>
+                } />
+                <Route path="/rider/order/:id" element={
+                  <RiderProtectedRoute><RiderOrderDetail /></RiderProtectedRoute>
+                } />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <ConditionalChatbot />
+            </BrowserRouter>
+          </LanguageProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

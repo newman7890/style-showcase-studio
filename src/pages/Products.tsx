@@ -1,3 +1,4 @@
+import { SEO } from "@/components/SEO";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -138,6 +139,17 @@ const Products = () => {
 
   return (
     <>
+      <SEO
+        title="Explore All Products"
+        description="Browse the complete catalog of fashion, electronics, gadgets, home goods, and art on Trades Point. Enjoy deals, low prices, and fast delivery."
+        keywords={[
+          "Trades Point Products",
+          "Buy Clothes Online Ghana",
+          "Buy Gadgets Ghana",
+          "Ghana Online Marketplace",
+          "Deals and Discounts Ghana"
+        ]}
+      />
       <Header />
       <main className="min-h-screen pt-16 pb-20 bg-background">
         <div className="container mx-auto px-4 py-6 md:py-10 max-w-6xl">

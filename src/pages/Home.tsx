@@ -1,3 +1,4 @@
+import { SEO } from "@/components/SEO";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef, useMemo } from "react";
@@ -309,6 +310,40 @@ const Home = () => {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background font-inter antialiased">
+      <SEO
+        title="Shop More. Save More. Live Better."
+        description="Discover top products, electronics, fashion, gadgets, home decor, and authentic fine art at Trades Point. Enjoy instant delivery and secure checkout."
+        keywords={[
+          "Trades Point",
+          "Online Marketplace Ghana",
+          "Shop Fashion Ghana",
+          "Buy Electronics Ghana",
+          "Home Decor Store",
+          "Ghana Online Shopping",
+          "Paystack Shopping Ghana",
+          "Fine Art Marketplace"
+        ]}
+        schema={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Trades Point",
+            "url": "https://tradespoint.store",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://tradespoint.store/department/home?search={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Trades Point",
+            "url": "https://tradespoint.store",
+            "logo": "https://tradespoint.store/logo.png"
+          }
+        ]}
+      />
       
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <Header />

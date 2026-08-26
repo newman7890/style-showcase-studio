@@ -1,3 +1,4 @@
+import { SEO } from "@/components/SEO";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -167,6 +168,18 @@ export default function ArtGallery() {
 
   return (
     <>
+      <SEO
+        title="Fine Art Showcase & Gallery"
+        description="Explore curated fine art, digital art, paintings, handcrafted sculptures, and prints on Trades Point. Connect with authentic creators and visual artists."
+        keywords={[
+          "Fine Art Gallery Ghana",
+          "Digital Art Store",
+          "Buy Paintings Online",
+          "Handcrafted Sculptures",
+          "Ghana Art Showcase",
+          "Trades Point Art"
+        ]}
+      />
       <Header />
       <main className="min-h-screen bg-slate-950 text-slate-100 pt-20 pb-28">
         {/* Gallery Hero Banner */}

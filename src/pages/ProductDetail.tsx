@@ -1,3 +1,4 @@
+import { SEO } from "@/components/SEO";
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -5,6 +6,16 @@ import {
   ArrowLeft, Heart, ShoppingBag, 
   Search, CheckCircle2
 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useCart } from "@/hooks/useCart";
+import { useFavorites } from "@/hooks/useFavorites";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { ProductReviews } from "@/components/ProductReviews";
+import { Separator } from "@/components/ui/separator";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -215,10 +226,36 @@ const ProductDetail = () => {
   const availableStock = hasColorStock
     ? Number(selectedColorObj?.stock ?? 0)
     : Number(product.stock ?? 0);
-  const isSoldOut = typeof product.stock === "number" || hasColorStock ? availableStock <= 0 : false;
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": product.name,
+    "image": activeMainImage || product.image,
+    "description": product.description || `${product.name} available at Trades Point.`,
+    "sku": product.id,
+    "offers": {
+      "@type": "Offer",
+      "url": `https://tradespoint.store/product/${product.id}`,
+      "priceCurrency": "GHS",
+      "price": displayPrice,
+      "availability": isSoldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+      "seller": {
+        "@type": "Organization",
+        "name": "Trades Point"
+      }
+    }
+  };
 
   return (
     <main className="min-h-screen bg-white font-sans text-black pb-20">
+      <SEO
+        title={product.name}
+        description={product.description || `Buy ${product.name} at the best price on Trades Point. Fast shipping & secure payments.`}
+        keywords={[product.name, product.category, "Trades Point", "Buy Online Ghana"]}
+        ogType="product"
+        ogImage={activeMainImage || product.image}
+        schema={productSchema}
+      />
       
       {/* Top Navigation - kept minimal */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">

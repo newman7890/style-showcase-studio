@@ -1,3 +1,4 @@
+import { SEO } from "@/components/SEO";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -256,6 +257,11 @@ const Department = () => {
 
   return (
     <>
+      <SEO
+        title={meta.title}
+        description={meta.tagline || `Shop the best ${meta.title} products at Trades Point. High quality items, fast delivery, and secure payments.`}
+        keywords={[meta.title, "Trades Point", "Buy Online Ghana", "Shop " + meta.title]}
+      />
       <Header />
       <main className="min-h-screen pt-16 pb-20 bg-background">
         {renderHero()}

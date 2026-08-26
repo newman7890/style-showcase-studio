@@ -1,14 +1,25 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+Allow: /products
+Allow: /product/
+Allow: /department/
+Allow: /art-gallery
+Allow: /gift-cards
+Allow: /sell
+Allow: /contact-us
+Allow: /privacy-policy
+
+Disallow: /admin
+Disallow: /seller-dashboard
+Disallow: /rider
+Disallow: /cart
+Disallow: /checkout
+Disallow: /order-confirmation
+Disallow: /settings
+Disallow: /notifications
+Disallow: /change-password
+Disallow: /personal-information
+Disallow: /address
+Disallow: /language
+
+Sitemap: https://tradespoint.store/sitemap.xml
