@@ -128,11 +128,13 @@ serve(async (req: Request): Promise<Response> => {
       </html>
     `;
 
+    const senderEmail = Deno.env.get("SENDER_EMAIL") || "StitchKit <notifications@resend.dev>";
+
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "StitchKit <notifications@resend.dev>",
+        from: senderEmail,
         to: [profile.email],
         subject: tpl.subject,
         html: emailHtml,

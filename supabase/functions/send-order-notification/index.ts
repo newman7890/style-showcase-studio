@@ -177,8 +177,10 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
+    const senderEmail = Deno.env.get("SENDER_EMAIL") || "Order Updates <onboarding@resend.dev>";
+
     const emailResponse = await resend.emails.send({
-      from: "Order Updates <onboarding@resend.dev>",
+      from: senderEmail,
       to: [order.shipping_email],
       subject: statusInfo.subject,
       html: emailHtml,
