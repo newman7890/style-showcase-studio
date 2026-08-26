@@ -25,16 +25,30 @@ interface AddressType {
 
 const Address = () => {
   const navigate = useNavigate();
-  const [addresses, setAddresses] = useState<AddressType[]>([
-    {
-      id: "1",
-      label: "Home",
-      address: "123 Main Street",
-      city: "Accra",
-      region: "Greater Accra",
-      isDefault: true,
-    },
-  ]);
+  const [addresses, setAddresses] = useState<AddressType[]>(() => {
+    try {
+      const saved = localStorage.getItem("tp_saved_addresses");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: "1",
+        label: "Home",
+        address: "123 Main Street",
+        city: "Accra",
+        region: "Greater Accra",
+        isDefault: true,
+      },
+    ];
+  });
+
+  const updateAndSaveAddresses = (newAddresses: AddressType[]) => {
+    setAddresses(newAddresses);
+    try {
+      localStorage.setItem("tp_saved_addresses", JSON.stringify(newAddresses));
+    } catch {}
+  };
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<AddressType | null>(null);
   const [formData, setFormData] = useState({
@@ -48,7 +62,7 @@ const Address = () => {
     e.preventDefault();
     
     if (editingAddress) {
-      setAddresses(addresses.map(addr => 
+      updateAndSaveAddresses(addresses.map(addr => 
         addr.id === editingAddress.id 
           ? { ...addr, ...formData }
           : addr
@@ -59,7 +73,7 @@ const Address = () => {
         ...formData,
         isDefault: addresses.length === 0,
       };
-      setAddresses([...addresses, newAddress]);
+      updateAndSaveAddresses([...addresses, newAddress]);
     }
     
     setFormData({ label: "", address: "", city: "", region: "" });
@@ -79,11 +93,11 @@ const Address = () => {
   };
 
   const handleDelete = (id: string) => {
-    setAddresses(addresses.filter(addr => addr.id !== id));
+    updateAndSaveAddresses(addresses.filter(addr => addr.id !== id));
   };
 
   const setDefault = (id: string) => {
-    setAddresses(addresses.map(addr => ({
+    updateAndSaveAddresses(addresses.map(addr => ({
       ...addr,
       isDefault: addr.id === id,
     })));

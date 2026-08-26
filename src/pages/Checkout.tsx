@@ -1,13 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Package, Tag, Loader2, X, Smartphone, CreditCard, AlertTriangle } from "lucide-react";
+import { Package, Tag, Loader2, X, Smartphone, CreditCard, AlertTriangle, MapPin, CheckCircle2, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useCart } from "@/hooks/useCart";
 import { useOrders } from "@/hooks/useOrders";
+import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,6 +87,19 @@ const Checkout = () => {
   const [otpSubmitting, setOtpSubmitting] = useState(false);
   const [deliveryFees, setDeliveryFees] = useState<Array<{ region: string; city: string | null; town: string | null; fee: number; is_default: boolean }>>([]);
 
+  const { user } = useAuth();
+  const [savedAddresses, setSavedAddresses] = useState<Array<{
+    id: string;
+    label: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    address: string;
+    city: string;
+    region: string;
+    town?: string;
+  }>>([]);
+
   useEffect(() => {
     supabase
       .from("delivery_fees")
@@ -95,6 +109,134 @@ const Checkout = () => {
         if (data) setDeliveryFees(data as any);
       });
   }, []);
+
+  useEffect(() => {
+    const options: Array<{
+      id: string;
+      label: string;
+      name?: string;
+      email?: string;
+      phone?: string;
+      address: string;
+      city: string;
+      region: string;
+      town?: string;
+    }> = [];
+
+    // 1. Load addresses from localStorage saved addresses
+    try {
+      const stored = localStorage.getItem("tp_saved_addresses");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((a: any) => {
+            options.push({
+              id: a.id || String(Math.random()),
+              label: a.label || "Saved Address",
+              name: user?.user_metadata?.full_name || "",
+              email: user?.email || "",
+              phone: a.phone || "",
+              address: a.address || "",
+              city: a.city || "",
+              region: a.region || "",
+              town: a.town || "",
+            });
+          });
+        }
+      }
+    } catch {}
+
+    // 2. Load latest order shipping details if user is signed in
+    if (user) {
+      supabase
+        .from("orders")
+        .select("shipping_name, shipping_email, shipping_phone, shipping_address, shipping_city, shipping_region")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .then(({ data }) => {
+          if (data && data[0]) {
+            const pastOrder = data[0];
+            const pastOption = {
+              id: "past-order-last",
+              label: "Recent Order Address",
+              name: pastOrder.shipping_name || "",
+              email: pastOrder.shipping_email || user.email || "",
+              phone: pastOrder.shipping_phone || "",
+              address: pastOrder.shipping_address || "",
+              city: pastOrder.shipping_city || "",
+              region: pastOrder.shipping_region || "",
+            };
+
+            if (!options.some((o) => o.address.toLowerCase() === pastOption.address.toLowerCase())) {
+              options.unshift(pastOption);
+            }
+
+            // Auto-fill formData if currently empty
+            setFormData((prev) => ({
+              shipping_name: prev.shipping_name || pastOrder.shipping_name || user?.user_metadata?.full_name || "",
+              shipping_email: prev.shipping_email || pastOrder.shipping_email || user?.email || "",
+              shipping_phone: prev.shipping_phone || pastOrder.shipping_phone || "",
+              shipping_address: prev.shipping_address || pastOrder.shipping_address || (options[0]?.address || ""),
+              shipping_city: prev.shipping_city || pastOrder.shipping_city || (options[0]?.city || ""),
+              shipping_region: prev.shipping_region || pastOrder.shipping_region || (options[0]?.region || ""),
+              shipping_town: prev.shipping_town || "",
+            }));
+          } else if (options.length > 0) {
+            setFormData((prev) => ({
+              shipping_name: prev.shipping_name || user?.user_metadata?.full_name || "",
+              shipping_email: prev.shipping_email || user?.email || "",
+              shipping_phone: prev.shipping_phone || options[0].phone || "",
+              shipping_address: prev.shipping_address || options[0].address || "",
+              shipping_city: prev.shipping_city || options[0].city || "",
+              shipping_region: prev.shipping_region || options[0].region || "",
+              shipping_town: prev.shipping_town || options[0].town || "",
+            }));
+          } else if (user) {
+            setFormData((prev) => ({
+              ...prev,
+              shipping_name: prev.shipping_name || user.user_metadata?.full_name || "",
+              shipping_email: prev.shipping_email || user.email || "",
+            }));
+          }
+          setSavedAddresses(options);
+        });
+    } else {
+      setSavedAddresses(options);
+      if (options.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          shipping_address: prev.shipping_address || options[0].address || "",
+          shipping_city: prev.shipping_city || options[0].city || "",
+          shipping_region: prev.shipping_region || options[0].region || "",
+        }));
+      }
+    }
+  }, [user]);
+
+  const selectSavedAddress = (addr: {
+    id: string;
+    label: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    address: string;
+    city: string;
+    region: string;
+    town?: string;
+  }) => {
+    setFormData((prev) => ({
+      ...prev,
+      shipping_name: addr.name || prev.shipping_name,
+      shipping_email: addr.email || prev.shipping_email,
+      shipping_phone: addr.phone || prev.shipping_phone,
+      shipping_address: addr.address,
+      shipping_city: addr.city,
+      shipping_region: addr.region,
+      shipping_town: addr.town || "",
+    }));
+    toast.success(`Loaded address: ${addr.label}`);
+  };
 
   const availableTowns = useMemo(() => {
     if (!formData.shipping_region) return [];
@@ -422,6 +564,26 @@ const Checkout = () => {
     if (!formData.shipping_name || !formData.shipping_email || !formData.shipping_phone || !formData.shipping_address || !formData.shipping_city || !formData.shipping_region) {
       toast.error("Please fill in all shipping fields"); return;
     }
+
+    // Auto-save address for future shopping trips
+    try {
+      const stored = localStorage.getItem("tp_saved_addresses");
+      const existing = stored ? JSON.parse(stored) : [];
+      const newAddr = {
+        id: String(Date.now()),
+        label: formData.shipping_address,
+        phone: formData.shipping_phone,
+        address: formData.shipping_address,
+        city: formData.shipping_city,
+        region: formData.shipping_region,
+        town: formData.shipping_town,
+        isDefault: existing.length === 0,
+      };
+      if (!existing.some((e: any) => e.address?.toLowerCase() === formData.shipping_address.toLowerCase())) {
+        localStorage.setItem("tp_saved_addresses", JSON.stringify([newAddr, ...existing]));
+      }
+    } catch {}
+
     const isMomo = paymentMethod !== "bank_card";
     resetMomoFeedback();
     if (isMomo) {
@@ -588,6 +750,51 @@ const Checkout = () => {
                     </div>
                   </div>
                 </section>
+
+                {/* Saved Addresses Selector */}
+                {savedAddresses.length > 0 && (
+                  <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-primary font-bold text-xs">
+                        <MapPin className="w-4 h-4" />
+                        <span>Use Saved Delivery Address</span>
+                      </div>
+                      <Link to="/profile/address" className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-1">
+                        <Bookmark className="w-3 h-3" /> Manage Addresses
+                      </Link>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {savedAddresses.map((addr) => {
+                        const isSelected =
+                          formData.shipping_address === addr.address &&
+                          formData.shipping_region === addr.region;
+
+                        return (
+                          <button
+                            key={addr.id}
+                            type="button"
+                            onClick={() => selectSavedAddress(addr)}
+                            className={`p-3 rounded-lg border text-left transition-all relative ${
+                              isSelected
+                                ? "border-primary bg-background shadow-xs ring-1 ring-primary"
+                                : "border-border/80 bg-background/80 hover:bg-background"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-foreground truncate pr-2">{addr.label}</span>
+                              {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{addr.address}</p>
+                            <p className="text-[10px] text-muted-foreground/80 font-medium">
+                              {addr.city}, {addr.region}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Shipping Information */}
                 <section>
