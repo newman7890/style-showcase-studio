@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent, Building2, Megaphone, Bike } from "lucide-react";
+import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent, Building2, Megaphone, Bike, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
@@ -25,6 +25,7 @@ import { HubManagement } from "@/components/admin/HubManagement";
 import { MarketingBannerManagement } from "@/components/admin/MarketingBannerManagement";
 import { CustomerSupportChat } from "@/components/admin/CustomerSupportChat";
 import { RiderManagement } from "@/components/admin/RiderManagement";
+import { SubscribersManagement } from "@/components/admin/SubscribersManagement";
 
 const Admin = () => {
   const { user, isAdmin, isSeller, loading } = useAuth();
@@ -146,6 +147,10 @@ const Admin = () => {
                     <MessageSquare className="w-4 h-4" />
                     <span className="hidden sm:inline">Live Support</span>
                   </TabsTrigger>
+                  <TabsTrigger value="subscribers" className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    <span className="hidden sm:inline">Subscribers</span>
+                  </TabsTrigger>
                 </>
               )}
               <TabsTrigger value="analytics" className="flex items-center gap-2">
@@ -161,6 +166,7 @@ const Admin = () => {
             <TabsContent value="platform"><PlatformSettingsManagement /></TabsContent>
             <TabsContent value="payouts"><SellerPayoutsManagement /></TabsContent>
             <TabsContent value="live-support"><CustomerSupportChat /></TabsContent>
+            <TabsContent value="subscribers"><SubscribersManagement /></TabsContent>
 
             <TabsContent value="products">
               <ProductManagement />

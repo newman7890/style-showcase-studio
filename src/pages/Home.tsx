@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { NewsletterSubscribe } from "@/components/NewsletterSubscribe";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef, useMemo } from "react";
@@ -588,41 +589,7 @@ const Home = () => {
         <Testimonials />
 
         {/* Newsletter Section */}
-        <section className="px-4 py-10 bg-[#f2f4f3] mt-4 flex flex-col items-center text-center rounded-3xl mx-4 lg:mx-0">
-          <div className="w-14 h-14 bg-[#e8f3ec] rounded-full flex items-center justify-center mb-4">
-            <Mail className="w-7 h-7 text-[#2d8a57]" />
-          </div>
-          <h2 className="text-xl md:text-2xl font-bold text-[#1c1c1c] mb-2 font-plus-jakarta">
-            Subscribe to our newsletter
-          </h2>
-          <p className="text-[#647187] text-sm mb-6 max-w-sm">
-            Get updates on new collections and special offers.
-          </p>
-          <form 
-            className="w-full max-w-sm flex flex-col gap-3" 
-            onSubmit={(e) => { 
-              e.preventDefault(); 
-              toast({title: "Subscribed!", description: "You're on the list for updates."}); 
-              (e.target as HTMLFormElement).reset();
-            }}
-          >
-            <input 
-              type="email" 
-              placeholder="Your email address" 
-              required
-              className="w-full px-4 py-3 rounded-full border border-gray-200/60 focus:outline-none focus:ring-2 focus:ring-[#2d8a57]/50 shadow-sm text-sm"
-            />
-            <button 
-              type="submit" 
-              className="w-full bg-[#329363] text-white font-semibold py-3 rounded-full hover:bg-[#237046] transition-colors text-sm"
-            >
-              Subscribe
-            </button>
-          </form>
-          <Link to="/settings/privacy" className="text-xs text-[#647187] mt-4 hover:underline">
-            Privacy Policy
-          </Link>
-        </section>
+        <NewsletterSubscribe variant="card" />
       </main>
 
       {/* ── Custom bottom nav (Stitch-style, wraps the existing BottomNav) ── */}

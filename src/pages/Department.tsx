@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { NewsletterSubscribe } from "@/components/NewsletterSubscribe";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -660,20 +661,7 @@ const Department = () => {
           </div>
 
           {/* Home Newsletter CTA */}
-          {slug === "home" && (
-            <div className="mt-16 bg-foreground text-background rounded-3xl p-8 md:p-12 grid md:grid-cols-2 gap-6 items-center">
-              <div>
-                <h3 className="font-serif text-3xl md:text-4xl leading-tight mb-2">Ready to Get<br />Our New Stuff?</h3>
-              </div>
-              <div>
-                <p className="text-sm opacity-80 mb-4">We'll listen to your needs and craft a shopping experience that's right for you.</p>
-                <div className="flex gap-2 bg-background rounded-full p-1">
-                  <input placeholder="Your Email" className="flex-1 bg-transparent px-4 text-sm text-foreground outline-none" />
-                  <Button className="rounded-full">Send</Button>
-                </div>
-              </div>
-            </div>
-          )}
+          {slug === "home" && <NewsletterSubscribe variant="banner" />}
         </section>
       </main>
       <BottomNav />
