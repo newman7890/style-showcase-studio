@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Loader2, Plus, Trash2, Save, History, Star, MapPin, Building2, Globe, ChevronRight, Search } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, History, Star, MapPin, Building2, Globe, ChevronRight, Search, Edit2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,8 @@ export const DeliveryFeeManagement = () => {
   const [adding, setAdding] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expandedRegions, setExpandedRegions] = useState<string[]>([]);
+  const [regionFeeEdits, setRegionFeeEdits] = useState<Record<string, string>>({});
+  const [savingRegionFee, setSavingRegionFee] = useState<string | null>(null);
 
   // Modal State for adding town/location
   const [modalOpen, setModalOpen] = useState(false);
@@ -123,6 +125,42 @@ export const DeliveryFeeManagement = () => {
       return "A delivery fee for that specific region, city, and town already exists. Edit the existing row instead.";
     }
     return msg || "Something went wrong.";
+  };
+
+  const setRegionBaseFee = async (region: string, feeValue: string) => {
+    const fee = Number(feeValue);
+    if (isNaN(fee) || fee < 0) {
+      toast.error("Enter a valid fee amount");
+      return;
+    }
+    setSavingRegionFee(region);
+    const existing = fees.find(
+      (f) => f.region.trim().toLowerCase() === region.trim().toLowerCase() && !f.city && !f.town
+    );
+    if (existing) {
+      const { error } = await supabase
+        .from("delivery_fees")
+        .update({ fee })
+        .eq("id", existing.id);
+      setSavingRegionFee(null);
+      if (error) toast.error(friendlyError(error));
+      else {
+        toast.success(`${region} region fee updated to GH₵ ${fee}`);
+        setRegionFeeEdits((prev) => { const next = { ...prev }; delete next[region]; return next; });
+        load();
+      }
+    } else {
+      const { error } = await supabase
+        .from("delivery_fees")
+        .insert({ region: region.trim(), city: null, town: null, fee, is_active: true });
+      setSavingRegionFee(null);
+      if (error) toast.error(friendlyError(error));
+      else {
+        toast.success(`${region} region fee set to GH₵ ${fee}`);
+        setRegionFeeEdits((prev) => { const next = { ...prev }; delete next[region]; return next; });
+        load();
+      }
+    }
   };
 
   const saveRow = async (row: DeliveryFee) => {
@@ -464,17 +502,18 @@ export const DeliveryFeeManagement = () => {
                 </AccordionTrigger>
 
                 <AccordionContent className="p-5 space-y-5">
-                  {/* Base Region Row */}
-                  {regGroup.regionBaseFee && (
-                    <div className="p-3 border border-primary/20 bg-primary/5 rounded-md flex items-center justify-between gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        {regGroup.regionBaseFee.is_default && <Star className="w-4 h-4 text-primary fill-primary" />}
-                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base Region Fee:</span>
-                        <span className="text-sm font-medium">{regGroup.region} (Entire Region)</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-medium">GH₵</span>
+                  {/* Base Region Fee Row — always visible */}
+                  <div className="p-3 border border-primary/20 bg-primary/5 rounded-md flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      {regGroup.regionBaseFee?.is_default && <Star className="w-4 h-4 text-primary fill-primary" />}
+                      <Globe className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Region Base Fee:</span>
+                      <span className="text-sm font-medium">{regGroup.region} (Entire Region)</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium">GH₵</span>
+                        {regGroup.regionBaseFee ? (
                           <Input
                             type="number"
                             min="0"
@@ -483,29 +522,53 @@ export const DeliveryFeeManagement = () => {
                             onChange={(e) => updateField(regGroup.regionBaseFee!.id, { fee: parseFloat(e.target.value) || 0 })}
                             className="h-8 w-24"
                           />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-muted-foreground">Active</span>
-                          <Switch
-                            checked={regGroup.regionBaseFee.is_active}
-                            onCheckedChange={(checked) => updateField(regGroup.regionBaseFee!.id, { is_active: checked })}
+                        ) : (
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={regionFeeEdits[regGroup.region] ?? ""}
+                            onChange={(e) => setRegionFeeEdits((prev) => ({ ...prev, [regGroup.region]: e.target.value }))}
+                            className="h-8 w-24"
                           />
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => saveRow(regGroup.regionBaseFee!)} disabled={savingId === regGroup.regionBaseFee.id}>
-                          {savingId === regGroup.regionBaseFee.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                        </Button>
+                        )}
+                      </div>
+                      {regGroup.regionBaseFee ? (
+                        <>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">Active</span>
+                            <Switch
+                              checked={regGroup.regionBaseFee.is_active}
+                              onCheckedChange={(checked) => updateField(regGroup.regionBaseFee!.id, { is_active: checked })}
+                            />
+                          </div>
+                          <Button size="sm" variant="outline" onClick={() => saveRow(regGroup.regionBaseFee!)} disabled={savingId === regGroup.regionBaseFee.id}>
+                            {savingId === regGroup.regionBaseFee.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteRow(regGroup.regionBaseFee!.id, regGroup.regionBaseFee!.is_default)}
+                            disabled={regGroup.regionBaseFee.is_default}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      ) : (
                         <Button
                           size="sm"
-                          variant="ghost"
-                          onClick={() => deleteRow(regGroup.regionBaseFee!.id, regGroup.regionBaseFee!.is_default)}
-                          disabled={regGroup.regionBaseFee.is_default}
-                          className="text-destructive"
+                          variant="default"
+                          onClick={() => setRegionBaseFee(regGroup.region, regionFeeEdits[regGroup.region] ?? "")}
+                          disabled={savingRegionFee === regGroup.region}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          {savingRegionFee === regGroup.region ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                          Set Fee
                         </Button>
-                      </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {/* Cities & Towns Tree */}
                   {citiesList.map((cityGroup) => (
