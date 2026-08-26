@@ -128,7 +128,7 @@ serve(async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const senderEmail = Deno.env.get("SENDER_EMAIL") || "StitchKit <notifications@resend.dev>";
+    const senderEmail = Deno.env.get("SENDER_EMAIL") || "tradespoint <info@tradespoint.store>";
 
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",

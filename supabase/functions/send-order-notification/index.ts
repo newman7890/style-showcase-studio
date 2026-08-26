@@ -171,13 +171,13 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
         
         <div style="text-align: center; padding: 20px; color: #6c757d; font-size: 12px;">
-          <p style="margin: 0;">© ${new Date().getFullYear()} Your Store. All rights reserved.</p>
+          <p style="margin: 0;">© ${new Date().getFullYear()} tradespoint. All rights reserved.</p>
         </div>
       </body>
       </html>
     `;
 
-    const senderEmail = Deno.env.get("SENDER_EMAIL") || "Order Updates <onboarding@resend.dev>";
+    const senderEmail = Deno.env.get("SENDER_EMAIL") || "tradespoint <info@tradespoint.store>";
 
     const emailResponse = await resend.emails.send({
       from: senderEmail,
