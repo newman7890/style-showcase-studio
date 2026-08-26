@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
-import { ChevronDown, SlidersHorizontal, CheckCircle2, User, Mail, MessageSquare, Loader2, X, Search, Gift, Bell, Sparkles, Clock } from "lucide-react";
+import { ChevronDown, SlidersHorizontal, CheckCircle2, User, Mail, MessageSquare, Loader2, X, Search, Gift, Bell, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -97,13 +97,6 @@ const GiftCardsComingSoon = () => {
             <div className="relative w-32 h-32 bg-gradient-to-br from-amber-400 to-pink-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-pink-500/25 rotate-3">
               <Gift className="w-14 h-14 text-white" />
             </div>
-            <motion.div
-              animate={{ y: [-4, 4, -4] }}
-              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              className="absolute -top-2 -right-2"
-            >
-              <Sparkles className="w-8 h-8 text-amber-400" />
-            </motion.div>
           </motion.div>
 
           {/* Badge */}
