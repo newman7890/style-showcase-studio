@@ -94,11 +94,15 @@ const PersonalInformation = () => {
 
       const avatarUrlWithCacheBust = `${publicUrl}?t=${Date.now()}`;
 
-      // Update profile with avatar URL
+      // Update or insert profile with avatar URL
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ avatar_url: avatarUrlWithCacheBust })
-        .eq("id", user.id);
+        .upsert({
+          id: user.id,
+          avatar_url: avatarUrlWithCacheBust,
+          full_name: formData.full_name || undefined,
+          updated_at: new Date().toISOString(),
+        });
 
       if (updateError) throw updateError;
 
