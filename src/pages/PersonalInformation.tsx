@@ -99,6 +99,7 @@ const PersonalInformation = () => {
         .from("profiles")
         .upsert({
           id: user.id,
+          email: user.email || "",
           avatar_url: avatarUrlWithCacheBust,
           full_name: formData.full_name || undefined,
           updated_at: new Date().toISOString(),
