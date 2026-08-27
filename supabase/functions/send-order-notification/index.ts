@@ -299,7 +299,7 @@ const handler = async (req: Request): Promise<Response> => {
         const receiptRes = await resend.emails.send({
           from: senderEmail,
           to: [order.shipping_email],
-          subject: `🧾 Payment Receipt & Official Invoice for Order #${shortOrderId} - Trades Point`,
+          subject: `🧾 Payment Receipt & Official Invoice (Order #${shortOrderId}) - Trades Point`,
           html: receiptHtml,
         });
         results.push({ type: "receipt_invoice", res: receiptRes });
@@ -307,6 +307,9 @@ const handler = async (req: Request): Promise<Response> => {
       } catch (err: any) {
         console.error("Error sending Payment Receipt email:", err);
       }
+
+      // 800ms delay to prevent Resend rate limits and ensure clean delivery
+      await new Promise((resolve) => setTimeout(resolve, 800));
     }
 
     // =========================================================================
@@ -381,7 +384,7 @@ const handler = async (req: Request): Promise<Response> => {
     const orderInfoRes = await resend.emails.send({
       from: senderEmail,
       to: [order.shipping_email],
-      subject: statusInfo.subject + ` — Order #${shortOrderId}`,
+      subject: `📦 Order Confirmed & Live Tracking Code (${order.tracking_code}) - Trades Point`,
       html: orderInfoHtml,
     });
     results.push({ type: "order_info", res: orderInfoRes });
