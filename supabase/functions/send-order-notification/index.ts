@@ -160,17 +160,29 @@ const handler = async (req: Request): Promise<Response> => {
         calculatedSubtotal += lineTotal;
 
         const productName = (item as any).products?.name || "Product Item";
+        const productImage = (item as any).products?.image || null;
         const variantText = formatVariantText(item.selected_color, item.selected_size);
 
         itemsTableRows += `
-          <tr style="border-bottom: 1px solid #edf2f7;">
-            <td style="padding: 12px 8px; font-size: 14px; color: #2d3748;">
-              <strong>${escapeHtml(productName)}</strong>
-              <span style="color: #718096; font-size: 12px;">${escapeHtml(variantText)}</span>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 14px 10px; font-size: 14px; color: #1e293b;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  ${productImage ? `
+                    <td style="width: 48px; padding-right: 12px; vertical-align: middle;">
+                      <img src="${escapeHtml(productImage)}" alt="${escapeHtml(productName)}" style="width: 44px; h-auto; max-height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1;" />
+                    </td>
+                  ` : ""}
+                  <td style="vertical-align: middle;">
+                    <div style="font-weight: 700; color: #0f172a;">${escapeHtml(productName)}</div>
+                    ${variantText ? `<div style="color: #64748b; font-size: 12px; margin-top: 2px;">${escapeHtml(variantText)}</div>` : ""}
+                  </td>
+                </tr>
+              </table>
             </td>
-            <td style="padding: 12px 8px; font-size: 14px; color: #4a5568; text-align: center;">${itemQty}</td>
-            <td style="padding: 12px 8px; font-size: 14px; color: #4a5568; text-align: right;">GH₵${itemUnitPrice.toFixed(2)}</td>
-            <td style="padding: 12px 8px; font-size: 14px; font-weight: 600; color: #2d3748; text-align: right;">GH₵${lineTotal.toFixed(2)}</td>
+            <td style="padding: 14px 10px; font-size: 14px; color: #334155; text-align: center; font-weight: 600;">x${itemQty}</td>
+            <td style="padding: 14px 10px; font-size: 14px; color: #334155; text-align: right;">GH₵${itemUnitPrice.toFixed(2)}</td>
+            <td style="padding: 14px 10px; font-size: 14px; font-weight: 700; color: #0f172a; text-align: right;">GH₵${lineTotal.toFixed(2)}</td>
           </tr>
         `;
       }
@@ -185,109 +197,116 @@ const handler = async (req: Request): Promise<Response> => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Payment Receipt & Official Invoice - Trades Point</title>
+          <title>Official Payment Receipt & Invoice - Trades Point</title>
         </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #2d3748; background-color: #f7fafc; margin: 0; padding: 20px;">
-          <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f1f5f9; margin: 0; padding: 24px 12px;">
+          <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.08); border: 1px solid #cbd5e1;">
             
-            <!-- Invoice Top Banner -->
-            <div style="background: #0f172a; padding: 32px 28px; color: #ffffff;">
+            <!-- Header with Official Trades Point Logo & Brand Emerald Colors -->
+            <div style="background: linear-gradient(135deg, #1c1c1c 0%, #0f172a 100%); padding: 32px 28px; color: #ffffff; border-bottom: 4px solid #329363;">
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
-                  <td>
-                    <h2 style="margin: 0; font-size: 24px; font-weight: 800; color: #10b981; letter-spacing: -0.5px;">TRADES POINT</h2>
-                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Official Payment Receipt & Tax Invoice</p>
+                  <td style="vertical-align: middle;">
+                    <img src="https://tradespoint.store/logo.png" alt="Trades Point Logo" style="height: 52px; width: auto; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
                   </td>
-                  <td style="text-align: right;">
-                    <span style="background: #10b981; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; display: inline-block;">PAID ✅</span>
+                  <td style="text-align: right; vertical-align: middle;">
+                    <div style="background: #329363; color: #ffffff; padding: 8px 16px; border-radius: 30px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: inline-block; box-shadow: 0 4px 10px rgba(50,147,99,0.3);">
+                      PAID IN FULL ✅
+                    </div>
                   </td>
                 </tr>
               </table>
+              <div style="margin-top: 18px; pt-2 border-t border-slate-800;">
+                <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #ffffff;">OFFICIAL PAYMENT RECEIPT</h2>
+                <p style="margin: 3px 0 0 0; font-size: 13px; color: #94a3b8;">Trades Point E-Commerce Store • Tax Invoice</p>
+              </div>
             </div>
 
-            <!-- Receipt Meta Info Header -->
-            <div style="background: #f8fafc; padding: 20px 28px; border-bottom: 1px solid #e2e8f0;">
+            <!-- Receipt Meta Summary Bar -->
+            <div style="background: #e8f3ec; padding: 20px 28px; border-bottom: 1px solid #cbd5e1;">
               <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                 <tr>
-                  <td style="padding: 4px 0; color: #64748b;">Invoice Number:</td>
-                  <td style="padding: 4px 0; font-weight: 700; color: #0f172a; text-align: right;">INV-${shortOrderId}</td>
+                  <td style="padding: 4px 0; color: #475569; font-weight: 600;">Receipt / Invoice No:</td>
+                  <td style="padding: 4px 0; font-weight: 800; color: #1c1c1c; text-align: right;">INV-${shortOrderId}</td>
                 </tr>
                 <tr>
-                  <td style="padding: 4px 0; color: #64748b;">Date Paid:</td>
-                  <td style="padding: 4px 0; font-weight: 600; color: #0f172a; text-align: right;">${formattedDate}</td>
+                  <td style="padding: 4px 0; color: #475569; font-weight: 600;">Date & Time Paid:</td>
+                  <td style="padding: 4px 0; font-weight: 600; color: #1c1c1c; text-align: right;">${formattedDate}</td>
                 </tr>
                 <tr>
-                  <td style="padding: 4px 0; color: #64748b;">Payment Method:</td>
-                  <td style="padding: 4px 0; font-weight: 600; color: #0f172a; text-align: right;">${escapeHtml(paymentMethodLabel)}</td>
+                  <td style="padding: 4px 0; color: #475569; font-weight: 600;">Payment Method:</td>
+                  <td style="padding: 4px 0; font-weight: 600; color: #237046; text-align: right;">${escapeHtml(paymentMethodLabel)}</td>
                 </tr>
                 <tr>
-                  <td style="padding: 4px 0; color: #64748b;">Payment Reference:</td>
-                  <td style="padding: 4px 0; font-family: monospace; font-weight: 600; color: #10b981; text-align: right;">${escapeHtml(order.payment_reference || "N/A")}</td>
+                  <td style="padding: 4px 0; color: #475569; font-weight: 600;">Transaction Reference:</td>
+                  <td style="padding: 4px 0; font-family: monospace; font-weight: 700; color: #329363; text-align: right;">${escapeHtml(order.payment_reference || "N/A")}</td>
                 </tr>
               </table>
             </div>
 
-            <!-- Customer & Shipping Billing Box -->
-            <div style="padding: 24px 28px;">
-              <div style="background: #f1f5f9; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
-                <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #475569;">Billed To / Delivery Destination</h4>
-                <p style="margin: 2px 0; font-size: 14px; font-weight: 700; color: #0f172a;">${escapeHtml(order.shipping_name)}</p>
-                <p style="margin: 2px 0; font-size: 13px; color: #475569;">📞 ${escapeHtml(order.shipping_phone)} | ✉️ ${escapeHtml(order.shipping_email)}</p>
-                <p style="margin: 2px 0; font-size: 13px; color: #475569;">📍 ${escapeHtml(order.shipping_address)}, ${escapeHtml(order.shipping_city)}, ${escapeHtml(order.shipping_region)} ${order.shipping_town ? `(${escapeHtml(order.shipping_town)})` : ""}</p>
+            <!-- Billed Customer & Shipping Info -->
+            <div style="padding: 28px;">
+              <div style="background: #f8fafc; border-radius: 14px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 26px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #237046; font-weight: 800;">Customer & Delivery Destination</h4>
+                <p style="margin: 3px 0; font-size: 15px; font-weight: 800; color: #0f172a;">${escapeHtml(order.shipping_name)}</p>
+                <p style="margin: 3px 0; font-size: 13px; color: #475569;">📞 Phone: <strong>${escapeHtml(order.shipping_phone)}</strong></p>
+                <p style="margin: 3px 0; font-size: 13px; color: #475569;">✉️ Email: <strong>${escapeHtml(order.shipping_email)}</strong></p>
+                <p style="margin: 3px 0; font-size: 13px; color: #475569;">📍 Address: <strong>${escapeHtml(order.shipping_address)}, ${escapeHtml(order.shipping_city)}, ${escapeHtml(order.shipping_region)} ${order.shipping_town ? `(${escapeHtml(order.shipping_town)})` : ""}</strong></p>
               </div>
 
-              <!-- Itemized Receipt Table -->
-              <h4 style="margin: 0 0 12px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #475569;">Itemized Purchase Summary</h4>
-              <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+              <!-- Purchased Items Breakdown -->
+              <h4 style="margin: 0 0 14px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #1c1c1c; font-weight: 800;">Purchased Items Breakdown</h4>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 26px;">
                 <thead>
-                  <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; font-size: 12px; color: #64748b; text-transform: uppercase;">
-                    <th style="padding: 8px;">Item Description</th>
-                    <th style="padding: 8px; text-align: center;">Qty</th>
-                    <th style="padding: 8px; text-align: right;">Price</th>
-                    <th style="padding: 8px; text-align: right;">Total</th>
+                  <tr style="background: #f1f5f9; border-bottom: 2px solid #329363; text-align: left; font-size: 12px; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <th style="padding: 10px;">Item</th>
+                    <th style="padding: 10px; text-align: center;">Qty</th>
+                    <th style="padding: 10px; text-align: right;">Unit Price</th>
+                    <th style="padding: 10px; text-align: right;">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${itemsTableRows || `
-                    <tr>
-                      <td style="padding: 12px 8px; font-size: 14px;">Order Items (#${shortOrderId})</td>
-                      <td style="padding: 12px 8px; font-size: 14px; text-align: center;">1</td>
-                      <td style="padding: 12px 8px; font-size: 14px; text-align: right;">GH₵${(grandTotal - deliveryFee).toFixed(2)}</td>
-                      <td style="padding: 12px 8px; font-size: 14px; font-weight: 600; text-align: right;">GH₵${(grandTotal - deliveryFee).toFixed(2)}</td>
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                      <td style="padding: 14px 10px; font-size: 14px; font-weight: 700;">Order Items (#${shortOrderId})</td>
+                      <td style="padding: 14px 10px; font-size: 14px; text-align: center;">1</td>
+                      <td style="padding: 14px 10px; font-size: 14px; text-align: right;">GH₵${(grandTotal - deliveryFee).toFixed(2)}</td>
+                      <td style="padding: 14px 10px; font-size: 14px; font-weight: 700; text-align: right;">GH₵${(grandTotal - deliveryFee).toFixed(2)}</td>
                     </tr>
                   `}
                 </tbody>
               </table>
 
-              <!-- Totals Breakdown Table -->
-              <div style="background: #fafafa; border-radius: 12px; padding: 18px; border: 1px solid #f1f5f9;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <!-- Totals Card with Brand Green Accents -->
+              <div style="background: #f8fafc; border-radius: 14px; padding: 20px; border: 1.5px solid #e2e8f0;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                   <tr>
-                    <td style="padding: 4px 0; color: #64748b;">Subtotal:</td>
-                    <td style="padding: 4px 0; font-weight: 600; color: #0f172a; text-align: right;">GH₵${(calculatedSubtotal || (grandTotal - deliveryFee)).toFixed(2)}</td>
+                    <td style="padding: 6px 0; color: #64748b;">Subtotal:</td>
+                    <td style="padding: 6px 0; font-weight: 700; color: #0f172a; text-align: right;">GH₵${(calculatedSubtotal || (grandTotal - deliveryFee)).toFixed(2)}</td>
                   </tr>
                   ${discountAmount > 0 ? `
                   <tr>
-                    <td style="padding: 4px 0; color: #ef4444;">Discount (${escapeHtml(order.discount_code || "Promo")}):</td>
-                    <td style="padding: 4px 0; font-weight: 600; color: #ef4444; text-align: right;">-GH₵${discountAmount.toFixed(2)}</td>
+                    <td style="padding: 6px 0; color: #dc2626; font-weight: 600;">Applied Discount (${escapeHtml(order.discount_code || "Promo")}):</td>
+                    <td style="padding: 6px 0; font-weight: 700; color: #dc2626; text-align: right;">-GH₵${discountAmount.toFixed(2)}</td>
                   </tr>
                   ` : ""}
                   <tr>
-                    <td style="padding: 4px 0; color: #64748b;">Delivery Fee:</td>
-                    <td style="padding: 4px 0; font-weight: 600; color: #0f172a; text-align: right;">GH₵${deliveryFee.toFixed(2)}</td>
+                    <td style="padding: 6px 0; color: #64748b;">Delivery & Shipping Fee:</td>
+                    <td style="padding: 6px 0; font-weight: 700; color: #0f172a; text-align: right;">GH₵${deliveryFee.toFixed(2)}</td>
                   </tr>
-                  <tr style="border-top: 2px solid #e2e8f0;">
-                    <td style="padding: 10px 0 0 0; font-size: 16px; font-weight: 800; color: #0f172a;">Total Amount Paid:</td>
-                    <td style="padding: 10px 0 0 0; font-size: 18px; font-weight: 800; color: #10b981; text-align: right;">GH₵${grandTotal.toFixed(2)}</td>
+                  <tr style="border-top: 2px solid #329363;">
+                    <td style="padding: 12px 0 0 0; font-size: 17px; font-weight: 900; color: #1c1c1c;">Total Paid:</td>
+                    <td style="padding: 12px 0 0 0; font-size: 22px; font-weight: 900; color: #329363; text-align: right;">GH₵${grandTotal.toFixed(2)}</td>
                   </tr>
                 </table>
               </div>
             </div>
 
-            <!-- Invoice Footer -->
-            <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
-              <p style="margin: 0 0 4px 0; font-weight: 600;">Trades Point E-Commerce Store</p>
-              <p style="margin: 0;">For invoice or payment inquiries, email <a href="mailto:info@tradespoint.store" style="color: #10b981; text-decoration: none;">info@tradespoint.store</a></p>
+            <!-- Footer with Customer Support & Brand Copyright -->
+            <div style="background: #1c1c1c; padding: 24px 28px; text-align: center; color: #94a3b8; font-size: 13px;">
+              <p style="margin: 0 0 6px 0; font-weight: 700; color: #ffffff;">Trades Point E-Commerce Store</p>
+              <p style="margin: 0 0 10px 0; color: #cbd5e1;">Shop More. Save More. Live Better.</p>
+              <p style="margin: 0; font-size: 12px;">Need assistance? Contact support at <a href="mailto:info@tradespoint.store" style="color: #34d399; font-weight: 700; text-decoration: none;">info@tradespoint.store</a> or visit <a href="https://tradespoint.store" style="color: #34d399; font-weight: 700; text-decoration: none;">tradespoint.store</a></p>
             </div>
           </div>
         </body>
