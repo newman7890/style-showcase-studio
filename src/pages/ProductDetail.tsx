@@ -216,6 +216,7 @@ const ProductDetail = () => {
   const availableStock = hasColorStock
     ? Number(selectedColorObj?.stock ?? 0)
     : Number(product.stock ?? 0);
+  const isSoldOut = availableStock <= 0;
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
