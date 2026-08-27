@@ -113,6 +113,13 @@ const handler = async (req: Request): Promise<Response> => {
             console.error("Error updating order status:", error);
           } else {
             console.log(`Order ${orderId} payment confirmed`);
+            try {
+              await supabase.functions.invoke("send-order-notification", {
+                body: { orderId, status: "confirmed" },
+              });
+            } catch (notifErr) {
+              console.error("Error sending order notification from webhook:", notifErr);
+            }
           }
         } else if (checkoutDetails && userId) {
           const paidAmountGhs = event.data.amount / 100;
@@ -153,6 +160,14 @@ const handler = async (req: Request): Promise<Response> => {
             await supabase.from("order_items").insert(itemsToInsert);
             await supabase.from("cart_items").delete().eq("user_id", userId);
             console.log(`Webhook created confirmed order ${newOrder.id} for user ${userId}`);
+
+            try {
+              await supabase.functions.invoke("send-order-notification", {
+                body: { orderId: newOrder.id, status: "confirmed" },
+              });
+            } catch (notifErr) {
+              console.error("Error sending order notification from webhook:", notifErr);
+            }
           }
         }
         break;
