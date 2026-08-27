@@ -27,6 +27,63 @@ const generateTrackingCode = () => {
   return code;
 };
 
+/**
+ * Decrement product stock for each purchased item.
+ * Reduces both top-level `stock` integer and per-color stock in `colors` JSONB array.
+ */
+async function decrementStock(
+  supabase: any,
+  items: Array<{ product_id: string; quantity: number; selected_color?: any }>
+) {
+  for (const item of items) {
+    const qty = Number(item.quantity) || 1;
+    const productId = item.product_id;
+    if (!productId) continue;
+
+    const { data: product, error: fetchErr } = await supabase
+      .from("products")
+      .select("stock, colors")
+      .eq("id", productId)
+      .single();
+
+    if (fetchErr || !product) {
+      console.error(`Stock decrement: could not fetch product ${productId}`, fetchErr);
+      continue;
+    }
+
+    const newStock = Math.max(0, (Number(product.stock) || 0) - qty);
+    const updatePayload: Record<string, any> = { stock: newStock };
+
+    if (item.selected_color && Array.isArray(product.colors)) {
+      const colorName =
+        typeof item.selected_color === "string"
+          ? item.selected_color
+          : item.selected_color?.name || null;
+
+      if (colorName) {
+        const updatedColors = product.colors.map((c: any) => {
+          if (c && c.name === colorName) {
+            return { ...c, stock: Math.max(0, (Number(c.stock) || 0) - qty) };
+          }
+          return c;
+        });
+        updatePayload.colors = updatedColors;
+      }
+    }
+
+    const { error: updErr } = await supabase
+      .from("products")
+      .update(updatePayload)
+      .eq("id", productId);
+
+    if (updErr) {
+      console.error(`Stock decrement failed for product ${productId}:`, updErr);
+    } else {
+      console.log(`Stock decremented for product ${productId}: ${product.stock} → ${newStock}`);
+    }
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("verify-payment function called");
 
@@ -196,6 +253,14 @@ const handler = async (req: Request): Promise<Response> => {
           console.error("Error updating order status:", updateError);
         } else {
           console.log(`Order ${orderId} confirmed`);
+          // Decrement stock for order items
+          const { data: orderItems } = await supabase
+            .from("order_items")
+            .select("product_id, quantity, selected_color")
+            .eq("order_id", orderId);
+          if (orderItems && orderItems.length > 0) {
+            await decrementStock(supabase, orderItems);
+          }
         }
       } else if (checkoutDetails) {
         // 2. New checkout case: create order ONLY NOW upon successful payment!
@@ -274,6 +339,9 @@ const handler = async (req: Request): Promise<Response> => {
           if (itemsErr) {
             console.error("Error inserting order items:", itemsErr);
           } else {
+            // Decrement stock for purchased items
+            await decrementStock(supabase, checkoutDetails.items);
+
             // Record seller earnings for this order
             try {
               await supabase.rpc("record_order_seller_earnings", { _order_id: newOrder.id });
