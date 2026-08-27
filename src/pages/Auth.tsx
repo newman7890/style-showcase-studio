@@ -12,6 +12,7 @@ import { BottomNav } from "@/components/BottomNav";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -70,6 +71,30 @@ const Auth = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      toast({ title: "Error", description: "Please enter your email address.", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/settings/password`,
+      });
+      if (error) throw error;
+      toast({
+        title: "Reset link sent!",
+        description: "Check your email inbox for a password reset link.",
+      });
+      setIsForgotPassword(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -159,75 +184,120 @@ const Auth = () => {
                 className="w-20 h-20 sm:w-24 sm:h-24 object-contain mb-3 drop-shadow-md"
               />
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-800 bg-clip-text text-transparent">
-                {isLogin ? "Welcome Back" : "Create Account"}
+                {isForgotPassword ? "Reset Password" : isLogin ? "Welcome Back" : "Create Account"}
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                {isLogin
+                {isForgotPassword
+                  ? "Enter your email and we'll send you a reset link"
+                  : isLogin
                   ? "Sign in to access your Trades Point account"
                   : "Join Trades Point to shop and sell items"}
               </p>
             </div>
 
-            <form onSubmit={handleAuth} className="space-y-4">
-              {!isLogin && (
-                <div>
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required={!isLogin}
-                    placeholder="John Doe"
-                    className="mt-1"
-                  />
-                </div>
-              )}
+            {isForgotPassword ? (
+              <>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="you@example.com"
+                      className="mt-1"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full h-11 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all mt-2"
+                    disabled={loading}
+                  >
+                    {loading ? "Sending..." : "Send Reset Link"}
+                  </Button>
+                </form>
+                <button
+                  onClick={() => setIsForgotPassword(false)}
+                  className="w-full mt-5 text-xs sm:text-sm text-muted-foreground hover:text-emerald-600 transition-colors text-center font-medium"
+                >
+                  Back to Sign In
+                </button>
+              </>
+            ) : (
+              <>
+                <form onSubmit={handleAuth} className="space-y-4">
+                  {!isLogin && (
+                    <div>
+                      <Label htmlFor="fullName">Full Name</Label>
+                      <Input
+                        id="fullName"
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required={!isLogin}
+                        placeholder="John Doe"
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
 
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="you@example.com"
-                  className="mt-1"
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="you@example.com"
+                      className="mt-1"
+                    />
+                  </div>
 
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="••••••••"
-                  className="mt-1"
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      placeholder="••••••••"
+                      className="mt-1"
+                    />
+                    {isLogin && (
+                      <button
+                        type="button"
+                        onClick={() => setIsForgotPassword(true)}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 hover:underline mt-1.5 font-medium transition-colors"
+                      >
+                        Forgot Password?
+                      </button>
+                    )}
+                  </div>
 
-              <Button
-                type="submit"
-                className="w-full h-11 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all mt-2"
-                disabled={loading}
-              >
-                {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
-              </Button>
-            </form>
+                  <Button
+                    type="submit"
+                    className="w-full h-11 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all mt-2"
+                    disabled={loading}
+                  >
+                    {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
+                  </Button>
+                </form>
 
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="w-full mt-5 text-xs sm:text-sm text-muted-foreground hover:text-emerald-600 transition-colors text-center font-medium"
-            >
-              {isLogin
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
-            </button>
+                <button
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="w-full mt-5 text-xs sm:text-sm text-muted-foreground hover:text-emerald-600 transition-colors text-center font-medium"
+                >
+                  {isLogin
+                    ? "Don't have an account? Sign up"
+                    : "Already have an account? Sign in"}
+                </button>
+              </>
+            )}
           </div>
         </motion.div>
       </main>
