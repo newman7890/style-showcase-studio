@@ -17,16 +17,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { ProductReviews } from "@/components/ProductReviews";
 import { Separator } from "@/components/ui/separator";
 
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { useCart } from "@/hooks/useCart";
-import { useFavorites } from "@/hooks/useFavorites";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { ProductReviews } from "@/components/ProductReviews";
-import { Separator } from "@/components/ui/separator";
-
 interface Product {
   id: string;
   name: string;
