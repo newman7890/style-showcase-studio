@@ -23,6 +23,66 @@ interface PaystackEvent {
   };
 }
 
+/**
+ * Decrement product stock for each purchased item.
+ * Reduces both the top-level `stock` integer and the per-color stock
+ * inside the `colors` JSONB array (if the customer selected a color).
+ */
+async function decrementStock(
+  supabase: any,
+  items: Array<{ product_id: string; quantity: number; selected_color?: any }>
+) {
+  for (const item of items) {
+    const qty = Number(item.quantity) || 1;
+    const productId = item.product_id;
+    if (!productId) continue;
+
+    // 1. Decrement main product stock (never below 0)
+    const { data: product, error: fetchErr } = await supabase
+      .from("products")
+      .select("stock, colors")
+      .eq("id", productId)
+      .single();
+
+    if (fetchErr || !product) {
+      console.error(`Stock decrement: could not fetch product ${productId}`, fetchErr);
+      continue;
+    }
+
+    const newStock = Math.max(0, (Number(product.stock) || 0) - qty);
+    const updatePayload: Record<string, any> = { stock: newStock };
+
+    // 2. If customer selected a color, decrement that color's stock in the JSONB array
+    if (item.selected_color && Array.isArray(product.colors)) {
+      const colorName =
+        typeof item.selected_color === "string"
+          ? item.selected_color
+          : item.selected_color?.name || null;
+
+      if (colorName) {
+        const updatedColors = product.colors.map((c: any) => {
+          if (c && c.name === colorName) {
+            return { ...c, stock: Math.max(0, (Number(c.stock) || 0) - qty) };
+          }
+          return c;
+        });
+        updatePayload.colors = updatedColors;
+      }
+    }
+
+    const { error: updErr } = await supabase
+      .from("products")
+      .update(updatePayload)
+      .eq("id", productId);
+
+    if (updErr) {
+      console.error(`Stock decrement failed for product ${productId}:`, updErr);
+    } else {
+      console.log(`Stock decremented for product ${productId}: ${product.stock} → ${newStock}`);
+    }
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -113,6 +173,16 @@ const handler = async (req: Request): Promise<Response> => {
             console.error("Error updating order status:", error);
           } else {
             console.log(`Order ${orderId} payment confirmed`);
+
+            // Decrement stock for each item in this order
+            const { data: orderItems } = await supabase
+              .from("order_items")
+              .select("product_id, quantity, selected_color")
+              .eq("order_id", orderId);
+            if (orderItems && orderItems.length > 0) {
+              await decrementStock(supabase, orderItems);
+            }
+
             try {
               await supabase.functions.invoke("send-order-notification", {
                 body: { orderId, status: "confirmed" },
@@ -159,6 +229,10 @@ const handler = async (req: Request): Promise<Response> => {
             }));
             await supabase.from("order_items").insert(itemsToInsert);
             await supabase.from("cart_items").delete().eq("user_id", userId);
+
+            // Decrement stock for each purchased item
+            await decrementStock(supabase, checkoutDetails.items);
+
             console.log(`Webhook created confirmed order ${newOrder.id} for user ${userId}`);
 
             try {
