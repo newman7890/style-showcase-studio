@@ -12,6 +12,7 @@ interface AuthContextType {
   sellerStatus: SellerStatus;
   loading: boolean;
   refreshRoles: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   sellerStatus: "none",
   loading: true,
   refreshRoles: async () => {},
+  signOut: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -101,6 +103,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (user) await loadRoles(user.id);
   };
 
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch {}
+    } finally {
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith("sb-") || key.includes("supabase.auth"))) {
+            localStorage.removeItem(key);
+          }
+        }
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i);
+          if (key && (key.startsWith("sb-") || key.includes("supabase.auth"))) {
+            sessionStorage.removeItem(key);
+          }
+        }
+      } catch {}
+
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+      setSellerStatus("none");
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -111,6 +144,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         sellerStatus,
         loading,
         refreshRoles,
+        signOut,
       }}
     >
       {children}

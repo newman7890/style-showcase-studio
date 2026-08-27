@@ -112,8 +112,9 @@ const RiderDashboard = () => {
     }
   };
 
+  const { signOut } = useAuth();
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/rider/login");
   };
 

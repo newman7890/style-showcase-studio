@@ -28,7 +28,7 @@ import { RiderManagement } from "@/components/admin/RiderManagement";
 import { SubscribersManagement } from "@/components/admin/SubscribersManagement";
 
 const Admin = () => {
-  const { user, isAdmin, isSeller, loading } = useAuth();
+  const { user, isAdmin, isSeller, loading, signOut } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,7 +38,7 @@ const Admin = () => {
   }, [user, isAdmin, isSeller, loading, navigate]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/");
   };
 

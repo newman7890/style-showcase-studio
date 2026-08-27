@@ -21,7 +21,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useNotifications } from "@/hooks/useNotifications";
 
 const Profile = () => {
-  const { user, isAdmin, isSeller, sellerStatus } = useAuth();
+  const { user, isAdmin, isSeller, sellerStatus, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -48,10 +48,7 @@ const Profile = () => {
 
         if (error) throw error;
         if (data) {
-          setProfile({
-            full_name: data.full_name,
-            avatar_url: data.avatar_url,
-          });
+          setProfile(data);
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -75,10 +72,7 @@ const Profile = () => {
             filter: `id=eq.${user.id}`,
           },
           (payload) => {
-            setProfile({
-              full_name: payload.new.full_name,
-              avatar_url: payload.new.avatar_url,
-            });
+            setProfile(payload.new as { full_name: string | null; avatar_url: string | null });
           }
         )
         .subscribe();
@@ -90,7 +84,7 @@ const Profile = () => {
   }, [user]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     toast({
       title: t("success"),
       description: "You've been successfully logged out.",
