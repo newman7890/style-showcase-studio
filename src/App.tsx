@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-route
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { AIChatbot } from "@/components/AIChatbot";
+
 import NetworkStatus from "@/components/NetworkStatus";
 import Index from "./pages/Index";
 import Products from "./pages/Products";
@@ -45,12 +45,7 @@ import { SellerProtectedRoute } from "@/components/SellerProtectedRoute";
 
 const queryClient = new QueryClient();
 
-// Hide the AI chatbot on all rider pages
-const ConditionalChatbot = () => {
-  const { pathname } = useLocation();
-  if (pathname.startsWith("/rider")) return null;
-  return <AIChatbot />;
-};
+
 
 const App = () => (
   <HelmetProvider>
@@ -117,7 +112,7 @@ const App = () => (
                 } />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-              <ConditionalChatbot />
+
             </BrowserRouter>
           </LanguageProvider>
         </AuthProvider>
