@@ -76,14 +76,14 @@ export const NewsletterSubscribe = ({
 
   if (variant === "card") {
     return (
-      <section className="px-4 py-10 bg-[#f2f4f3] dark:bg-card my-4 flex flex-col items-center text-center rounded-3xl mx-4 lg:mx-0 border border-border/40">
-        <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
-          <Mail className="w-7 h-7" />
+      <section className="px-4 py-8 sm:py-10 bg-[#f2f4f3] dark:bg-card my-4 flex flex-col items-center text-center rounded-3xl mx-0 sm:mx-4 border border-border/40 w-full overflow-hidden">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
+          <Mail className="w-6 h-6 sm:w-7 sm:h-7" />
         </div>
-        <h2 className="text-xl md:text-2xl font-bold text-foreground mb-2 font-plus-jakarta">
+        <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2 font-plus-jakarta break-words px-2">
           {title}
         </h2>
-        <p className="text-muted-foreground text-sm mb-6 max-w-sm">
+        <p className="text-muted-foreground text-sm mb-6 max-w-sm px-2">
           {subtitle}
         </p>
 
@@ -91,13 +91,13 @@ export const NewsletterSubscribe = ({
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-5 py-3 rounded-full text-sm font-semibold"
+            className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-5 py-3 rounded-full text-sm font-semibold max-w-full"
           >
-            <CheckCircle2 className="w-5 h-5" />
-            <span>You're subscribed! We'll keep you updated.</span>
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+            <span className="text-xs sm:text-sm">You're subscribed! We'll keep you updated.</span>
           </motion.div>
         ) : (
-          <form onSubmit={handleSubscribe} className="w-full max-w-sm flex flex-col gap-3">
+          <form onSubmit={handleSubscribe} className="w-full max-w-sm flex flex-col gap-3 px-2">
             <Input
               type="email"
               placeholder="Enter your email address..."
@@ -110,7 +110,7 @@ export const NewsletterSubscribe = ({
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 rounded-full font-semibold text-sm gap-2"
+              className="w-full h-12 rounded-full font-semibold text-sm gap-2 bg-[#329363] hover:bg-[#237046] text-white"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -127,14 +127,14 @@ export const NewsletterSubscribe = ({
   }
 
   return (
-    <div className="mt-16 bg-foreground text-background rounded-3xl p-8 md:p-12 grid md:grid-cols-2 gap-6 items-center shadow-xl">
-      <div>
-        <h3 className="font-serif text-3xl md:text-4xl leading-tight mb-2">
+    <div className="mt-10 sm:mt-16 bg-foreground text-background rounded-3xl p-5 sm:p-8 md:p-12 grid md:grid-cols-2 gap-6 items-center shadow-xl overflow-hidden w-full max-w-full">
+      <div className="w-full min-w-0">
+        <h3 className="font-serif text-2xl sm:text-3xl md:text-4xl leading-tight mb-2 break-words">
           {title}
         </h3>
         <p className="text-sm opacity-80 max-w-md">{subtitle}</p>
       </div>
-      <div>
+      <div className="w-full min-w-0">
         {subscribed ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -148,7 +148,7 @@ export const NewsletterSubscribe = ({
             </div>
           </motion.div>
         ) : (
-          <form onSubmit={handleSubscribe} className="flex gap-2 bg-background rounded-full p-1.5 border border-background/20 shadow-md">
+          <form onSubmit={handleSubscribe} className="flex items-center gap-2 bg-background rounded-full p-1.5 border border-background/20 shadow-md w-full min-w-0">
             <input
               type="email"
               placeholder="Your Email"
@@ -156,12 +156,12 @@ export const NewsletterSubscribe = ({
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              className="flex-1 bg-transparent px-4 text-sm text-foreground placeholder:text-muted-foreground outline-none border-none"
+              className="flex-1 min-w-0 bg-transparent px-3 sm:px-4 text-sm text-foreground placeholder:text-muted-foreground outline-none border-none"
             />
             <Button
               type="submit"
               disabled={loading}
-              className="rounded-full px-6 h-11 font-semibold text-sm shrink-0"
+              className="rounded-full px-5 sm:px-6 h-10 sm:h-11 font-semibold text-sm shrink-0 bg-[#329363] hover:bg-[#237046] text-white"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
             </Button>
