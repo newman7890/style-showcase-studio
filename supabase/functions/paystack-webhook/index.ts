@@ -186,6 +186,7 @@ const handler = async (req: Request): Promise<Response> => {
             try {
               await supabase.functions.invoke("send-order-notification", {
                 body: { orderId, status: "confirmed" },
+                headers: { Authorization: `Bearer ${supabaseServiceKey}` },
               });
             } catch (notifErr) {
               console.error("Error sending order notification from webhook:", notifErr);
@@ -238,6 +239,7 @@ const handler = async (req: Request): Promise<Response> => {
             try {
               await supabase.functions.invoke("send-order-notification", {
                 body: { orderId: newOrder.id, status: "confirmed" },
+                headers: { Authorization: `Bearer ${supabaseServiceKey}` },
               });
             } catch (notifErr) {
               console.error("Error sending order notification from webhook:", notifErr);

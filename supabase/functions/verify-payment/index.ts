@@ -261,6 +261,16 @@ const handler = async (req: Request): Promise<Response> => {
           if (orderItems && orderItems.length > 0) {
             await decrementStock(supabase, orderItems);
           }
+
+          // Send order confirmation notification (Receipt + Tracking)
+          try {
+            await supabase.functions.invoke("send-order-notification", {
+              body: { orderId, status: "confirmed" },
+              headers: { Authorization: `Bearer ${supabaseServiceKey}` },
+            });
+          } catch (notifErr) {
+            console.error("Error invoking order notification:", notifErr);
+          }
         }
       } else if (checkoutDetails) {
         // 2. New checkout case: create order ONLY NOW upon successful payment!
@@ -356,10 +366,11 @@ const handler = async (req: Request): Promise<Response> => {
           await supabase.from("cart_items").delete().eq("user_id", userId);
         }
 
-        // Send order confirmation notification
+        // Send order confirmation notification with service role authorization
         try {
           await supabase.functions.invoke("send-order-notification", {
             body: { orderId: newOrder.id, status: "confirmed" },
+            headers: { Authorization: `Bearer ${supabaseServiceKey}` },
           });
         } catch (notifErr) {
           console.error("Error invoking order confirmation notification:", notifErr);
