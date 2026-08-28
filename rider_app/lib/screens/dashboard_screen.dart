@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../services/supabase_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -29,10 +30,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _fetchOrders();
-    // Listen for realtime updates
-    SupabaseService.ordersStream().listen((data) {
+    // Listen for realtime updates and refetch properly filtered orders
+    SupabaseService.ordersStream().listen((_) {
       if (mounted) {
-        setState(() => _orders = data);
+        _fetchOrders();
       }
     });
   }
@@ -57,7 +58,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       final data = await SupabaseService.fetchOrders();
-      if (mounted) setState(() => _orders = data);
+      if (mounted) {
+        setState(() => _orders = data);
+        NotificationService.checkForNewDeliveries(context, data);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,42 +85,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  bool _isAvailableOrder(Map<String, dynamic> o) {
+    final status = (o['status'] as String? ?? '').toLowerCase();
+    final paymentStatus = (o['payment_status'] as String? ?? '').toLowerCase();
+    final assignedRiderId = o['assigned_rider_id'] as String?;
+
+    final isPaidOrConfirmed = (paymentStatus == 'paid') ||
+        (status == 'confirmed' || status == 'processing' || status == 'shipped');
+
+    return assignedRiderId == null &&
+        isPaidOrConfirmed &&
+        status != 'pending' &&
+        status != 'delivered' &&
+        status != 'cancelled' &&
+        status != 'refunded';
+  }
+
   List<Map<String, dynamic>> get _filteredOrders {
     final currentUserId = SupabaseService.currentUser?.id;
     return _orders.where((o) {
       final status = (o['status'] as String? ?? '').toLowerCase();
-      final paymentStatus = (o['payment_status'] as String? ?? '').toLowerCase();
       final assignedRiderId = o['assigned_rider_id'] as String?;
 
-      final isPaidOrConfirmed = (paymentStatus == 'paid') ||
-          (status == 'confirmed' || status == 'processing' || status == 'shipped');
-
       if (_filter == 'available') {
-        return assignedRiderId == null && isPaidOrConfirmed && status != 'pending' && status != 'delivered' && status != 'cancelled';
+        return _isAvailableOrder(o);
       }
       if (_filter == 'my_orders') {
-        return assignedRiderId == currentUserId && status != 'delivered' && status != 'cancelled';
+        return assignedRiderId == currentUserId && status != 'delivered' && status != 'cancelled' && status != 'refunded';
       }
       if (_filter == 'delivered') {
         return status == 'delivered' && assignedRiderId == currentUserId;
       }
       if (_filter == 'all') {
-        // Show unclaimed orders OR orders claimed by this rider
-        return assignedRiderId == null || assignedRiderId == currentUserId;
+        return _isAvailableOrder(o) || (assignedRiderId == currentUserId && status != 'cancelled' && status != 'refunded');
       }
       return true;
     }).toList();
   }
 
-  int get _availableCount => _orders.where((o) {
-    final s = (o['status'] as String? ?? '').toLowerCase();
-    return o['assigned_rider_id'] == null && s != 'delivered' && s != 'cancelled';
-  }).length;
+  int get _availableCount => _orders.where(_isAvailableOrder).length;
 
   int get _myOrdersCount => _orders.where((o) {
     final s = (o['status'] as String? ?? '').toLowerCase();
     final currentUserId = SupabaseService.currentUser?.id;
-    return o['assigned_rider_id'] == currentUserId && s != 'delivered' && s != 'cancelled';
+    return o['assigned_rider_id'] == currentUserId && s != 'delivered' && s != 'cancelled' && s != 'refunded';
   }).length;
 
   int get _deliveredCount => _orders.where((o) {
@@ -136,20 +148,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            if (_activeTab == 0) ...[
-              _buildStatsRow(),
-              _buildFilterPills(),
-              Expanded(child: _buildOrdersList()),
-            ] else
-              Expanded(child: _buildProfileTab()),
-            _buildBottomNav(),
-          ],
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              if (_activeTab == 0) ...[
+                _buildStatsRow(),
+                _buildFilterPills(),
+                Expanded(child: _buildOrdersList()),
+              ] else
+                Expanded(child: _buildProfileTab()),
+              _buildBottomNav(),
+            ],
+          ),
         ),
       ),
     );
@@ -165,18 +180,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Container(
             width: 40, height: 40,
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF4ADE80), Color(0xFF16A34A)],
-              ),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4)),
               ],
             ),
-            child: const Icon(LucideIcons.bike, size: 20, color: Colors.white),
+            child: Image.asset('assets/logo.png', fit: BoxFit.contain),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -500,6 +512,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+
           // Help & Support button
           GestureDetector(
             onTap: () => Navigator.of(context).pushNamed('/support'),
@@ -520,7 +534,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           // Sign Out button
           GestureDetector(

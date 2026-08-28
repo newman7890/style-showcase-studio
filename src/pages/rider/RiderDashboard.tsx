@@ -57,12 +57,22 @@ const RiderDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Prevent back button from logging out or returning to login screen
+    window.history.pushState(null, "", window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("popstate", handlePopState);
+
     fetchOrders();
     const channel = supabase
       .channel("rider-orders")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, fetchOrders)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchOrders = async () => {
@@ -164,8 +174,8 @@ const RiderDashboard = () => {
         <div className="px-6 pt-3 pb-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#4ade80] to-[#16a34a] flex items-center justify-center shadow-md shadow-green-500/30">
-                <Bike className="w-5 h-5 text-white" strokeWidth={1.5} />
+              <div className="w-10 h-10 rounded-2xl bg-white p-1.5 flex items-center justify-center shadow-md shadow-green-500/30">
+                <img src="/logo.png" alt="Trades Point Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-white font-bold text-base leading-tight">My Deliveries</h1>

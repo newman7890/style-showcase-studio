@@ -76,6 +76,15 @@ const Address = () => {
       updateAndSaveAddresses([...addresses, newAddress]);
     }
     
+    if (user?.id) {
+      createNotification({
+        userId: user.id,
+        title: "Delivery Address Saved 📍",
+        message: `Delivery address (${formData.label || "Address"}) was saved successfully.`,
+        type: "address_update",
+      });
+    }
+    
     setFormData({ label: "", address: "", city: "", region: "" });
     setEditingAddress(null);
     setIsDialogOpen(false);

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
+import { createNotification } from "@/services/notificationService";
 
 const PaymentCallback = () => {
   const navigate = useNavigate();
@@ -72,6 +73,16 @@ const PaymentCallback = () => {
           setOrderId(data.orderId);
           setNeedsCartClear(true);
           setStatus("success");
+
+          if (user?.id) {
+            createNotification({
+              userId: user.id,
+              title: "Payment Confirmed! 💳",
+              message: `Your payment for order #${(data.orderId || "").substring(0, 8).toUpperCase()} was received successfully!`,
+              type: "payment",
+              orderId: data.orderId,
+            });
+          }
         } else {
           // Payment failed/cancelled - order has been reversed on the backend
           setErrorMessage(data?.friendlyError || "Your payment was not completed.");

@@ -1,11 +1,11 @@
 {
-    "name": "rider_app",
-    "short_name": "rider_app",
+    "name": "Trades Point Rider App",
+    "short_name": "Trades Point Rider App",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0F1620",
+    "theme_color": "#4ADE80",
+    "description": "Trades Point Rider App",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

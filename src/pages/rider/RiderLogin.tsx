@@ -34,7 +34,7 @@ const RiderLogin = () => {
       .eq("user_id", userId)
       .eq("role", "rider")
       .maybeSingle();
-    if (data) navigate("/rider/dashboard");
+    if (data) navigate("/rider/dashboard", { replace: true });
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -57,7 +57,7 @@ const RiderLogin = () => {
       }
 
       toast({ title: "Welcome back! 🚴", description: "Logged in successfully." });
-      navigate("/rider/dashboard");
+      navigate("/rider/dashboard", { replace: true });
     } catch (error: any) {
       toast({ title: "Login Failed", description: error.message, variant: "destructive" });
     } finally {
@@ -123,7 +123,7 @@ const RiderLogin = () => {
         description: "Welcome to the Rider App. You can now access your dashboard.",
       });
 
-      navigate("/rider/dashboard");
+      navigate("/rider/dashboard", { replace: true });
     } catch (err: any) {
       toast({ title: "Registration Failed", description: err.message, variant: "destructive" });
     } finally {
@@ -151,9 +151,9 @@ const RiderLogin = () => {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            className="relative z-10 w-20 h-20 rounded-2xl bg-gradient-to-br from-[#4ade80] to-[#16a34a] flex items-center justify-center shadow-lg shadow-green-500/30 mb-4"
+            className="relative z-10 w-24 h-24 rounded-2xl bg-white p-3 flex items-center justify-center shadow-lg shadow-green-500/30 mb-4"
           >
-            <Bike className="w-10 h-10 text-white" strokeWidth={1.5} />
+            <img src="/logo.png" alt="Trades Point Logo" className="w-full h-full object-contain" />
           </motion.div>
 
           <div className="text-center relative z-10">

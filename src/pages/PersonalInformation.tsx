@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { createNotification } from "@/services/notificationService";
 
 const PersonalInformation = () => {
   const navigate = useNavigate();
@@ -145,6 +146,12 @@ const PersonalInformation = () => {
         variant: "destructive",
       });
     } else {
+      createNotification({
+        userId: user.id,
+        title: "Profile Updated 👤",
+        message: "Your personal information was successfully updated.",
+        type: "profile_update",
+      });
       toast({
         title: t("success"),
         description: "Profile updated successfully",

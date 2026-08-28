@@ -36,7 +36,7 @@ class RiderApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Rider App',
+      title: 'Trades Point Rider App',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       initialRoute: '/login',

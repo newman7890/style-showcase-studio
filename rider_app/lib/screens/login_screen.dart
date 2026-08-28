@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       final isRider = await SupabaseService.checkRiderRole(user.id);
       if (isRider && mounted) {
-        Navigator.of(context).pushReplacementNamed('/dashboard');
+        Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (route) => false);
       }
     }
   }
@@ -112,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       _showSnack('Welcome back! 🚴');
-      if (mounted) Navigator.of(context).pushReplacementNamed('/dashboard');
+      if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (route) => false);
     } catch (e) {
       String message;
       final errorStr = e.toString().toLowerCase();
@@ -205,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       _showSnack('Account Registered Successfully! 🚴');
-      if (mounted) Navigator.of(context).pushReplacementNamed('/dashboard');
+      if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (route) => false);
     } catch (e) {
       String message;
       final errorStr = e.toString().toLowerCase();
@@ -272,21 +272,18 @@ class _LoginScreenState extends State<LoginScreen>
           // Content
           Column(
             children: [
-              // Animated bike icon
+              // Animated website logo icon
               ScaleTransition(
                 scale: _scaleAnim,
                 child: FadeTransition(
                   opacity: _fadeAnim,
                   child: Container(
-                    width: 96,
-                    height: 96,
+                    width: 104,
+                    height: 104,
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF4ADE80), Color(0xFF16A34A)],
-                      ),
                       boxShadow: [
                         BoxShadow(
                           color: AppTheme.primary.withValues(alpha: 0.3),
@@ -295,10 +292,9 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      LucideIcons.bike,
-                      size: 48,
-                      color: Colors.white,
+                    child: Image.asset(
+                      'assets/logo.png',
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),

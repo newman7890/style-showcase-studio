@@ -217,6 +217,10 @@ export default function SellerWizard() {
         if (form.id_document_type !== "passport" && !files.id_back)
           errs.id_back = "Upload the back of your ID";
         if (!files.selfie) errs.selfie = "Upload a clear selfie";
+        if (form.proof_of_address_type && !files.proof_of_address)
+          errs.proof_of_address = "Upload a proof of address document";
+        if (form.tax_form_type && form.tax_form_type !== "none" && !files.tax_form)
+          errs.tax_form = "Upload the selected tax form";
         for (const f of Object.values(files)) {
           if (f && f.size > MAX_FILE_MB * 1024 * 1024) {
             errs.file_size = `Each file must be under ${MAX_FILE_MB}MB`;
@@ -283,9 +287,9 @@ export default function SellerWizard() {
     if (form.id_document_type !== "passport" && !files.id_back)
       missing.id_back = "Upload the back of your ID";
     if (!files.selfie) missing.selfie = "Upload a clear selfie";
-    if (!files.proof_of_address)
+    if (form.proof_of_address_type && !files.proof_of_address)
       missing.proof_of_address = "Upload a proof of address";
-    if (form.tax_form_type !== "none" && !files.tax_form)
+    if (form.tax_form_type && form.tax_form_type !== "none" && !files.tax_form)
       missing.tax_form = "Upload the selected tax form";
     if (Object.keys(missing).length) {
       setErrors(missing);
@@ -638,6 +642,81 @@ function StepIdentity({ form, set, errors, files, setFile }: FileStepProps) {
         accept="image/*"
         error={errors.selfie}
       />
+
+      <div className="border-t pt-4 mt-4 space-y-4">
+        <div>
+          <Label>Proof of address document type (optional)</Label>
+          <Select
+            value={form.proof_of_address_type || "none"}
+            onValueChange={(v) => {
+              set("proof_of_address_type", v === "none" ? "" : v);
+              if (v === "none") setFile("proof_of_address", null);
+            }}
+          >
+            <SelectTrigger><SelectValue placeholder="Select document type (optional)" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None / Skip</SelectItem>
+              <SelectItem value="bank_statement">Bank statement</SelectItem>
+              <SelectItem value="utility_bill">Utility bill</SelectItem>
+              <SelectItem value="credit_card_statement">Credit card statement</SelectItem>
+              <SelectItem value="government_document">Government document</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {form.proof_of_address_type ? (
+          <>
+            <div>
+              <Label>Proof of address issue date</Label>
+              <Input
+                type="date"
+                value={form.proof_of_address_issued_on}
+                onChange={(e) => set("proof_of_address_issued_on", e.target.value)}
+              />
+            </div>
+            <FileInput
+              slot="proof_of_address"
+              label="Proof of address photo or PDF"
+              file={files.proof_of_address}
+              setFile={setFile}
+              accept="image/*,application/pdf"
+              error={errors.proof_of_address}
+            />
+          </>
+        ) : null}
+      </div>
+
+      <div className="border-t pt-4 space-y-4">
+        <div>
+          <Label>Tax form type (optional)</Label>
+          <Select
+            value={form.tax_form_type || "none"}
+            onValueChange={(v) => {
+              set("tax_form_type", v);
+              if (v === "none") setFile("tax_form", null);
+            }}
+          >
+            <SelectTrigger><SelectValue placeholder="Select tax form (optional)" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None / Not applicable</SelectItem>
+              <SelectItem value="w9">W-9 (US Persons)</SelectItem>
+              <SelectItem value="w8ben">W-8BEN (Non-US Individuals)</SelectItem>
+              <SelectItem value="other">Other tax document</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {form.tax_form_type && form.tax_form_type !== "none" ? (
+          <FileInput
+            slot="tax_form"
+            label="Tax form document photo or PDF"
+            file={files.tax_form}
+            setFile={setFile}
+            accept="image/*,application/pdf"
+            error={errors.tax_form}
+          />
+        ) : null}
+      </div>
 
       <Err msg={errors.file_size} />
     </>
