@@ -330,8 +330,8 @@ export default function SellerWizard() {
         bio: form.bio || form.store_description || null,
         // new fields
         full_legal_name: form.full_legal_name,
-        date_of_birth: form.date_of_birth,
-        business_type: form.business_type,
+        date_of_birth: form.date_of_birth || null,
+        business_type: form.business_type || null,
         business_registration_number: form.business_registration_number || null,
         business_address: form.business_address,
         tax_id: form.tax_id || null,
@@ -342,9 +342,9 @@ export default function SellerWizard() {
         id_document_back_url: idBack,
         selfie_url: selfie,
         proof_of_address_url: poa,
-        proof_of_address_type: form.proof_of_address_type,
-        proof_of_address_issued_on: form.proof_of_address_issued_on,
-        tax_form_type: form.tax_form_type,
+        proof_of_address_type: form.proof_of_address_type || null,
+        proof_of_address_issued_on: form.proof_of_address_issued_on || null,
+        tax_form_type: form.tax_form_type || "none",
         tax_form_url: taxForm,
         payout_method: form.payout_method,
         bank_name: form.payout_method === "bank" ? form.bank_name : null,
@@ -358,7 +358,7 @@ export default function SellerWizard() {
         store_name: form.store_name,
         store_logo_url: storeLogo,
         store_description: form.store_description,
-        return_address: form.return_address,
+        return_address: form.return_address || null,
       } as any);
       if (error) throw error;
 
