@@ -192,10 +192,17 @@ const Department = () => {
           setPriceRange([0, Math.ceil(max)]);
         }
       }
-      let loadedCats = (catRes.data as Category[]) || [];
+      let loadedCats: Category[] = (catRes.data as Category[]) || [];
       if (slug === "fashion") {
         const existingSlugs = new Set(loadedCats.map((c) => c.slug));
-        const missingPresets = PRESET_FASHION_CATEGORIES.filter((p) => !existingSlugs.has(p.slug));
+        const missingPresets: Category[] = PRESET_FASHION_CATEGORIES
+          .filter((p) => !existingSlugs.has(p.slug))
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            image: p.image ?? null,
+          }));
         loadedCats = [...loadedCats, ...missingPresets];
       }
       setCategories(loadedCats);
