@@ -643,81 +643,6 @@ function StepIdentity({ form, set, errors, files, setFile }: FileStepProps) {
         error={errors.selfie}
       />
 
-      <div className="border-t pt-4 mt-4 space-y-4">
-        <div>
-          <Label>Proof of address document type (optional)</Label>
-          <Select
-            value={form.proof_of_address_type || "none"}
-            onValueChange={(v) => {
-              set("proof_of_address_type", v === "none" ? "" : v);
-              if (v === "none") setFile("proof_of_address", null);
-            }}
-          >
-            <SelectTrigger><SelectValue placeholder="Select document type (optional)" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None / Skip</SelectItem>
-              <SelectItem value="bank_statement">Bank statement</SelectItem>
-              <SelectItem value="utility_bill">Utility bill</SelectItem>
-              <SelectItem value="credit_card_statement">Credit card statement</SelectItem>
-              <SelectItem value="government_document">Government document</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {form.proof_of_address_type ? (
-          <>
-            <div>
-              <Label>Proof of address issue date</Label>
-              <Input
-                type="date"
-                value={form.proof_of_address_issued_on}
-                onChange={(e) => set("proof_of_address_issued_on", e.target.value)}
-              />
-            </div>
-            <FileInput
-              slot="proof_of_address"
-              label="Proof of address photo or PDF"
-              file={files.proof_of_address}
-              setFile={setFile}
-              accept="image/*,application/pdf"
-              error={errors.proof_of_address}
-            />
-          </>
-        ) : null}
-      </div>
-
-      <div className="border-t pt-4 space-y-4">
-        <div>
-          <Label>Tax form type (optional)</Label>
-          <Select
-            value={form.tax_form_type || "none"}
-            onValueChange={(v) => {
-              set("tax_form_type", v);
-              if (v === "none") setFile("tax_form", null);
-            }}
-          >
-            <SelectTrigger><SelectValue placeholder="Select tax form (optional)" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None / Not applicable</SelectItem>
-              <SelectItem value="w9">W-9 (US Persons)</SelectItem>
-              <SelectItem value="w8ben">W-8BEN (Non-US Individuals)</SelectItem>
-              <SelectItem value="other">Other tax document</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {form.tax_form_type && form.tax_form_type !== "none" ? (
-          <FileInput
-            slot="tax_form"
-            label="Tax form document photo or PDF"
-            file={files.tax_form}
-            setFile={setFile}
-            accept="image/*,application/pdf"
-            error={errors.tax_form}
-          />
-        ) : null}
-      </div>
-
       <Err msg={errors.file_size} />
     </>
   );
@@ -823,13 +748,6 @@ function StepStore({ form, set, errors, files, setFile }: FileStepProps) {
         <Input value={form.store_name} onChange={(e) => set("store_name", e.target.value)} />
         <Err msg={errors.store_name} />
       </div>
-      <FileInput
-        slot="store_logo"
-        label="Store logo (optional)"
-        file={files.store_logo}
-        setFile={setFile}
-        accept="image/*"
-      />
       <div>
         <Label>Store description</Label>
         <Textarea
@@ -840,10 +758,6 @@ function StepStore({ form, set, errors, files, setFile }: FileStepProps) {
           placeholder="Tell buyers what your store sells."
         />
         <Err msg={errors.store_description} />
-      </div>
-      <div>
-        <Label>Short bio (optional, shown on your profile)</Label>
-        <Textarea value={form.bio} onChange={(e) => set("bio", e.target.value)} rows={2} maxLength={500} />
       </div>
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 p-3.5 space-y-2 text-xs">
         <div className="flex items-start gap-2.5">
