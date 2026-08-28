@@ -22,6 +22,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
+import { PRESET_FASHION_CATEGORIES } from "@/constants/categories";
 
 interface Product {
   id: string;
@@ -191,7 +192,13 @@ const Department = () => {
           setPriceRange([0, Math.ceil(max)]);
         }
       }
-      if (!catRes.error) setCategories((catRes.data as Category[]) || []);
+      let loadedCats = (catRes.data as Category[]) || [];
+      if (slug === "fashion") {
+        const existingSlugs = new Set(loadedCats.map((c) => c.slug));
+        const missingPresets = PRESET_FASHION_CATEGORIES.filter((p) => !existingSlugs.has(p.slug));
+        loadedCats = [...loadedCats, ...missingPresets];
+      }
+      setCategories(loadedCats);
       setLoading(false);
     })();
   }, [slug]);
