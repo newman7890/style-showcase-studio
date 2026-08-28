@@ -26,9 +26,32 @@
     <meta name="twitter:image" content="https://tradespoint.store/logo.png">
 </head>
 
-  <body>
+  <body oncontextmenu="return false;">
     <div id="root"></div>
     <script src="https://js.paystack.co/v1/inline.js"></script>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Disable right-click context menu
+      document.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+      });
+
+      // Disable keyboard shortcuts for viewing source / inspect element
+      document.addEventListener("keydown", function (e) {
+        // F12
+        if (e.key === "F12" || e.keyCode === 123) {
+          e.preventDefault();
+        }
+        // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U, Ctrl+S
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          (e.shiftKey
+            ? e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c"
+            : e.key === "u" || e.key === "U" || e.key === "s" || e.key === "S")
+        ) {
+          e.preventDefault();
+        }
+      });
+    </script>
   </body>
 </html>

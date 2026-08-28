@@ -9,6 +9,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import NetworkStatus from "@/components/NetworkStatus";
+import { SourceProtection } from "@/components/SourceProtection";
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import Department from "./pages/Department";
@@ -53,6 +54,7 @@ const App = () => (
       <TooltipProvider>
         <AuthProvider>
           <LanguageProvider>
+            <SourceProtection />
             <Toaster />
             <Sonner />
             <BrowserRouter>
