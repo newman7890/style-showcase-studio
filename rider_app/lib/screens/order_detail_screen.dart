@@ -574,7 +574,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _buildPickupSection() {
     final sellerModel = _seller?['fulfillment_model']?.toString();
-    final sellerAddress = _seller?['pickup_address'] ?? _seller['business_address'] ?? _seller['address'];
+    final sellerAddress = _seller?['pickup_address'] ?? _seller?['business_address'] ?? _seller?['address'];
     final sellerLandmark = _seller?['pickup_landmark']?.toString();
     final sellerPhone = _seller?['pickup_phone'] ?? _seller?['phone'];
     final sellerMapsUrl = _seller?['pickup_google_maps_url']?.toString();
