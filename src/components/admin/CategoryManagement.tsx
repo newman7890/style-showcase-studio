@@ -20,6 +20,7 @@ import {
   PRESET_GADGETS_CATEGORIES,
   PRESET_ART_CATEGORIES,
   PRESET_OTHER_CATEGORIES,
+  PRESET_HOME_CATEGORIES,
   PRESET_CATEGORIES_BY_DEPARTMENT,
   CategoryItem,
 } from "@/constants/categories";
@@ -106,6 +107,7 @@ export const CategoryManagement = () => {
         ...PRESET_GADGETS_CATEGORIES,
         ...PRESET_ART_CATEGORIES,
         ...PRESET_OTHER_CATEGORIES,
+        ...PRESET_HOME_CATEGORIES,
       ];
 
       // Merge missing presets into category list so admin can edit them all
@@ -140,6 +142,7 @@ export const CategoryManagement = () => {
         ...PRESET_GADGETS_CATEGORIES,
         ...PRESET_ART_CATEGORIES,
         ...PRESET_OTHER_CATEGORIES,
+        ...PRESET_HOME_CATEGORIES,
       ];
       let order = 1;
       const rows = allPresets.map((p) => ({

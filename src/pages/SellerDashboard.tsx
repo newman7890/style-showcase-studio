@@ -38,14 +38,7 @@ const CATEGORIES_BY_DEPARTMENT: Record<string, { value: string; label: string }[
   gadgets: PRESET_CATEGORIES_BY_DEPARTMENT.gadgets.map((c) => ({ value: c.name, label: c.name })),
   art: PRESET_CATEGORIES_BY_DEPARTMENT.art.map((c) => ({ value: c.name, label: c.name })),
   other: PRESET_CATEGORIES_BY_DEPARTMENT.other.map((c) => ({ value: c.name, label: c.name })),
-  home: [
-    { value: "Kitchen & Dining", label: "Kitchen & Dining" },
-    { value: "Bedroom & Bedding", label: "Bedroom & Bedding" },
-    { value: "Living Room", label: "Living Room" },
-    { value: "Bathroom", label: "Bathroom" },
-    { value: "Home Decor", label: "Home Decor" },
-    { value: "Storage & Organization", label: "Storage & Organization" },
-  ],
+  home: PRESET_CATEGORIES_BY_DEPARTMENT.home.map((c) => ({ value: c.name, label: c.name })),
 };
 
 interface ProductImageItem {

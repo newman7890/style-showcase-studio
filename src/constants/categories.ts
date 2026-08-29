@@ -301,9 +301,85 @@ export const PRESET_OTHER_CATEGORIES: CategoryItem[] = [
   { id: "general-miscellaneous", name: "General Miscellaneous 📦", slug: "general-miscellaneous", department: "other", group: "General Miscellaneous" },
 ];
 
+export const PRESET_HOME_CATEGORIES: CategoryItem[] = [
+  // Kitchen & Dining
+  { id: "kitchen-dining", name: "Kitchen & Dining 🍳", slug: "kitchen-dining", department: "home", group: "Kitchen & Dining" },
+  { id: "cookware-bakeware", name: "Cookware & Bakeware", slug: "cookware-bakeware", department: "home", group: "Kitchen & Dining" },
+  { id: "kitchen-appliances", name: "Kitchen Appliances", slug: "kitchen-appliances", department: "home", group: "Kitchen & Dining" },
+  { id: "dinnerware-tableware", name: "Dinnerware & Tableware", slug: "dinnerware-tableware", department: "home", group: "Kitchen & Dining" },
+  { id: "cutlery-knives", name: "Cutlery & Knives", slug: "cutlery-knives", department: "home", group: "Kitchen & Dining" },
+  { id: "drinkware-glassware", name: "Drinkware & Glassware", slug: "drinkware-glassware", department: "home", group: "Kitchen & Dining" },
+  { id: "kitchen-storage-containers", name: "Kitchen Storage & Containers", slug: "kitchen-storage-containers", department: "home", group: "Kitchen & Dining" },
+  { id: "kitchen-tools-utensils", name: "Kitchen Tools & Utensils", slug: "kitchen-tools-utensils", department: "home", group: "Kitchen & Dining" },
+
+  // Bedroom & Bedding
+  { id: "bedroom-bedding", name: "Bedroom & Bedding 🛏️", slug: "bedroom-bedding", department: "home", group: "Bedroom & Bedding" },
+  { id: "bed-sheets-pillowcases", name: "Bed Sheets & Pillowcases", slug: "bed-sheets-pillowcases", department: "home", group: "Bedroom & Bedding" },
+  { id: "duvets-comforters", name: "Duvets & Comforters", slug: "duvets-comforters", department: "home", group: "Bedroom & Bedding" },
+  { id: "pillows-cushions", name: "Pillows & Cushions", slug: "pillows-cushions", department: "home", group: "Bedroom & Bedding" },
+  { id: "mattresses-toppers", name: "Mattresses & Toppers", slug: "mattresses-toppers", department: "home", group: "Bedroom & Bedding" },
+  { id: "blankets-throws", name: "Blankets & Throws", slug: "blankets-throws", department: "home", group: "Bedroom & Bedding" },
+  { id: "wardrobes-closets", name: "Wardrobes & Closets", slug: "wardrobes-closets", department: "home", group: "Bedroom & Bedding" },
+
+  // Living Room
+  { id: "living-room", name: "Living Room 🛋️", slug: "living-room", department: "home", group: "Living Room" },
+  { id: "sofas-couches", name: "Sofas & Couches", slug: "sofas-couches", department: "home", group: "Living Room" },
+  { id: "coffee-side-tables", name: "Coffee & Side Tables", slug: "coffee-side-tables", department: "home", group: "Living Room" },
+  { id: "tv-stands-media-units", name: "TV Stands & Media Units", slug: "tv-stands-media-units", department: "home", group: "Living Room" },
+  { id: "chairs-recliners", name: "Chairs & Recliners", slug: "chairs-recliners", department: "home", group: "Living Room" },
+  { id: "living-room-decor", name: "Living Room Decor", slug: "living-room-decor", department: "home", group: "Living Room" },
+
+  // Bathroom
+  { id: "bathroom", name: "Bathroom 🛁", slug: "bathroom", department: "home", group: "Bathroom" },
+  { id: "towels-washcloths", name: "Towels & Washcloths", slug: "towels-washcloths", department: "home", group: "Bathroom" },
+  { id: "bath-mats-rugs", name: "Bath Mats & Rugs", slug: "bath-mats-rugs", department: "home", group: "Bathroom" },
+  { id: "bathroom-accessories", name: "Bathroom Accessories", slug: "bathroom-accessories", department: "home", group: "Bathroom" },
+  { id: "shower-curtains", name: "Shower Curtains", slug: "shower-curtains", department: "home", group: "Bathroom" },
+  { id: "bathroom-storage-mirrors", name: "Bathroom Storage & Mirrors", slug: "bathroom-storage-mirrors", department: "home", group: "Bathroom" },
+
+  // Home Decor & Accents
+  { id: "home-decor", name: "Home Decor & Accents 🪴", slug: "home-decor", department: "home", group: "Home Decor & Accents" },
+  { id: "wall-clocks-mirrors", name: "Wall Clocks & Mirrors", slug: "wall-clocks-mirrors", department: "home", group: "Home Decor & Accents" },
+  { id: "vases-artificial-plants", name: "Vases & Artificial Plants", slug: "vases-artificial-plants", department: "home", group: "Home Decor & Accents" },
+  { id: "candles-diffusers", name: "Candles & Diffusers", slug: "candles-diffusers", department: "home", group: "Home Decor & Accents" },
+  { id: "rugs-carpets", name: "Rugs & Carpets", slug: "rugs-carpets", department: "home", group: "Home Decor & Accents" },
+  { id: "curtains-blinds", name: "Curtains & Blinds", slug: "curtains-blinds", department: "home", group: "Home Decor & Accents" },
+  { id: "picture-frames", name: "Picture Frames", slug: "picture-frames", department: "home", group: "Home Decor & Accents" },
+
+  // Lighting & Fans
+  { id: "lighting-fans", name: "Lighting & Fans 💡", slug: "lighting-fans", department: "home", group: "Lighting & Fans" },
+  { id: "ceiling-lights-chandeliers", name: "Ceiling Lights & Chandeliers", slug: "ceiling-lights-chandeliers", department: "home", group: "Lighting & Fans" },
+  { id: "table-desk-lamps", name: "Table & Desk Lamps", slug: "table-desk-lamps", department: "home", group: "Lighting & Fans" },
+  { id: "floor-lamps", name: "Floor Lamps", slug: "floor-lamps", department: "home", group: "Lighting & Fans" },
+  { id: "decorative-string-lights", name: "Decorative String Lights", slug: "decorative-string-lights", department: "home", group: "Lighting & Fans" },
+  { id: "ceiling-standing-fans", name: "Ceiling & Standing Fans", slug: "ceiling-standing-fans", department: "home", group: "Lighting & Fans" },
+
+  // Storage & Organization
+  { id: "storage-organization", name: "Storage & Organization 📦", slug: "storage-organization", department: "home", group: "Storage & Organization" },
+  { id: "storage-boxes-bins", name: "Storage Boxes & Bins", slug: "storage-boxes-bins", department: "home", group: "Storage & Organization" },
+  { id: "shoe-racks-organizers", name: "Shoe Racks & Organizers", slug: "shoe-racks-organizers", department: "home", group: "Storage & Organization" },
+  { id: "laundry-baskets-hampers", name: "Laundry Baskets & Hampers", slug: "laundry-baskets-hampers", department: "home", group: "Storage & Organization" },
+  { id: "shelves-wall-racks", name: "Shelves & Wall Racks", slug: "shelves-wall-racks", department: "home", group: "Storage & Organization" },
+
+  // Housekeeping & Cleaning
+  { id: "housekeeping-cleaning", name: "Housekeeping & Cleaning 🧹", slug: "housekeeping-cleaning", department: "home", group: "Housekeeping & Cleaning" },
+  { id: "cleaning-supplies-tools", name: "Cleaning Supplies & Tools", slug: "cleaning-supplies-tools", department: "home", group: "Housekeeping & Cleaning" },
+  { id: "trash-cans-liners", name: "Trash Cans & Liners", slug: "trash-cans-liners", department: "home", group: "Housekeeping & Cleaning" },
+  { id: "ironing-garment-care", name: "Ironing & Garment Care", slug: "ironing-garment-care", department: "home", group: "Housekeeping & Cleaning" },
+  { id: "air-fresheners", name: "Air Fresheners", slug: "air-fresheners", department: "home", group: "Housekeeping & Cleaning" },
+
+  // Garden & Outdoor Living
+  { id: "garden-outdoor-living", name: "Garden & Outdoor Living 🏡", slug: "garden-outdoor-living", department: "home", group: "Garden & Outdoor Living" },
+  { id: "outdoor-furniture", name: "Outdoor Furniture", slug: "outdoor-furniture", department: "home", group: "Garden & Outdoor Living" },
+  { id: "garden-tools-plants", name: "Garden Tools & Plants", slug: "garden-tools-plants", department: "home", group: "Garden & Outdoor Living" },
+  { id: "outdoor-lighting-decor", name: "Outdoor Lighting & Decor", slug: "outdoor-lighting-decor", department: "home", group: "Garden & Outdoor Living" },
+  { id: "bbq-grilling", name: "BBQ & Grilling", slug: "bbq-grilling", department: "home", group: "Garden & Outdoor Living" },
+];
+
 export const PRESET_CATEGORIES_BY_DEPARTMENT: Record<string, CategoryItem[]> = {
   fashion: PRESET_FASHION_CATEGORIES,
   gadgets: PRESET_GADGETS_CATEGORIES,
   art: PRESET_ART_CATEGORIES,
   other: PRESET_OTHER_CATEGORIES,
+  home: PRESET_HOME_CATEGORIES,
 };
