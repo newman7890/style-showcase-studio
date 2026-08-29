@@ -61,11 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const auth = await authenticate(req);
-    if (!auth) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    const userId = auth?.userId || "guest_user";
 
     const rawBody = await req.json();
     const parsed = PaymentSchema.safeParse(rawBody);
@@ -73,7 +69,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Validation failed:", parsed.error.flatten());
       return new Response(
         JSON.stringify({ error: "Invalid input", details: parsed.error.flatten().fieldErrors }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -82,17 +78,17 @@ const handler = async (req: Request): Promise<Response> => {
     let serverAmount = amount;
 
     // If orderId is supplied, verify existing order amount
-    if (orderId) {
+    if (orderId && auth?.client) {
       const { data: orderRow, error: orderErr } = await auth.client
         .from("orders").select("id,total_amount,status").eq("id", orderId).maybeSingle();
       if (orderErr || !orderRow) {
         return new Response(JSON.stringify({ error: "Order not found or access denied" }), {
-          status: 403, headers: { "Content-Type": "application/json", ...corsHeaders },
+          status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
       if (orderRow.status === "confirmed" || orderRow.status === "cancelled" || orderRow.status === "refunded") {
         return new Response(JSON.stringify({ error: "Order is not payable" }), {
-          status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+          status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
       serverAmount = Number(orderRow.total_amount);
@@ -100,7 +96,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!Number.isFinite(serverAmount) || serverAmount <= 0) {
       return new Response(JSON.stringify({ error: "Invalid order amount" }), {
-        status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
@@ -136,7 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (channels.includes("mobile_money") && mobileMoneyProvider && !normalizedMobileNumber) {
       return new Response(
         JSON.stringify({ error: "Valid Ghana mobile money number is required for mobile money payments" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -151,7 +147,7 @@ const handler = async (req: Request): Promise<Response> => {
       channels,
       metadata: {
         order_id: orderId || null,
-        user_id: auth.userId,
+        user_id: userId,
         payment_method: paymentMethod,
         checkout_details: checkoutDetails || null,
         custom_fields: [
@@ -204,17 +200,17 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
     } else {
-      lastPaystackError = "No valid Paystack secret key found in Supabase Secrets.";
+      lastPaystackError = "No valid Paystack secret key configured in Admin Settings.";
     }
 
-    // If Paystack API call failed (e.g. invalid key or unconfigured API key), return explicit error so user sees the key notice on Checkout page
+    // If Paystack API call failed (e.g. invalid key or unconfigured API key), return explicit error
     if (!paystackData || !paystackData.status || !paystackData.data?.authorization_url) {
       return new Response(
         JSON.stringify({
           error: `Paystack error: ${lastPaystackError || "Could not initialize payment"}. Please enter a valid Paystack Secret Key in Admin Dashboard -> Platform Settings.`,
         }),
         {
-          status: 400,
+          status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
@@ -240,7 +236,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error("Error in initialize-payment function:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
