@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PRESET_CATEGORIES_BY_DEPARTMENT } from "@/constants/categories";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Name required").max(100),
@@ -33,41 +34,17 @@ const DEPARTMENTS = [
 ];
 
 const CATEGORIES_BY_DEPARTMENT: Record<string, { value: string; label: string }[]> = {
-  fashion: [
-    { value: "mens-clothing", label: "Men's Clothing" },
-    { value: "womens-clothing", label: "Women's Clothing" },
-    { value: "shoes-sneakers", label: "Shoes & Sneakers" },
-    { value: "bags-accessories", label: "Bags & Accessories" },
-    { value: "watches-jewelry", label: "Watches & Jewelry" },
-  ],
-  gadgets: [
-    { value: "phones-tablets", label: "Phones & Tablets" },
-    { value: "audio-headphones", label: "Audio & Headphones" },
-    { value: "wearables", label: "Wearables" },
-    { value: "gadget-accessories", label: "Accessories" },
-    { value: "smart-home", label: "Smart Home" },
-  ],
+  fashion: PRESET_CATEGORIES_BY_DEPARTMENT.fashion.map((c) => ({ value: c.name, label: c.name })),
+  gadgets: PRESET_CATEGORIES_BY_DEPARTMENT.gadgets.map((c) => ({ value: c.name, label: c.name })),
+  art: PRESET_CATEGORIES_BY_DEPARTMENT.art.map((c) => ({ value: c.name, label: c.name })),
+  other: PRESET_CATEGORIES_BY_DEPARTMENT.other.map((c) => ({ value: c.name, label: c.name })),
   home: [
-    { value: "kitchen-dining", label: "Kitchen & Dining" },
-    { value: "bedroom-bedding", label: "Bedroom & Bedding" },
-    { value: "living-room", label: "Living Room" },
-    { value: "bathroom", label: "Bathroom" },
-    { value: "home-decor", label: "Home Decor" },
-    { value: "storage-organization", label: "Storage & Organization" },
-  ],
-  art: [
-    { value: "paintings", label: "Paintings" },
-    { value: "digital-art", label: "Digital Art" },
-    { value: "sculptures", label: "Sculptures" },
-    { value: "photography", label: "Photography" },
-    { value: "handcrafts", label: "Handcrafts" },
-  ],
-  other: [
-    { value: "books-stationery", label: "Books & Stationery" },
-    { value: "sports-outdoors", label: "Sports & Outdoors" },
-    { value: "toys-games", label: "Toys & Games" },
-    { value: "health-beauty", label: "Health & Beauty" },
-    { value: "groceries", label: "Groceries" },
+    { value: "Kitchen & Dining", label: "Kitchen & Dining" },
+    { value: "Bedroom & Bedding", label: "Bedroom & Bedding" },
+    { value: "Living Room", label: "Living Room" },
+    { value: "Bathroom", label: "Bathroom" },
+    { value: "Home Decor", label: "Home Decor" },
+    { value: "Storage & Organization", label: "Storage & Organization" },
   ],
 };
 

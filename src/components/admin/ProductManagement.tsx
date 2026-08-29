@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
+import { PRESET_CATEGORIES_BY_DEPARTMENT } from "@/constants/categories";
 
 const productSchema = z.object({
   name: z.string()
@@ -648,20 +649,33 @@ export const ProductManagement = () => {
                       <option value="fashion">Fashion</option>
                       <option value="gadgets">Gadgets</option>
                       <option value="home">Home & Living</option>
+                      <option value="art">Art & Collectibles</option>
                       <option value="other">Other</option>
                     </select>
                   </div>
                   <div>
                     <Label htmlFor="category">Category</Label>
-                    <Input
+                    <select
                       id="category"
                       value={formData.category}
                       onChange={(e) =>
                         setFormData({ ...formData, category: e.target.value })
                       }
-                      maxLength={50}
-                      className={formErrors.category ? "border-destructive" : ""}
-                    />
+                      className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ${
+                        formErrors.category ? "border-destructive" : ""
+                      }`}
+                    >
+                      <option value="">Select Category</option>
+                      {(PRESET_CATEGORIES_BY_DEPARTMENT[formData.department || "fashion"] || []).map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                      {formData.category &&
+                        !(PRESET_CATEGORIES_BY_DEPARTMENT[formData.department || "fashion"] || []).some(
+                          (c) => c.name === formData.category
+                        ) && <option value={formData.category}>{formData.category}</option>}
+                    </select>
                     {formErrors.category && (
                       <p className="text-sm text-destructive mt-1">{formErrors.category}</p>
                     )}
