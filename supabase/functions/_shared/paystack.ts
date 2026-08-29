@@ -6,6 +6,15 @@ const getEnvVal = (name: string): string => {
   return val;
 };
 
+const isValidSecretKey = (key: string): boolean => {
+  if (!key || !key.startsWith("sk_")) return false;
+  const lower = key.toLowerCase();
+  if (lower.includes("your_actual") || lower.includes("placeholder") || lower.includes("xxx")) {
+    return false;
+  }
+  return key.length >= 20;
+};
+
 export interface PaystackKeyConfig {
   secretKey: string;
   publicKey: string;
@@ -14,17 +23,17 @@ export interface PaystackKeyConfig {
 
 export const getAllPaystackSecretKeys = (): PaystackKeyConfig[] => {
   const candidates: { secretName: string; publicName?: string }[] = [
-    { secretName: "Paystack_Live_Secret_Key", publicName: "Paystack_Live_Public_Key" },
     { secretName: "PAYSTACK_SECRET_KEY", publicName: "PAYSTACK_PUBLIC_KEY" },
-    { secretName: "Paystack_Test_Secret_Key", publicName: "Paystack_Test_Public_Key" },
+    { secretName: "Paystack_Live_Secret_Key", publicName: "Paystack_Live_Public_Key" },
     { secretName: "PAYSTACK_LIVE_SECRET_KEY", publicName: "PAYSTACK_LIVE_PUBLIC_KEY" },
+    { secretName: "Paystack_Test_Secret_Key", publicName: "Paystack_Test_Public_Key" },
   ];
 
   const results: PaystackKeyConfig[] = [];
 
   for (const c of candidates) {
     const val = getEnvVal(c.secretName);
-    if (val && val.startsWith("sk_")) {
+    if (isValidSecretKey(val)) {
       const pubVal = (c.publicName && getEnvVal(c.publicName)) || getEnvVal("PAYSTACK_PUBLIC_KEY") || getEnvVal("Paystack_Live_Public_Key") || "";
       results.push({
         secretKey: val,
@@ -41,7 +50,7 @@ export const getAllPaystackSecretKeys = (): PaystackKeyConfig[] => {
       if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
         trimmed = trimmed.slice(1, -1).trim();
       }
-      if (trimmed.startsWith("sk_") && !results.some(r => r.secretKey === trimmed)) {
+      if (isValidSecretKey(trimmed) && !results.some(r => r.secretKey === trimmed)) {
         results.push({
           secretKey: trimmed,
           publicKey: getEnvVal("PAYSTACK_PUBLIC_KEY") || getEnvVal("Paystack_Live_Public_Key") || "",
@@ -61,7 +70,9 @@ export const getPaystackKeys = (): PaystackKeyConfig => {
     const preview = rawVal === "NOT_SET" ? "NOT_SET" : `'${rawVal.substring(0, 10)}...'`;
     throw new Error(`No valid Paystack secret key found. Checked PAYSTACK_SECRET_KEY (Value: ${preview}). Key must start with sk_live_ or sk_test_.`);
   }
-  // Prefer live key first
+  // Prefer PAYSTACK_SECRET_KEY first, then live key
+  const primary = all.find(k => k.sourceName === "PAYSTACK_SECRET_KEY");
+  if (primary) return primary;
   const live = all.find(k => k.secretKey.startsWith("sk_live_"));
   if (live) return live;
   return all[0];
