@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, hasRole, isServiceRoleCall, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
-import { getPaystackSecretKey } from "../_shared/paystack.ts";
+import { getPaystackSecretKey, getPaystackKeys } from "../_shared/paystack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -176,7 +176,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Paystack subaccount response:", JSON.stringify(paystackData));
 
     if (!paystackRes.ok || !paystackData.status) {
-      throw new Error(paystackData.message || "Failed to create Paystack subaccount. Check API Key or Bank Details.");
+      const activeKeyInfo = getPaystackKeys();
+      const prefix = activeKeyInfo.secretKey.substring(0, 10);
+      throw new Error(`${paystackData.message || "Failed to create Paystack subaccount."} [Key Secret: ${activeKeyInfo.sourceName}, Prefix: ${prefix}...]`);
     }
 
     const subaccountCode = paystackData.data.subaccount_code;
