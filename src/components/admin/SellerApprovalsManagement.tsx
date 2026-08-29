@@ -84,6 +84,7 @@ interface SellerRow {
   status: "pending" | "approved" | "rejected" | "suspended";
   rejection_reason: string | null;
   commission_override: number | null;
+  paystack_subaccount_code: string | null;
   applied_at: string;
 }
 
@@ -141,6 +142,12 @@ export const SellerApprovalsManagement = () => {
       });
       if (data?.subaccount_code) {
         toast({ title: "Paystack Subaccount Ready", description: `Subaccount Code: ${data.subaccount_code}` });
+        // Immediately update the reviewing row so the UI reflects the new code
+        if (reviewing && reviewing.id === sellerId) {
+          setReviewing({ ...reviewing, paystack_subaccount_code: data.subaccount_code });
+        }
+        // Also update the rows list
+        setRows(prev => prev.map(r => r.id === sellerId ? { ...r, paystack_subaccount_code: data.subaccount_code } : r));
       } else {
         toast({ title: "Seller Approved Successfully", description: "Subaccount will automatically sync upon live checkout." });
       }
@@ -148,8 +155,7 @@ export const SellerApprovalsManagement = () => {
       toast({ title: "Error", description: err?.message || "Failed to create subaccount", variant: "destructive" });
     } finally {
       setSyncingSubaccount(null);
-      load();
-      setReviewing(null);
+      await load();
     }
   };
 
@@ -397,7 +403,7 @@ export const SellerApprovalsManagement = () => {
                         </>
                       )}
                       <div className="pt-2 border-t mt-2 flex items-center justify-between">
-                        <KV k="Paystack Subaccount" v={(r as any).paystack_subaccount_code || "Not created"} mono />
+                        <KV k="Paystack Subaccount" v={r.paystack_subaccount_code || "Not created"} mono />
                         <Button
                           size="sm"
                           variant="outline"
