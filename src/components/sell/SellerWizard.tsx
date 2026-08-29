@@ -867,6 +867,9 @@ function StepBank({ form, set, errors }: StepProps) {
 }
 
 function StepStore({ form, set, errors, files, setFile, uploadingSlots }: FileStepProps) {
+  const [detectingGps, setDetectingGps] = useState(false);
+  const { toast } = useToast();
+
   useEffect(() => {
     if (!form.pickup_address && (form.business_address || form.address)) {
       set("pickup_address", form.business_address || form.address);
