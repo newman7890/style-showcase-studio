@@ -254,8 +254,56 @@ export const PRESET_ART_CATEGORIES: CategoryItem[] = [
   { id: "awards", name: "Awards", slug: "awards", department: "art", group: "Awards & Trophies" },
 ];
 
+export const PRESET_OTHER_CATEGORIES: CategoryItem[] = [
+  // Beauty & Personal Care
+  { id: "beauty-personal-care", name: "Beauty & Personal Care 💄", slug: "beauty-personal-care", department: "other", group: "Beauty & Personal Care" },
+  { id: "skincare", name: "Skincare", slug: "skincare", department: "other", group: "Beauty & Personal Care" },
+  { id: "hair-care", name: "Hair Care", slug: "hair-care", department: "other", group: "Beauty & Personal Care" },
+  { id: "fragrances-perfumes", name: "Fragrances & Perfumes", slug: "fragrances-perfumes", department: "other", group: "Beauty & Personal Care" },
+  { id: "makeup-cosmetics", name: "Makeup & Cosmetics", slug: "makeup-cosmetics", department: "other", group: "Beauty & Personal Care" },
+  { id: "grooming-shaving", name: "Grooming & Shaving", slug: "grooming-shaving", department: "other", group: "Beauty & Personal Care" },
+
+  // Health & Wellness
+  { id: "health-wellness", name: "Health & Wellness 🌿", slug: "health-wellness", department: "other", group: "Health & Wellness" },
+  { id: "vitamins-supplements", name: "Vitamins & Supplements", slug: "vitamins-supplements", department: "other", group: "Health & Wellness" },
+  { id: "fitness-accessories", name: "Fitness Accessories", slug: "fitness-accessories", department: "other", group: "Health & Wellness" },
+  { id: "personal-health", name: "Personal Health", slug: "personal-health", department: "other", group: "Health & Wellness" },
+
+  // Books & Stationery
+  { id: "books-stationery", name: "Books & Stationery 📚", slug: "books-stationery", department: "other", group: "Books & Stationery" },
+  { id: "books-literature", name: "Books & Literature", slug: "books-literature", department: "other", group: "Books & Stationery" },
+  { id: "notebooks-journals", name: "Notebooks & Journals", slug: "notebooks-journals", department: "other", group: "Books & Stationery" },
+  { id: "office-school-supplies", name: "Office & School Supplies", slug: "office-school-supplies", department: "other", group: "Books & Stationery" },
+
+  // Toys, Games & Hobbies
+  { id: "toys-games-hobbies", name: "Toys, Games & Hobbies 🧸", slug: "toys-games-hobbies", department: "other", group: "Toys, Games & Hobbies" },
+  { id: "board-games-puzzles", name: "Board Games & Puzzles", slug: "board-games-puzzles", department: "other", group: "Toys, Games & Hobbies" },
+  { id: "toys-action-figures", name: "Toys & Action Figures", slug: "toys-action-figures", department: "other", group: "Toys, Games & Hobbies" },
+  { id: "musical-instruments", name: "Musical Instruments", slug: "musical-instruments", department: "other", group: "Toys, Games & Hobbies" },
+
+  // Automotive & Hardware
+  { id: "automotive-hardware", name: "Automotive & Hardware 🚗", slug: "automotive-hardware", department: "other", group: "Automotive & Hardware" },
+  { id: "car-care-cleaners", name: "Car Care & Cleaners", slug: "car-care-cleaners", department: "other", group: "Automotive & Hardware" },
+  { id: "tools-hardware", name: "Tools & Hardware", slug: "tools-hardware", department: "other", group: "Automotive & Hardware" },
+
+  // Pet Supplies
+  { id: "pet-supplies", name: "Pet Supplies 🐾", slug: "pet-supplies", department: "other", group: "Pet Supplies" },
+  { id: "pet-food-treats", name: "Pet Food & Treats", slug: "pet-food-treats", department: "other", group: "Pet Supplies" },
+  { id: "pet-accessories", name: "Pet Accessories", slug: "pet-accessories", department: "other", group: "Pet Supplies" },
+
+  // Groceries & Provisions
+  { id: "groceries-provisions", name: "Groceries & Provisions 🛒", slug: "groceries-provisions", department: "other", group: "Groceries & Provisions" },
+  { id: "snacks-confectionery", name: "Snacks & Confectionery", slug: "snacks-confectionery", department: "other", group: "Groceries & Provisions" },
+  { id: "beverages-drinks", name: "Beverages & Drinks", slug: "beverages-drinks", department: "other", group: "Groceries & Provisions" },
+  { id: "specialty-local-foods", name: "Specialty & Local Foods", slug: "specialty-local-foods", department: "other", group: "Groceries & Provisions" },
+
+  // General Miscellaneous
+  { id: "general-miscellaneous", name: "General Miscellaneous 📦", slug: "general-miscellaneous", department: "other", group: "General Miscellaneous" },
+];
+
 export const PRESET_CATEGORIES_BY_DEPARTMENT: Record<string, CategoryItem[]> = {
   fashion: PRESET_FASHION_CATEGORIES,
   gadgets: PRESET_GADGETS_CATEGORIES,
   art: PRESET_ART_CATEGORIES,
+  other: PRESET_OTHER_CATEGORIES,
 };
