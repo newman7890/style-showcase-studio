@@ -164,7 +164,98 @@ export const PRESET_GADGETS_CATEGORIES: CategoryItem[] = [
   { id: "other-gadgets", name: "Other Gadgets", slug: "other-gadgets", department: "gadgets", group: "Other Gadgets" },
 ];
 
+export const PRESET_ART_CATEGORIES: CategoryItem[] = [
+  // Paintings
+  { id: "paintings", name: "Paintings 🎨", slug: "paintings", department: "art", group: "Paintings" },
+  { id: "acrylic-paintings", name: "Acrylic Paintings", slug: "acrylic-paintings", department: "art", group: "Paintings" },
+  { id: "oil-paintings", name: "Oil Paintings", slug: "oil-paintings", department: "art", group: "Paintings" },
+  { id: "watercolor-paintings", name: "Watercolor Paintings", slug: "watercolor-paintings", department: "art", group: "Paintings" },
+  { id: "canvas-paintings", name: "Canvas Paintings", slug: "canvas-paintings", department: "art", group: "Paintings" },
+  { id: "abstract-art", name: "Abstract Art", slug: "abstract-art", department: "art", group: "Paintings" },
+  { id: "portrait-paintings", name: "Portrait Paintings", slug: "portrait-paintings", department: "art", group: "Paintings" },
+  { id: "african-art-paintings", name: "African Art Paintings", slug: "african-art-paintings", department: "art", group: "Paintings" },
+
+  // Drawings & Sketches
+  { id: "drawings-sketches", name: "Drawings & Sketches ✏️", slug: "drawings-sketches", department: "art", group: "Drawings & Sketches" },
+  { id: "pencil-drawings", name: "Pencil Drawings", slug: "pencil-drawings", department: "art", group: "Drawings & Sketches" },
+  { id: "charcoal-drawings", name: "Charcoal Drawings", slug: "charcoal-drawings", department: "art", group: "Drawings & Sketches" },
+  { id: "portrait-sketches", name: "Portrait Sketches", slug: "portrait-sketches", department: "art", group: "Drawings & Sketches" },
+  { id: "digital-drawings", name: "Digital Drawings", slug: "digital-drawings", department: "art", group: "Drawings & Sketches" },
+
+  // Wall Art & Prints
+  { id: "wall-art", name: "Wall Art & Prints 🖼️", slug: "wall-art", department: "art", group: "Wall Art & Prints" },
+  { id: "art-prints", name: "Art Prints", slug: "art-prints", department: "art", group: "Wall Art & Prints" },
+  { id: "posters", name: "Posters", slug: "posters", department: "art", group: "Wall Art & Prints" },
+  { id: "canvas-prints", name: "Canvas Prints", slug: "canvas-prints", department: "art", group: "Wall Art & Prints" },
+  { id: "metal-prints", name: "Metal Prints", slug: "metal-prints", department: "art", group: "Wall Art & Prints" },
+  { id: "wall-murals", name: "Wall Murals", slug: "wall-murals", department: "art", group: "Wall Art & Prints" },
+
+  // Sculptures & Carvings
+  { id: "sculptures", name: "Sculptures & Carvings 🗿", slug: "sculptures", department: "art", group: "Sculptures & Carvings" },
+  { id: "wood-sculptures", name: "Wood Sculptures", slug: "wood-sculptures", department: "art", group: "Sculptures & Carvings" },
+  { id: "metal-sculptures", name: "Metal Sculptures", slug: "metal-sculptures", department: "art", group: "Sculptures & Carvings" },
+  { id: "stone-sculptures", name: "Stone Sculptures", slug: "stone-sculptures", department: "art", group: "Sculptures & Carvings" },
+  { id: "clay-sculptures", name: "Clay Sculptures", slug: "clay-sculptures", department: "art", group: "Sculptures & Carvings" },
+  { id: "african-sculptures", name: "African Sculptures", slug: "african-sculptures", department: "art", group: "Sculptures & Carvings" },
+  { id: "wood-carvings", name: "Wood Carvings", slug: "wood-carvings", department: "art", group: "Sculptures & Carvings" },
+
+  // African Art & Crafts
+  { id: "african-art-crafts", name: "African Art & Crafts 🇬🇭", slug: "african-art-crafts", department: "art", group: "African Art & Crafts" },
+  { id: "adinkra-art", name: "Adinkra Art", slug: "adinkra-art", department: "art", group: "African Art & Crafts" },
+  { id: "african-masks", name: "African Masks", slug: "african-masks", department: "art", group: "African Art & Crafts" },
+  { id: "bead-art", name: "Bead Art", slug: "bead-art", department: "art", group: "African Art & Crafts" },
+  { id: "handcrafts", name: "Traditional Crafts", slug: "handcrafts", department: "art", group: "African Art & Crafts" },
+  { id: "cultural-art", name: "Cultural Art", slug: "cultural-art", department: "art", group: "African Art & Crafts" },
+
+  // Pottery & Ceramics
+  { id: "pottery-ceramics", name: "Pottery & Ceramics 🏺", slug: "pottery-ceramics", department: "art", group: "Pottery & Ceramics" },
+  { id: "ceramic-art", name: "Ceramic Art", slug: "ceramic-art", department: "art", group: "Pottery & Ceramics" },
+  { id: "pottery", name: "Pottery", slug: "pottery", department: "art", group: "Pottery & Ceramics" },
+  { id: "clay-art", name: "Clay Art", slug: "clay-art", department: "art", group: "Pottery & Ceramics" },
+  { id: "decorative-vases", name: "Decorative Vases", slug: "decorative-vases", department: "art", group: "Pottery & Ceramics" },
+
+  // Photography
+  { id: "photography", name: "Photography 📷", slug: "photography", department: "art", group: "Photography" },
+  { id: "fine-art-photography", name: "Fine Art Photography", slug: "fine-art-photography", department: "art", group: "Photography" },
+  { id: "nature-photography", name: "Nature Photography", slug: "nature-photography", department: "art", group: "Photography" },
+  { id: "african-photography", name: "African Photography", slug: "african-photography", department: "art", group: "Photography" },
+  { id: "photography-prints", name: "Photography Prints", slug: "photography-prints", department: "art", group: "Photography" },
+
+  // Textile Art
+  { id: "textile-art", name: "Textile Art 🧵", slug: "textile-art", department: "art", group: "Textile Art" },
+  { id: "kente-art", name: "Kente Art", slug: "kente-art", department: "art", group: "Textile Art" },
+  { id: "batik-art", name: "Batik Art", slug: "batik-art", department: "art", group: "Textile Art" },
+  { id: "fabric-art", name: "Fabric Art", slug: "fabric-art", department: "art", group: "Textile Art" },
+  { id: "woven-art", name: "Woven Art", slug: "woven-art", department: "art", group: "Textile Art" },
+
+  // Handmade & Decorative Art
+  { id: "handmade-decorative-art", name: "Handmade & Decorative Art 🪡", slug: "handmade-decorative-art", department: "art", group: "Handmade & Decorative Art" },
+  { id: "resin-art", name: "Resin Art", slug: "resin-art", department: "art", group: "Handmade & Decorative Art" },
+  { id: "handmade-decor", name: "Handmade Décor", slug: "handmade-decor", department: "art", group: "Handmade & Decorative Art" },
+  { id: "paper-art", name: "Paper Art", slug: "paper-art", department: "art", group: "Handmade & Decorative Art" },
+  { id: "glass-art", name: "Glass Art", slug: "glass-art", department: "art", group: "Handmade & Decorative Art" },
+  { id: "wood-art", name: "Wood Art", slug: "wood-art", department: "art", group: "Handmade & Decorative Art" },
+
+  // Art Supplies
+  { id: "art-supplies", name: "Art Supplies 🖌️", slug: "art-supplies", department: "art", group: "Art Supplies" },
+  { id: "paints", name: "Paints", slug: "paints", department: "art", group: "Art Supplies" },
+  { id: "brushes", name: "Brushes", slug: "brushes", department: "art", group: "Art Supplies" },
+  { id: "canvases", name: "Canvases", slug: "canvases", department: "art", group: "Art Supplies" },
+  { id: "drawing-pencils", name: "Drawing Pencils", slug: "drawing-pencils", department: "art", group: "Art Supplies" },
+  { id: "easels", name: "Easels", slug: "easels", department: "art", group: "Art Supplies" },
+  { id: "sketchbooks", name: "Sketchbooks", slug: "sketchbooks", department: "art", group: "Art Supplies" },
+  { id: "palettes", name: "Palettes", slug: "palettes", department: "art", group: "Art Supplies" },
+
+  // Awards & Trophies
+  { id: "awards-trophies", name: "Awards & Trophies 🏆", slug: "awards-trophies", department: "art", group: "Awards & Trophies" },
+  { id: "trophies", name: "Trophies", slug: "trophies", department: "art", group: "Awards & Trophies" },
+  { id: "medals", name: "Medals", slug: "medals", department: "art", group: "Awards & Trophies" },
+  { id: "plaques", name: "Plaques", slug: "plaques", department: "art", group: "Awards & Trophies" },
+  { id: "awards", name: "Awards", slug: "awards", department: "art", group: "Awards & Trophies" },
+];
+
 export const PRESET_CATEGORIES_BY_DEPARTMENT: Record<string, CategoryItem[]> = {
   fashion: PRESET_FASHION_CATEGORIES,
   gadgets: PRESET_GADGETS_CATEGORIES,
+  art: PRESET_ART_CATEGORIES,
 };
