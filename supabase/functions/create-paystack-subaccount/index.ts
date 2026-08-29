@@ -78,12 +78,14 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // If subaccount code already exists, return it
-    if (profile.paystack_subaccount_code) {
+    // If a REAL Paystack subaccount code already exists (not a local placeholder), return it
+    const existingCode = profile.paystack_subaccount_code || "";
+    const isPlaceholder = existingCode.startsWith("ACCT_LOCAL_") || existingCode.startsWith("ACCT_PENDING_");
+    if (existingCode && !isPlaceholder) {
       return new Response(
         JSON.stringify({
           success: true,
-          subaccount_code: profile.paystack_subaccount_code,
+          subaccount_code: existingCode,
           message: "Paystack subaccount already exists",
         }),
         {
@@ -92,6 +94,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     }
+    // If placeholder exists, we'll attempt to create a real one below
 
     // Fallback if no valid Paystack key configured: assign local subaccount code so seller approval never gets blocked!
     if (!paystackSecretKey || paystackSecretKey.toLowerCase().includes("your_actual")) {
