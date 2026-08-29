@@ -1,4 +1,10 @@
-const getEnvVal = (name: string) => Deno.env.get(name)?.trim();
+const getEnvVal = (name: string): string => {
+  let val = Deno.env.get(name)?.trim() || "";
+  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+    val = val.slice(1, -1).trim();
+  }
+  return val;
+};
 
 export interface PaystackKeyConfig {
   secretKey: string;
@@ -18,7 +24,7 @@ export const getAllPaystackSecretKeys = (): PaystackKeyConfig[] => {
 
   for (const c of candidates) {
     const val = getEnvVal(c.secretName);
-    if (val && /^sk_(live|test)_/.test(val)) {
+    if (val && val.startsWith("sk_")) {
       const pubVal = (c.publicName && getEnvVal(c.publicName)) || getEnvVal("PAYSTACK_PUBLIC_KEY") || getEnvVal("Paystack_Live_Public_Key") || "";
       results.push({
         secretKey: val,
@@ -28,11 +34,14 @@ export const getAllPaystackSecretKeys = (): PaystackKeyConfig[] => {
     }
   }
 
-  // Also check any other Deno env vars starting with sk_
+  // Also check any other Deno env vars containing paystack and secret
   for (const [key, value] of Object.entries(Deno.env.toObject())) {
     if (key.toLowerCase().includes("paystack") && key.toLowerCase().includes("secret")) {
-      const trimmed = value.trim();
-      if (/^sk_(live|test)_/.test(trimmed) && !results.some(r => r.secretKey === trimmed)) {
+      let trimmed = value.trim();
+      if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        trimmed = trimmed.slice(1, -1).trim();
+      }
+      if (trimmed.startsWith("sk_") && !results.some(r => r.secretKey === trimmed)) {
         results.push({
           secretKey: trimmed,
           publicKey: getEnvVal("PAYSTACK_PUBLIC_KEY") || getEnvVal("Paystack_Live_Public_Key") || "",
@@ -48,7 +57,9 @@ export const getAllPaystackSecretKeys = (): PaystackKeyConfig[] => {
 export const getPaystackKeys = (): PaystackKeyConfig => {
   const all = getAllPaystackSecretKeys();
   if (all.length === 0) {
-    throw new Error("No valid Paystack secret key configured. Secret key must start with sk_live_ or sk_test_.");
+    const rawVal = Deno.env.get("PAYSTACK_SECRET_KEY") || Deno.env.get("Paystack_Live_Secret_Key") || "NOT_SET";
+    const preview = rawVal === "NOT_SET" ? "NOT_SET" : `'${rawVal.substring(0, 10)}...'`;
+    throw new Error(`No valid Paystack secret key found. Checked PAYSTACK_SECRET_KEY (Value: ${preview}). Key must start with sk_live_ or sk_test_.`);
   }
   // Prefer live key first
   const live = all.find(k => k.secretKey.startsWith("sk_live_"));
