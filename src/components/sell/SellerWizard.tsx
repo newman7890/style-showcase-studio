@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { ChevronLeft, ChevronRight, Loader2, Upload, CheckCircle2, BookOpen, ShieldCheck, Award, MapPin, Truck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Upload, CheckCircle2, BookOpen, ShieldCheck, Award, MapPin, Truck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +58,7 @@ type Form = {
   pickup_latitude: number | null;
   pickup_longitude: number | null;
   pickup_phone: string;
+  pickup_google_maps_url: string;
   store_name: string;
   store_description: string;
   return_address: string;
@@ -98,6 +99,7 @@ const EMPTY: Form = {
   pickup_latitude: null,
   pickup_longitude: null,
   pickup_phone: "",
+  pickup_google_maps_url: "",
   store_name: "",
   store_description: "",
   return_address: "",
@@ -165,6 +167,7 @@ const stepSchemas = [
     pickup_latitude: z.number().nullable().optional(),
     pickup_longitude: z.number().nullable().optional(),
     pickup_phone: z.string().trim().optional().or(z.literal("")),
+    pickup_google_maps_url: z.string().trim().optional().or(z.literal("")),
     store_name: z.string().trim().min(2, "Required").max(120),
     store_description: z.string().trim().min(10, "At least 10 chars").max(500),
     return_address: z.string().trim().optional().or(z.literal("")),
@@ -383,6 +386,7 @@ export default function SellerWizard() {
         pickup_latitude: form.pickup_latitude || null,
         pickup_longitude: form.pickup_longitude || null,
         pickup_phone: form.pickup_phone || form.phone || null,
+        pickup_google_maps_url: form.pickup_google_maps_url || null,
       } as any);
       if (error) throw error;
 
@@ -917,6 +921,39 @@ function StepStore({ form, set, errors, files, setFile }: FileStepProps) {
                 className="text-xs"
               />
             </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <Label className="text-xs">Google Maps / Live Location Link (Optional)</Label>
+              {form.pickup_google_maps_url && (
+                <a
+                  href={form.pickup_google_maps_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-primary hover:underline flex items-center gap-1 font-medium"
+                >
+                  <ExternalLink className="w-3 h-3" /> Test Link
+                </a>
+              )}
+            </div>
+            <Input
+              value={form.pickup_google_maps_url}
+              onChange={(e) => {
+                const val = e.target.value;
+                set("pickup_google_maps_url", val);
+                const match = val.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || val.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+                if (match) {
+                  set("pickup_latitude", parseFloat(match[1]));
+                  set("pickup_longitude", parseFloat(match[2]));
+                }
+              }}
+              placeholder="e.g. https://maps.app.goo.gl/... or paste Google Maps pin link"
+              className="text-xs font-mono"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Tip: Open Google Maps app → Tap your shop location → Tap "Share" → Copy link and paste here.
+            </p>
           </div>
         </div>
       )}
