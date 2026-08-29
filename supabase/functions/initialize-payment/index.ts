@@ -207,22 +207,14 @@ const handler = async (req: Request): Promise<Response> => {
       lastPaystackError = "No valid Paystack secret key found in Supabase Secrets.";
     }
 
-    // If Paystack API call failed or no Paystack key is configured yet, complete checkout seamlessly as direct order so user is never blocked!
-    if (!paystackData || !paystackData.status) {
-      console.warn(`Paystack key notice (${lastPaystackError}). Completing checkout seamlessly as direct order...`);
-      const directRef = `PAY_DIRECT_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const callbackUrlWithRef = `${callbackUrl}?reference=${directRef}&direct=true`;
-
+    // If Paystack API call failed (e.g. invalid key or unconfigured API key), return explicit error so user sees the key notice on Checkout page
+    if (!paystackData || !paystackData.status || !paystackData.data?.authorization_url) {
       return new Response(
         JSON.stringify({
-          success: true,
-          authorizationUrl: callbackUrlWithRef,
-          authorization_url: callbackUrlWithRef,
-          reference: directRef,
-          is_direct_order: true,
+          error: `Paystack error: ${lastPaystackError || "Could not initialize payment"}. Please enter a valid Paystack Secret Key in Admin Dashboard -> Platform Settings.`,
         }),
         {
-          status: 200,
+          status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
