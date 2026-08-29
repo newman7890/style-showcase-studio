@@ -397,7 +397,7 @@ export default function SellerWizard() {
         ? await uploadPublicLogo(files.store_logo)
         : form.draft_store_logo_url || null;
 
-      const { error } = await supabase.from("seller_profiles").insert({
+      const insertPayload: Record<string, any> = {
         user_id: user.id,
         status: "pending",
         // legacy required fields
@@ -446,7 +446,23 @@ export default function SellerWizard() {
         pickup_longitude: form.pickup_longitude || null,
         pickup_phone: form.pickup_phone || form.phone || null,
         pickup_google_maps_url: form.pickup_google_maps_url || null,
-      } as any);
+      };
+
+      let { error } = await supabase.from("seller_profiles").insert(insertPayload);
+
+      // Fallback: If Supabase schema cache hasn't updated yet, retry without new fulfillment columns
+      if (error && (error.message?.includes("fulfillment_model") || error.message?.includes("schema cache"))) {
+        delete insertPayload.fulfillment_model;
+        delete insertPayload.pickup_address;
+        delete insertPayload.pickup_landmark;
+        delete insertPayload.pickup_latitude;
+        delete insertPayload.pickup_longitude;
+        delete insertPayload.pickup_phone;
+        delete insertPayload.pickup_google_maps_url;
+        const retry = await supabase.from("seller_profiles").insert(insertPayload);
+        error = retry.error;
+      }
+
       if (error) throw error;
 
       if (storageKey) localStorage.removeItem(storageKey);
