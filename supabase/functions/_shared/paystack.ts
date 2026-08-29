@@ -1,16 +1,25 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const getEnvVal = (name: string): string => {
-  let val = Deno.env.get(name)?.trim() || "";
-  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+const cleanKeyString = (raw: string): string => {
+  if (!raw) return "";
+  let val = raw.trim();
+  while ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+    val = val.slice(1, -1).trim();
+  }
+  if (val.includes("=")) {
+    val = val.split("=").pop()?.trim() || val;
+  }
+  while ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
     val = val.slice(1, -1).trim();
   }
   return val;
 };
 
+const getEnvVal = (name: string): string => {
+  return cleanKeyString(Deno.env.get(name) || "");
+};
+
 const isValidSecretKey = (key: string): boolean => {
   if (!key) return false;
-  const trimmed = key.trim();
+  const trimmed = cleanKeyString(key);
   return trimmed.length >= 10;
 };
 
@@ -76,22 +85,14 @@ export const getAllPaystackSecretKeysAsync = async (): Promise<PaystackKeyConfig
         .maybeSingle();
 
       if (data?.paystack_secret_key) {
-        let secKey = String(data.paystack_secret_key).trim();
-        if ((secKey.startsWith('"') && secKey.endsWith('"')) || (secKey.startsWith("'") && secKey.endsWith("'"))) {
-          secKey = secKey.slice(1, -1).trim();
-        }
-        if (isValidSecretKey(secKey)) {
-          let pubKey = String(data.paystack_public_key || "").trim();
-          if ((pubKey.startsWith('"') && pubKey.endsWith('"')) || (pubKey.startsWith("'") && pubKey.endsWith("'"))) {
-            pubKey = pubKey.slice(1, -1).trim();
-          }
-          if (!results.some(r => r.secretKey === secKey)) {
-            results.unshift({
-              secretKey: secKey,
-              publicKey: pubKey,
-              sourceName: "platform_settings (database)",
-            });
-          }
+        const secKey = cleanKeyString(String(data.paystack_secret_key));
+        const pubKey = cleanKeyString(String(data.paystack_public_key || ""));
+        if (isValidSecretKey(secKey) && !results.some(r => r.secretKey === secKey)) {
+          results.unshift({
+            secretKey: secKey,
+            publicKey: pubKey,
+            sourceName: "platform_settings (database)",
+          });
         }
       }
     }
