@@ -15,6 +15,7 @@ class OrderDetailScreen extends StatefulWidget {
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Map<String, dynamic>? _order;
   Map<String, dynamic>? _hub;
+  Map<String, dynamic>? _seller;
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   bool _updating = false;
@@ -53,9 +54,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         return item;
       }).toList();
 
+      String? sellerId;
+      for (var item in processedItems) {
+        final prod = item['products'];
+        if (prod is Map && prod['seller_id'] != null) {
+          sellerId = prod['seller_id'].toString();
+          break;
+        }
+      }
+
+      Map<String, dynamic>? seller;
+      if (sellerId != null && sellerId.isNotEmpty) {
+        seller = await SupabaseService.fetchSellerInfo(sellerId);
+      }
+
       setState(() {
         _order = order;
         _hub = hub;
+        _seller = seller;
         _items = processedItems;
       });
     } catch (e) {
@@ -557,6 +573,102 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _buildPickupSection() {
+    final sellerModel = _seller?['fulfillment_model']?.toString();
+    final sellerAddress = _seller?['pickup_address'] ?? _seller['business_address'] ?? _seller['address'];
+    final sellerLandmark = _seller?['pickup_landmark']?.toString();
+    final sellerPhone = _seller?['pickup_phone'] ?? _seller?['phone'];
+    final sellerMapsUrl = _seller?['pickup_google_maps_url']?.toString();
+    final sellerLat = _seller?['pickup_latitude'];
+    final sellerLng = _seller?['pickup_longitude'];
+    final storeName = _seller?['business_name'] ?? _seller?['store_name'] ?? 'Seller Shop';
+
+    final isDirectPickup = sellerModel == 'direct_pickup' || (sellerAddress != null && sellerAddress.toString().isNotEmpty);
+
+    if (isDirectPickup && sellerAddress != null && sellerAddress.toString().isNotEmpty) {
+      final navTarget = (sellerMapsUrl != null && sellerMapsUrl.isNotEmpty)
+          ? sellerMapsUrl
+          : (sellerLat != null && sellerLng != null)
+              ? 'https://www.google.com/maps/search/?api=1&query=$sellerLat,$sellerLng'
+              : 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(sellerAddress.toString())}';
+
+      return _buildSectionCard(
+        borderColor: AppTheme.primary.withValues(alpha: 0.3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSectionHeader('Pickup (Doorstep)', LucideIcons.bike, AppTheme.primary),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    '🛵 Direct Pickup',
+                    style: TextStyle(color: AppTheme.primary, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildInfoRow('Store Name', storeName),
+            const SizedBox(height: 12),
+            _buildInfoRow('Shop Address', sellerAddress.toString()),
+            if (sellerLandmark != null && sellerLandmark.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildInfoRow('Landmark', sellerLandmark),
+            ],
+            if (sellerPhone != null && sellerPhone.toString().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(child: _buildInfoRow('Seller Phone', sellerPhone.toString())),
+                  IconButton(
+                    icon: const Icon(LucideIcons.phoneCall, size: 18, color: Color(0xFF4ADE80)),
+                    onPressed: () => _makeCall(sellerPhone.toString()),
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 14),
+            GestureDetector(
+              onTap: () async {
+                final uri = Uri.parse(navTarget);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: Container(
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(LucideIcons.navigation, size: 16, color: Colors.black),
+                    SizedBox(width: 8),
+                    Text(
+                      '📍 Navigate to Seller Live Location',
+                      style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Hub Dropoff Fallback
     final hubName = _hub?['name'] ?? 'Processing Hub';
     final hubAddress = _hub?['address'] != null
         ? '${_hub!['address']}, ${_hub!['region'] ?? ''}'
@@ -564,56 +676,54 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final hubPhone = _hub?['contact_phone']?.toString();
 
     return _buildSectionCard(
-      borderColor: AppTheme.primary.withValues(alpha: 0.2),
-      child: Stack(
+      borderColor: Colors.blue.withValues(alpha: 0.3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            top: -40, right: -40,
-            child: Container(
-              width: 128, height: 128,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.primary.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
-          Column(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildSectionHeader('Pickup (Hub)', LucideIcons.mapPin, AppTheme.primary),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildInfoRow('Location', hubName),
-              const SizedBox(height: 12),
-              _buildInfoRow('Address', hubAddress),
-              if (hubPhone != null && hubPhone.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _buildInfoRow('Hub Phone', hubPhone),
-              ],
-              const SizedBox(height: 12),
-              GestureDetector(
-                onTap: () => _openInMaps(hubAddress),
-                child: Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(LucideIcons.navigation, size: 14, color: Colors.white.withValues(alpha: 0.8)),
-                      const SizedBox(width: 8),
-                      Text('Navigate to $hubName', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
+              _buildSectionHeader('Pickup (Hub)', LucideIcons.building, const Color(0xFF60A5FA)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  '🏢 Hub Drop-Off',
+                  style: TextStyle(color: Color(0xFF60A5FA), fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          _buildInfoRow('Location', hubName),
+          const SizedBox(height: 12),
+          _buildInfoRow('Address', hubAddress),
+          if (hubPhone != null && hubPhone.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildInfoRow('Hub Phone', hubPhone),
+          ],
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: () => _openInMaps(hubAddress),
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(LucideIcons.navigation, size: 14, color: Colors.white.withValues(alpha: 0.8)),
+                  const SizedBox(width: 8),
+                  Text('Navigate to $hubName', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
           ),
         ],
       ),
