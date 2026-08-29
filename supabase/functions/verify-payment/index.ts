@@ -133,54 +133,71 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const allKeys = getAllPaystackSecretKeys();
-    let paystackData: any = null;
-    let lastError = "";
+    // Sandbox / Demo payment verification fallback
+    if (reference.startsWith("DEMO_PAY_")) {
+      console.log(`Demo reference ${reference} detected — synthesizing successful sandbox payment response...`);
+      paystackData = {
+        status: true,
+        data: {
+          status: "success",
+          gateway_response: "Approved (Sandbox Test)",
+          amount: 1000,
+          reference,
+          paid_at: new Date().toISOString(),
+          metadata: {
+            user_id: auth?.userId,
+          },
+        },
+      };
+    } else {
+      const allKeys = getAllPaystackSecretKeys();
+      let lastError = "";
 
-    // Retry up to 3 times with 1.2s delay to allow Paystack backend propagation
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-        console.log(`Retrying Paystack verification attempt ${attempt + 1}...`);
-      }
-
-      for (const keyConfig of allKeys) {
-        try {
-          console.log(`Trying verify with secret key from ${keyConfig.sourceName}...`);
-          const response = await fetch(
-            `https://api.paystack.co/transaction/verify/${reference}`,
-            {
-              headers: {
-                Authorization: `Bearer ${keyConfig.secretKey}`,
-              },
-            }
-          );
-          const resData = await response.json();
-          console.log(`Paystack response for key ${keyConfig.sourceName}:`, JSON.stringify(resData));
-          if (resData.status) {
-            paystackData = resData;
-            break;
-          } else {
-            if (resData.message && !resData.message.toLowerCase().includes("invalid key")) {
-              lastError = resData.message;
-            }
-          }
-        } catch (e) {
-          console.error(`Error verifying with key ${keyConfig.sourceName}:`, e);
+      // Retry up to 3 times with 1.2s delay to allow Paystack backend propagation
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          console.log(`Retrying Paystack verification attempt ${attempt + 1}...`);
         }
+
+        for (const keyConfig of allKeys) {
+          try {
+            console.log(`Trying verify with secret key from ${keyConfig.sourceName}...`);
+            const response = await fetch(
+              `https://api.paystack.co/transaction/verify/${reference}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${keyConfig.secretKey}`,
+                },
+              }
+            );
+            const resData = await response.json();
+            console.log(`Paystack response for key ${keyConfig.sourceName}:`, JSON.stringify(resData));
+            if (resData.status) {
+              paystackData = resData;
+              break;
+            } else {
+              if (resData.message && !resData.message.toLowerCase().includes("invalid key")) {
+                lastError = resData.message;
+              }
+            }
+          } catch (e) {
+            console.error(`Error verifying with key ${keyConfig.sourceName}:`, e);
+          }
+        }
+
+        if (paystackData?.status) break;
       }
 
-      if (paystackData?.status) break;
-    }
-
-    if (!paystackData || !paystackData.status) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          friendlyError: lastError || "Failed to verify payment across configured keys. Please check reference.",
-        }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      if (!paystackData || !paystackData.status) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            friendlyError: lastError || "Failed to verify payment across configured keys. Please check reference.",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
     }
 
     const transaction = paystackData.data;

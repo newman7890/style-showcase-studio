@@ -140,16 +140,19 @@ export const SellerApprovalsManagement = () => {
       const { data, error } = await supabase.functions.invoke("create-paystack-subaccount", {
         body: { sellerId },
       });
-      if (data?.subaccount_code) {
-        toast({ title: "Paystack Subaccount Ready", description: `Subaccount Code: ${data.subaccount_code}` });
-        // Immediately update the reviewing row so the UI reflects the new code
-        if (reviewing && reviewing.id === sellerId) {
-          setReviewing({ ...reviewing, paystack_subaccount_code: data.subaccount_code });
-        }
-        // Also update the rows list
-        setRows(prev => prev.map(r => r.id === sellerId ? { ...r, paystack_subaccount_code: data.subaccount_code } : r));
+      if (data?.subaccount_code && data?.is_real) {
+        toast({ title: "✅ Paystack Subaccount Created!", description: `Real Code: ${data.subaccount_code}` });
+      } else if (data?.subaccount_code && data?.paystack_error) {
+        toast({
+          title: "⚠️ Paystack API Error",
+          description: `${data.paystack_error}. Key: ${data.debug?.key_prefix || "unknown"}. Temp code assigned: ${data.subaccount_code}`,
+          variant: "destructive",
+        });
+        console.error("Paystack sync debug:", JSON.stringify(data.debug, null, 2));
+      } else if (data?.subaccount_code) {
+        toast({ title: "Paystack Subaccount Ready", description: `Code: ${data.subaccount_code}` });
       } else {
-        toast({ title: "Seller Approved Successfully", description: "Subaccount will automatically sync upon live checkout." });
+        toast({ title: "Seller Approved", description: "Subaccount will sync on next attempt." });
       }
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Failed to create subaccount", variant: "destructive" });

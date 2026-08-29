@@ -196,6 +196,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Creating Paystack subaccount with payload:", JSON.stringify(paystackPayload));
 
     let subaccountCode = "";
+    let paystackError = "";
+    let paystackRawResponse: any = null;
     try {
       const paystackRes = await fetch("https://api.paystack.co/subaccount", {
         method: "POST",
@@ -207,16 +209,20 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
       const paystackData = await paystackRes.json();
+      paystackRawResponse = paystackData;
       console.log("Paystack subaccount response:", JSON.stringify(paystackData));
 
       if (paystackRes.ok && paystackData.status && paystackData.data?.subaccount_code) {
         subaccountCode = paystackData.data.subaccount_code;
+      } else {
+        paystackError = paystackData.message || `Paystack API returned status ${paystackRes.status}`;
       }
-    } catch (paystackErr) {
+    } catch (paystackErr: any) {
+      paystackError = paystackErr?.message || "Network error calling Paystack API";
       console.warn("External Paystack API call failed:", paystackErr);
     }
 
-    // If external call didn't return a subaccount_code (e.g. invalid key or test account), fallback gracefully so seller approval completes cleanly!
+    // If external call didn't return a subaccount_code, fallback gracefully so seller approval completes cleanly
     if (!subaccountCode) {
       subaccountCode = `ACCT_PENDING_${profile.id.substring(0, 8).toUpperCase()}`;
     }
@@ -230,11 +236,22 @@ const handler = async (req: Request): Promise<Response> => {
       })
       .eq("id", profile.id);
 
+    const isRealCode = !subaccountCode.startsWith("ACCT_PENDING_") && !subaccountCode.startsWith("ACCT_LOCAL_");
+
     return new Response(
       JSON.stringify({
         success: true,
         subaccount_code: subaccountCode,
-        message: "Paystack subaccount created / assigned successfully",
+        is_real: isRealCode,
+        message: isRealCode
+          ? "Paystack subaccount created successfully!"
+          : `Seller approved with temporary code. Paystack error: ${paystackError}`,
+        paystack_error: paystackError || null,
+        debug: {
+          key_prefix: paystackSecretKey ? paystackSecretKey.substring(0, 12) + "..." : "NO_KEY",
+          payload_sent: paystackPayload,
+          paystack_response: paystackRawResponse,
+        },
       }),
       {
         status: 200,
