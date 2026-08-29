@@ -448,7 +448,15 @@ export default function SellerWizard() {
         pickup_google_maps_url: form.pickup_google_maps_url || null,
       };
 
-      let { error } = await supabase.from("seller_profiles").insert(insertPayload as any);
+      let insertResult = await supabase.from("seller_profiles").insert(insertPayload as any);
+      let error = insertResult.error;
+
+      // Retry automatically if network flickered
+      if (error && (error.message?.includes("Failed to fetch") || error.message?.includes("network"))) {
+        await new Promise((r) => setTimeout(r, 1500));
+        insertResult = await supabase.from("seller_profiles").insert(insertPayload as any);
+        error = insertResult.error;
+      }
 
       // Fallback: If Supabase schema cache hasn't updated yet, retry without new fulfillment columns
       if (error && (error.message?.includes("fulfillment_model") || error.message?.includes("schema cache"))) {
@@ -472,7 +480,16 @@ export default function SellerWizard() {
       });
       await refreshRoles();
     } catch (err: any) {
-      toast({ title: "Submission failed", description: err.message, variant: "destructive" });
+      const msg = err.message || "";
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || !navigator.onLine) {
+        toast({
+          title: "Network Connection Issue 📶",
+          description: "Your internet connection briefly dropped. Please check your network and tap Submit application again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Submission failed", description: msg || "An unexpected error occurred.", variant: "destructive" });
+      }
     } finally {
       setSubmitting(false);
     }
