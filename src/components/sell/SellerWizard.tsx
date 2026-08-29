@@ -64,6 +64,13 @@ type Form = {
   return_address: string;
   bio: string;
   agreed_terms: boolean;
+  // Draft uploaded file paths (persisted on page refresh)
+  draft_id_front_path: string;
+  draft_id_back_path: string;
+  draft_selfie_path: string;
+  draft_proof_path: string;
+  draft_tax_path: string;
+  draft_store_logo_url: string;
 };
 
 const EMPTY: Form = {
@@ -105,6 +112,12 @@ const EMPTY: Form = {
   return_address: "",
   bio: "",
   agreed_terms: false,
+  draft_id_front_path: "",
+  draft_id_back_path: "",
+  draft_selfie_path: "",
+  draft_proof_path: "",
+  draft_tax_path: "",
+  draft_store_logo_url: "",
 };
 
 const stepSchemas = [
@@ -175,6 +188,12 @@ const stepSchemas = [
     agreed_terms: z.literal(true, {
       errorMap: () => ({ message: "Please read and accept the Seller Policy & Terms before submitting." }),
     }),
+    draft_id_front_path: z.string().optional(),
+    draft_id_back_path: z.string().optional(),
+    draft_selfie_path: z.string().optional(),
+    draft_proof_path: z.string().optional(),
+    draft_tax_path: z.string().optional(),
+    draft_store_logo_url: z.string().optional(),
   }),
 ];
 
@@ -227,6 +246,63 @@ export default function SellerWizard() {
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
+  const uploadPrivate = async (file: File, name: string) => {
+    const ext = file.name.split(".").pop() || "bin";
+    const path = `${user!.id}/${name}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("seller-verification")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (error) throw error;
+    return path;
+  };
+
+  const uploadPublicLogo = async (file: File) => {
+    const ext = file.name.split(".").pop() || "png";
+    const path = `store-logos/${user!.id}/logo-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("product-images")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (error) throw error;
+    const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const [uploadingSlots, setUploadingSlots] = useState<Record<string, boolean>>({});
+
+  const setFile = async (slot: FileSlot, f: File | null) => {
+    setFiles((prev) => ({ ...prev, [slot]: f ?? undefined }));
+    if (!f || !user) return;
+
+    setUploadingSlots((prev) => ({ ...prev, [slot]: true }));
+    try {
+      if (slot === "store_logo") {
+        const url = await uploadPublicLogo(f);
+        set("draft_store_logo_url", url);
+      } else {
+        const slotMap: Record<string, { name: string; key: keyof Form }> = {
+          id_front: { name: "id-front", key: "draft_id_front_path" },
+          id_back: { name: "id-back", key: "draft_id_back_path" },
+          selfie: { name: "selfie", key: "draft_selfie_path" },
+          proof_of_address: { name: "proof-of-address", key: "draft_proof_path" },
+          tax_form: { name: "tax-form", key: "draft_tax_path" },
+        };
+        const config = slotMap[slot];
+        if (config) {
+          const path = await uploadPrivate(f, config.name);
+          set(config.key, path as any);
+        }
+      }
+      toast({
+        title: "Photo Saved ☁️",
+        description: "Uploaded and saved to draft. You won't lose it if you refresh!",
+      });
+    } catch (err: any) {
+      console.error(`Auto-upload failed for ${slot}:`, err);
+    } finally {
+      setUploadingSlots((prev) => ({ ...prev, [slot]: false }));
+    }
+  };
+
   const validateStep = () => {
     const schema = stepSchemas[step];
     const parsed = schema.safeParse(form);
@@ -234,13 +310,13 @@ export default function SellerWizard() {
       // Extra file requirements
       if (step === 2) {
         const errs: Record<string, string> = {};
-        if (!files.id_front) errs.id_front = "Upload the front of your ID";
-        if (form.id_document_type !== "passport" && !files.id_back)
+        if (!files.id_front && !form.draft_id_front_path) errs.id_front = "Upload the front of your ID";
+        if (form.id_document_type !== "passport" && !files.id_back && !form.draft_id_back_path)
           errs.id_back = "Upload the back of your ID";
-        if (!files.selfie) errs.selfie = "Upload a clear selfie";
-        if (form.proof_of_address_type && !files.proof_of_address)
+        if (!files.selfie && !form.draft_selfie_path) errs.selfie = "Upload a clear selfie";
+        if (form.proof_of_address_type && !files.proof_of_address && !form.draft_proof_path)
           errs.proof_of_address = "Upload a proof of address document";
-        if (form.tax_form_type && form.tax_form_type !== "none" && !files.tax_form)
+        if (form.tax_form_type && form.tax_form_type !== "none" && !files.tax_form && !form.draft_tax_path)
           errs.tax_form = "Upload the selected tax form";
         for (const f of Object.values(files)) {
           if (f && f.size > MAX_FILE_MB * 1024 * 1024) {
@@ -275,50 +351,25 @@ export default function SellerWizard() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const uploadPrivate = async (file: File, name: string) => {
-    const ext = file.name.split(".").pop() || "bin";
-    const path = `${user!.id}/${name}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("seller-verification")
-      .upload(path, file, { upsert: false, contentType: file.type });
-    if (error) throw error;
-    return path;
-  };
-
-  const uploadPublicLogo = async (file: File) => {
-    const ext = file.name.split(".").pop() || "png";
-    const path = `store-logos/${user!.id}/logo-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("product-images")
-      .upload(path, file, { upsert: false, contentType: file.type });
-    if (error) throw error;
-    const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-    return data.publicUrl;
-  };
-
   const submit = async () => {
     if (!validateStep()) return;
     if (!user) return;
 
-    // Re-check identity uploads — files aren't persisted in the localStorage
-    // draft, so a page refresh can leave the form on step 4/5 with no files.
-    // Without this check the application would be submitted with null image URLs.
     const missing: Record<string, string> = {};
-    if (!files.id_front) missing.id_front = "Upload the front of your ID";
-    if (form.id_document_type !== "passport" && !files.id_back)
+    if (!files.id_front && !form.draft_id_front_path) missing.id_front = "Upload the front of your ID";
+    if (form.id_document_type !== "passport" && !files.id_back && !form.draft_id_back_path)
       missing.id_back = "Upload the back of your ID";
-    if (!files.selfie) missing.selfie = "Upload a clear selfie";
-    if (form.proof_of_address_type && !files.proof_of_address)
+    if (!files.selfie && !form.draft_selfie_path) missing.selfie = "Upload a clear selfie";
+    if (form.proof_of_address_type && !files.proof_of_address && !form.draft_proof_path)
       missing.proof_of_address = "Upload a proof of address";
-    if (form.tax_form_type && form.tax_form_type !== "none" && !files.tax_form)
+    if (form.tax_form_type && form.tax_form_type !== "none" && !files.tax_form && !form.draft_tax_path)
       missing.tax_form = "Upload the selected tax form";
     if (Object.keys(missing).length) {
       setErrors(missing);
       setStep(2);
       toast({
-        title: "Please re-upload your documents",
-        description:
-          "Your uploaded files were cleared (likely by a page refresh). Please re-attach them before submitting.",
+        title: "Missing Verification Documents",
+        description: "Please attach the required verification documents before submitting.",
         variant: "destructive",
       });
       return;
@@ -326,17 +377,25 @@ export default function SellerWizard() {
 
     setSubmitting(true);
     try {
-      const idFront = files.id_front ? await uploadPrivate(files.id_front, "id-front") : null;
-      const idBack = files.id_back ? await uploadPrivate(files.id_back, "id-back") : null;
-      const selfie = files.selfie ? await uploadPrivate(files.selfie, "selfie") : null;
+      const idFront = files.id_front
+        ? await uploadPrivate(files.id_front, "id-front")
+        : form.draft_id_front_path || null;
+      const idBack = files.id_back
+        ? await uploadPrivate(files.id_back, "id-back")
+        : form.draft_id_back_path || null;
+      const selfie = files.selfie
+        ? await uploadPrivate(files.selfie, "selfie")
+        : form.draft_selfie_path || null;
       const poa = files.proof_of_address
         ? await uploadPrivate(files.proof_of_address, "proof-of-address")
-        : null;
+        : form.draft_proof_path || null;
       const taxForm =
         files.tax_form && form.tax_form_type !== "none"
           ? await uploadPrivate(files.tax_form, "tax-form")
-          : null;
-      const storeLogo = files.store_logo ? await uploadPublicLogo(files.store_logo) : null;
+          : form.draft_tax_path || null;
+      const storeLogo = files.store_logo
+        ? await uploadPublicLogo(files.store_logo)
+        : form.draft_store_logo_url || null;
 
       const { error } = await supabase.from("seller_profiles").insert({
         user_id: user.id,
@@ -464,7 +523,8 @@ export default function SellerWizard() {
               set={set}
               errors={errors}
               files={files}
-              setFile={(slot, f) => setFiles((prev) => ({ ...prev, [slot]: f }))}
+              setFile={setFile}
+              uploadingSlots={uploadingSlots}
             />
           )}
           {step === 3 && <StepBank form={form} set={set} errors={errors} />}
@@ -474,7 +534,8 @@ export default function SellerWizard() {
               set={set}
               errors={errors}
               files={files}
-              setFile={(slot, f) => setFiles((prev) => ({ ...prev, [slot]: f }))}
+              setFile={setFile}
+              uploadingSlots={uploadingSlots}
             />
           )}
         </motion.div>
@@ -517,6 +578,7 @@ type StepProps = {
 type FileStepProps = StepProps & {
   files: Partial<Record<FileSlot, File>>;
   setFile: (slot: FileSlot, f: File | null) => void;
+  uploadingSlots: Record<string, boolean>;
 };
 
 function Err({ msg }: { msg?: string }) {
@@ -530,6 +592,8 @@ function FileInput({
   setFile,
   accept = "image/*,application/pdf",
   error,
+  draftPath,
+  isUploading,
 }: {
   slot: FileSlot;
   label: string;
@@ -537,18 +601,46 @@ function FileInput({
   setFile: (slot: FileSlot, f: File | null) => void;
   accept?: string;
   error?: string;
+  draftPath?: string;
+  isUploading?: boolean;
 }) {
+  const hasSaved = !!draftPath;
   return (
     <div>
       <Label>{label}</Label>
       <label
         htmlFor={`file-${slot}`}
-        className="mt-1 flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-4 cursor-pointer hover:bg-accent/50 transition"
+        className={`mt-1 flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-4 cursor-pointer transition ${
+          hasSaved && !file
+            ? "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50"
+            : "hover:bg-accent/50"
+        }`}
       >
-        <Upload className="w-5 h-5 text-muted-foreground mb-1" />
-        <span className="text-sm text-muted-foreground text-center break-all">
-          {file ? file.name : "Tap to upload (max 8MB)"}
-        </span>
+        {isUploading ? (
+          <>
+            <Loader2 className="w-5 h-5 text-primary animate-spin mb-1" />
+            <span className="text-xs text-primary font-medium">Uploading to cloud…</span>
+          </>
+        ) : file ? (
+          <>
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 mb-1" />
+            <span className="text-sm text-emerald-700 text-center break-all font-medium">{file.name}</span>
+            <span className="text-[10px] text-emerald-500 mt-0.5">☁️ Saved — won't be lost on refresh</span>
+          </>
+        ) : hasSaved ? (
+          <>
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 mb-1" />
+            <span className="text-xs text-emerald-700 font-medium">☁️ Previously uploaded & saved</span>
+            <span className="text-[10px] text-muted-foreground mt-0.5">Tap to replace with a new file</span>
+          </>
+        ) : (
+          <>
+            <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+            <span className="text-sm text-muted-foreground text-center break-all">
+              Tap to upload (max 8MB)
+            </span>
+          </>
+        )}
         <input
           id={`file-${slot}`}
           type="file"
@@ -611,7 +703,7 @@ function StepBusiness({ form, set, errors }: StepProps) {
   );
 }
 
-function StepIdentity({ form, set, errors, files, setFile }: FileStepProps) {
+function StepIdentity({ form, set, errors, files, setFile, uploadingSlots }: FileStepProps) {
   return (
     <>
       <div>
@@ -649,6 +741,8 @@ function StepIdentity({ form, set, errors, files, setFile }: FileStepProps) {
           setFile={setFile}
           accept="image/*"
           error={errors.id_front}
+          draftPath={form.draft_id_front_path}
+          isUploading={uploadingSlots.id_front}
         />
         {form.id_document_type !== "passport" && (
           <FileInput
@@ -658,6 +752,8 @@ function StepIdentity({ form, set, errors, files, setFile }: FileStepProps) {
             setFile={setFile}
             accept="image/*"
             error={errors.id_back}
+            draftPath={form.draft_id_back_path}
+            isUploading={uploadingSlots.id_back}
           />
         )}
       </div>
@@ -669,6 +765,8 @@ function StepIdentity({ form, set, errors, files, setFile }: FileStepProps) {
         setFile={setFile}
         accept="image/*"
         error={errors.selfie}
+        draftPath={form.draft_selfie_path}
+        isUploading={uploadingSlots.selfie}
       />
 
       <Err msg={errors.file_size} />
@@ -768,7 +866,7 @@ function StepBank({ form, set, errors }: StepProps) {
   );
 }
 
-function StepStore({ form, set, errors, files, setFile }: FileStepProps) {
+function StepStore({ form, set, errors, files, setFile, uploadingSlots }: FileStepProps) {
   const [detectingGps, setDetectingGps] = useState(false);
   const { toast } = useToast();
 
