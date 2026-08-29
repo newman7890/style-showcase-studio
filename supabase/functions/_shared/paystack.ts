@@ -9,12 +9,9 @@ const getEnvVal = (name: string): string => {
 };
 
 const isValidSecretKey = (key: string): boolean => {
-  if (!key || !key.startsWith("sk_")) return false;
-  const lower = key.toLowerCase();
-  if (lower.includes("your_actual") || lower.includes("placeholder") || lower.includes("xxx")) {
-    return false;
-  }
-  return key.length >= 20;
+  if (!key) return false;
+  const trimmed = key.trim();
+  return trimmed.length >= 10;
 };
 
 export interface PaystackKeyConfig {
