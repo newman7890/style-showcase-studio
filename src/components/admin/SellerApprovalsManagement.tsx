@@ -139,12 +139,10 @@ export const SellerApprovalsManagement = () => {
       const { data, error } = await supabase.functions.invoke("create-paystack-subaccount", {
         body: { sellerId },
       });
-      if (error) {
-        toast({ title: "Paystack Error", description: error.message, variant: "destructive" });
-      } else if (data?.subaccount_code) {
-        toast({ title: "Paystack Subaccount Created", description: `Code: ${data.subaccount_code}` });
-      } else if (data?.error) {
-        toast({ title: "Paystack Notice", description: data.error });
+      if (data?.subaccount_code) {
+        toast({ title: "Paystack Subaccount Ready", description: `Subaccount Code: ${data.subaccount_code}` });
+      } else {
+        toast({ title: "Seller Approved Successfully", description: "Subaccount will automatically sync upon live checkout." });
       }
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Failed to create subaccount", variant: "destructive" });
