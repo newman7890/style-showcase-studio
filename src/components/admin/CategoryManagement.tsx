@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutGrid, Plus, Pencil, Trash2, GripVertical, Eye, EyeOff, ImageIcon, Save, X, FolderOpen, Upload, Loader2 } from "lucide-react";
+import { LayoutGrid, Plus, Pencil, Trash2, Eye, EyeOff, ImageIcon, Save, X, FolderOpen, Upload, Loader2, Search, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  PRESET_FASHION_CATEGORIES,
+  PRESET_GADGETS_CATEGORIES,
+  PRESET_ART_CATEGORIES,
+  PRESET_OTHER_CATEGORIES,
+  PRESET_CATEGORIES_BY_DEPARTMENT,
+  CategoryItem,
+} from "@/constants/categories";
 
 interface Category {
   id: string;
@@ -31,7 +32,7 @@ interface Category {
   display_order: number;
   is_active: boolean;
   department?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 interface Product {
@@ -54,10 +55,15 @@ export const CategoryManagement = () => {
   const [formDepartment, setFormDepartment] = useState("fashion");
   const [formActive, setFormActive] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignCategory, setAssignCategory] = useState<Category | null>(null);
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
+
+  // Admin Search & Department Filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("all");
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -90,14 +96,73 @@ export const CategoryManagement = () => {
         supabase.from("categories").select("*").order("display_order", { ascending: true }),
         supabase.from("products").select("id, name, image, category"),
       ]);
-      if (catRes.error) throw catRes.error;
-      if (prodRes.error) throw prodRes.error;
-      setCategories(catRes.data || []);
+
+      const dbCats: Category[] = (catRes.data as Category[]) || [];
+      const dbSlugs = new Set(dbCats.map((c) => c.slug));
+
+      // Flatten presets
+      const allPresets: CategoryItem[] = [
+        ...PRESET_FASHION_CATEGORIES,
+        ...PRESET_GADGETS_CATEGORIES,
+        ...PRESET_ART_CATEGORIES,
+        ...PRESET_OTHER_CATEGORIES,
+      ];
+
+      // Merge missing presets into category list so admin can edit them all
+      let orderCounter = dbCats.length + 1;
+      const missingPresets: Category[] = allPresets
+        .filter((p) => !dbSlugs.has(p.slug))
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          department: p.department,
+          image: p.image || null,
+          display_order: orderCounter++,
+          is_active: true,
+          created_at: new Date().toISOString(),
+        }));
+
+      setCategories([...dbCats, ...missingPresets]);
       setProducts(prodRes.data || []);
     } catch {
       toast({ title: "Error loading data", variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncPresetsToDb = async () => {
+    setSyncing(true);
+    try {
+      const allPresets: CategoryItem[] = [
+        ...PRESET_FASHION_CATEGORIES,
+        ...PRESET_GADGETS_CATEGORIES,
+        ...PRESET_ART_CATEGORIES,
+        ...PRESET_OTHER_CATEGORIES,
+      ];
+      let order = 1;
+      const rows = allPresets.map((p) => ({
+        name: p.name,
+        slug: p.slug,
+        department: p.department,
+        image: p.image || null,
+        is_active: true,
+        display_order: order++,
+      }));
+
+      const { error } = await supabase.from("categories").upsert(rows, { onConflict: "slug" });
+      if (error) throw error;
+
+      toast({
+        title: "All Preset Categories Synced! 🎉",
+        description: `Successfully stored ${rows.length} categories to the database.`,
+      });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Sync Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -136,21 +201,23 @@ export const CategoryManagement = () => {
     }
     setSaving(true);
     try {
-      if (editingCategory) {
-        const { error } = await supabase
-          .from("categories")
-          .update({ name: formName, slug: formSlug, image: formImage || null, is_active: formActive, department: formDepartment })
-          .eq("id", editingCategory.id);
-        if (error) throw error;
-        toast({ title: "Category updated" });
-      } else {
-        const maxOrder = categories.length > 0 ? Math.max(...categories.map((c) => c.display_order)) : 0;
-        const { error } = await supabase
-          .from("categories")
-          .insert({ name: formName, slug: formSlug, image: formImage || null, is_active: formActive, department: formDepartment, display_order: maxOrder + 1 });
-        if (error) throw error;
-        toast({ title: "Category created" });
-      }
+      const payload = {
+        name: formName,
+        slug: formSlug,
+        image: formImage || null,
+        is_active: formActive,
+        department: formDepartment,
+      };
+
+      const { error } = await supabase
+        .from("categories")
+        .upsert(
+          editingCategory ? { ...payload, id: editingCategory.id } : { ...payload, display_order: categories.length + 1 },
+          { onConflict: "slug" }
+        );
+
+      if (error) throw error;
+      toast({ title: editingCategory ? "Category updated" : "Category created" });
       setDialogOpen(false);
       fetchData();
     } catch (err: any) {
@@ -172,7 +239,9 @@ export const CategoryManagement = () => {
   };
 
   const handleToggleActive = async (cat: Category) => {
-    const { error } = await supabase.from("categories").update({ is_active: !cat.is_active }).eq("id", cat.id);
+    const { error } = await supabase
+      .from("categories")
+      .upsert({ slug: cat.slug, name: cat.name, department: cat.department || "fashion", is_active: !cat.is_active }, { onConflict: "slug" });
     if (!error) fetchData();
   };
 
@@ -190,37 +259,60 @@ export const CategoryManagement = () => {
 
   const openAssign = (cat: Category) => {
     setAssignCategory(cat);
-    setCategoryProducts(products.filter((p) => p.category === cat.slug));
+    setCategoryProducts(
+      products.filter(
+        (p) =>
+          p.category === cat.slug ||
+          p.category === cat.name ||
+          p.category.toLowerCase() === cat.slug.toLowerCase() ||
+          p.category.toLowerCase() === cat.name.toLowerCase()
+      )
+    );
     setAssignDialogOpen(true);
   };
 
-  const assignProduct = async (productId: string, slug: string) => {
-    const { error } = await supabase.from("products").update({ category: slug }).eq("id", productId);
+  const assignProduct = async (productId: string, catName: string) => {
+    const { error } = await supabase.from("products").update({ category: catName }).eq("id", productId);
     if (error) {
       toast({ title: "Error assigning product", variant: "destructive" });
     } else {
       toast({ title: "Product assigned" });
       fetchData();
-      // Refresh local state
-      setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, category: slug } : p)));
+      setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, category: catName } : p)));
       setCategoryProducts((prev) => {
         const product = products.find((p) => p.id === productId);
-        return product ? [...prev, { ...product, category: slug }] : prev;
+        return product ? [...prev, { ...product, category: catName }] : prev;
       });
     }
   };
 
   const unassignProduct = async (productId: string) => {
-    const { error } = await supabase.from("products").update({ category: "uncategorized" }).eq("id", productId);
+    const { error } = await supabase.from("products").update({ category: "Uncategorized" }).eq("id", productId);
     if (!error) {
       toast({ title: "Product removed from category" });
       fetchData();
-      setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, category: "uncategorized" } : p)));
+      setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, category: "Uncategorized" } : p)));
       setCategoryProducts((prev) => prev.filter((p) => p.id !== productId));
     }
   };
 
-  const getProductCount = (slug: string) => products.filter((p) => p.category === slug).length;
+  const getProductCount = (catName: string, slug: string) =>
+    products.filter(
+      (p) =>
+        p.category === catName ||
+        p.category === slug ||
+        p.category.toLowerCase() === catName.toLowerCase() ||
+        p.category.toLowerCase() === slug.toLowerCase()
+    ).length;
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter((c) => {
+      const matchesDept = activeTab === "all" || c.department === activeTab;
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q || c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q);
+      return matchesDept && matchesSearch;
+    });
+  }, [categories, activeTab, searchQuery]);
 
   if (loading) {
     return (
@@ -234,29 +326,73 @@ export const CategoryManagement = () => {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <LayoutGrid className="w-5 h-5 text-primary" />
-              Category Management
-            </CardTitle>
-            <Button onClick={openCreate} size="sm" className="gap-2">
-              <Plus className="w-4 h-4" /> Add Category
-            </Button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                <LayoutGrid className="w-5 h-5 text-primary" />
+                Category Management
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Manage all {categories.length} categories across Fashion, Gadgets, Art, Home, & Other.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleSyncPresetsToDb} disabled={syncing} variant="outline" size="sm" className="gap-2">
+                {syncing ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <RefreshCw className="w-4 h-4 text-primary" />}
+                Sync to DB
+              </Button>
+              <Button onClick={openCreate} size="sm" className="gap-2">
+                <Plus className="w-4 h-4" /> Add Category
+              </Button>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Create and manage categories that appear on the homepage and shop page. Drag to reorder, assign products to categories.
-          </p>
+
+          {/* Department Tabs & Search Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t mt-4">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {[
+                { id: "all", label: `All (${categories.length})` },
+                { id: "fashion", label: "Fashion 👗" },
+                { id: "gadgets", label: "Gadgets 📱" },
+                { id: "art", label: "Art 🎨" },
+                { id: "other", label: "Other 📦" },
+                { id: "home", label: "Home 🏠" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                    activeTab === tab.id
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
+              <Input
+                placeholder="Search categories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-xs"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3">
+          <div className="grid gap-3 max-h-[600px] overflow-y-auto pr-1">
             <AnimatePresence>
-              {categories.map((cat, index) => (
+              {filteredCategories.map((cat, index) => (
                 <motion.div
-                  key={cat.id}
+                  key={cat.id || cat.slug}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 10 }}
-                  transition={{ delay: index * 0.04 }}
+                  transition={{ delay: Math.min(index * 0.02, 0.3) }}
                   className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-secondary/20 hover:bg-secondary/40 transition-colors"
                 >
                   {/* Reorder buttons */}
@@ -270,7 +406,7 @@ export const CategoryManagement = () => {
                     </button>
                     <button
                       onClick={() => moveCategory(cat, "down")}
-                      disabled={index === categories.length - 1}
+                      disabled={index === filteredCategories.length - 1}
                       className="text-muted-foreground hover:text-foreground disabled:opacity-20 text-xs"
                     >
                       ▼
@@ -288,11 +424,18 @@ export const CategoryManagement = () => {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium truncate">{cat.name}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-medium truncate">{cat.name}</h4>
+                      {cat.department && (
+                        <Badge variant="outline" className="text-[10px] uppercase font-bold text-primary">
+                          {cat.department}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex items-center gap-3 mt-0.5">
                       <span className="text-xs text-muted-foreground font-mono">{cat.slug}</span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {getProductCount(cat.slug)} products
+                      <Badge variant="secondary" className="text-[10px]">
+                        {getProductCount(cat.name, cat.slug)} products
                       </Badge>
                     </div>
                   </div>
@@ -309,10 +452,10 @@ export const CategoryManagement = () => {
                     <button onClick={() => openAssign(cat)} title="Assign products">
                       <FolderOpen className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                     </button>
-                    <button onClick={() => openEdit(cat)} title="Edit">
+                    <button onClick={() => openEdit(cat)} title="Edit Category">
                       <Pencil className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                     </button>
-                    <button onClick={() => handleDelete(cat.id)} title="Delete">
+                    <button onClick={() => handleDelete(cat.id)} title="Delete Category">
                       <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
                     </button>
                   </div>
@@ -320,10 +463,10 @@ export const CategoryManagement = () => {
               ))}
             </AnimatePresence>
 
-            {categories.length === 0 && (
+            {filteredCategories.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 <LayoutGrid className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p className="text-sm">No categories yet. Create one to get started.</p>
+                <p className="text-sm">No categories found for this filter.</p>
               </div>
             )}
           </div>
@@ -332,7 +475,7 @@ export const CategoryManagement = () => {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingCategory ? "Edit Category" : "Add Category"}</DialogTitle>
           </DialogHeader>
@@ -354,12 +497,13 @@ export const CategoryManagement = () => {
               >
                 <option value="fashion">Fashion</option>
                 <option value="gadgets">Gadgets</option>
+                <option value="art">Art & Collectibles</option>
                 <option value="home">Home & Living</option>
                 <option value="other">Other</option>
               </select>
             </div>
             <div className="space-y-2">
-              <Label>Category Image</Label>
+              <Label>Category Cover Image</Label>
               
               {/* Direct File Upload Option */}
               <div className="flex items-center gap-3">
@@ -442,14 +586,14 @@ export const CategoryManagement = () => {
               <h4 className="text-sm font-medium mb-2">Add Products</h4>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {products
-                  .filter((p) => p.category !== assignCategory?.slug)
+                  .filter((p) => p.category !== assignCategory?.name && p.category !== assignCategory?.slug)
                   .map((p) => (
                     <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg border border-border/40 hover:bg-secondary/30">
                       <img src={p.image} alt={p.name} className="w-8 h-8 rounded object-cover" />
                       <span className="text-sm flex-1 truncate">{p.name}</span>
                       <Badge variant="outline" className="text-[10px] shrink-0">{p.category}</Badge>
                       <button
-                        onClick={() => assignProduct(p.id, assignCategory!.slug)}
+                        onClick={() => assignProduct(p.id, assignCategory!.name)}
                         className="text-xs text-primary hover:underline shrink-0"
                       >
                         Add
