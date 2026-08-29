@@ -448,7 +448,7 @@ export default function SellerWizard() {
         pickup_google_maps_url: form.pickup_google_maps_url || null,
       };
 
-      let { error } = await supabase.from("seller_profiles").insert(insertPayload);
+      let { error } = await supabase.from("seller_profiles").insert(insertPayload as any);
 
       // Fallback: If Supabase schema cache hasn't updated yet, retry without new fulfillment columns
       if (error && (error.message?.includes("fulfillment_model") || error.message?.includes("schema cache"))) {
@@ -459,7 +459,7 @@ export default function SellerWizard() {
         delete insertPayload.pickup_longitude;
         delete insertPayload.pickup_phone;
         delete insertPayload.pickup_google_maps_url;
-        const retry = await supabase.from("seller_profiles").insert(insertPayload);
+        const retry = await supabase.from("seller_profiles").insert(insertPayload as any);
         error = retry.error;
       }
 
