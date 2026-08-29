@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const getEnvVal = (name: string): string => {
   let val = Deno.env.get(name)?.trim() || "";
   if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
@@ -43,7 +45,6 @@ export const getAllPaystackSecretKeys = (): PaystackKeyConfig[] => {
     }
   }
 
-  // Also check any other Deno env vars containing paystack and secret
   for (const [key, value] of Object.entries(Deno.env.toObject())) {
     if (key.toLowerCase().includes("paystack") && key.toLowerCase().includes("secret")) {
       let trimmed = value.trim();
@@ -63,6 +64,47 @@ export const getAllPaystackSecretKeys = (): PaystackKeyConfig[] => {
   return results;
 };
 
+export const getAllPaystackSecretKeysAsync = async (): Promise<PaystackKeyConfig[]> => {
+  const results = getAllPaystackSecretKeys();
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (supabaseUrl && serviceRoleKey) {
+      const client = createClient(supabaseUrl, serviceRoleKey);
+      const { data } = await client
+        .from("platform_settings")
+        .select("paystack_secret_key, paystack_public_key")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (data?.paystack_secret_key) {
+        let secKey = String(data.paystack_secret_key).trim();
+        if ((secKey.startsWith('"') && secKey.endsWith('"')) || (secKey.startsWith("'") && secKey.endsWith("'"))) {
+          secKey = secKey.slice(1, -1).trim();
+        }
+        if (isValidSecretKey(secKey)) {
+          let pubKey = String(data.paystack_public_key || "").trim();
+          if ((pubKey.startsWith('"') && pubKey.endsWith('"')) || (pubKey.startsWith("'") && pubKey.endsWith("'"))) {
+            pubKey = pubKey.slice(1, -1).trim();
+          }
+          if (!results.some(r => r.secretKey === secKey)) {
+            results.unshift({
+              secretKey: secKey,
+              publicKey: pubKey,
+              sourceName: "platform_settings (database)",
+            });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Could not query platform_settings for paystack keys:", e);
+  }
+
+  return results;
+};
+
 export const getPaystackKeys = (): PaystackKeyConfig => {
   const all = getAllPaystackSecretKeys();
   if (all.length === 0) {
@@ -70,7 +112,22 @@ export const getPaystackKeys = (): PaystackKeyConfig => {
     const preview = rawVal === "NOT_SET" ? "NOT_SET" : `'${rawVal.substring(0, 10)}...'`;
     throw new Error(`No valid Paystack secret key found. Checked PAYSTACK_SECRET_KEY (Value: ${preview}). Key must start with sk_live_ or sk_test_.`);
   }
-  // Prefer PAYSTACK_SECRET_KEY first, then live key
+  const primary = all.find(k => k.sourceName === "PAYSTACK_SECRET_KEY");
+  if (primary) return primary;
+  const live = all.find(k => k.secretKey.startsWith("sk_live_"));
+  if (live) return live;
+  return all[0];
+};
+
+export const getPaystackKeysAsync = async (): Promise<PaystackKeyConfig> => {
+  const all = await getAllPaystackSecretKeysAsync();
+  if (all.length === 0) {
+    const rawVal = Deno.env.get("PAYSTACK_SECRET_KEY") || Deno.env.get("Paystack_Live_Secret_Key") || "NOT_SET";
+    const preview = rawVal === "NOT_SET" ? "NOT_SET" : `'${rawVal.substring(0, 10)}...'`;
+    throw new Error(`No valid Paystack secret key found in environment or database platform_settings. Checked PAYSTACK_SECRET_KEY (Value: ${preview}). Key must start with sk_live_ or sk_test_.`);
+  }
+  const dbKey = all.find(k => k.sourceName === "platform_settings (database)");
+  if (dbKey) return dbKey;
   const primary = all.find(k => k.sourceName === "PAYSTACK_SECRET_KEY");
   if (primary) return primary;
   const live = all.find(k => k.secretKey.startsWith("sk_live_"));
@@ -80,6 +137,11 @@ export const getPaystackKeys = (): PaystackKeyConfig => {
 
 export const getPaystackSecretKey = (): string => {
   return getPaystackKeys().secretKey;
+};
+
+export const getPaystackSecretKeyAsync = async (): Promise<string> => {
+  const k = await getPaystackKeysAsync();
+  return k.secretKey;
 };
 
 export const getPaystackPublicKey = (): string => {

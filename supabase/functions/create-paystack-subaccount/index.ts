@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, hasRole, isServiceRoleCall, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
-import { getPaystackSecretKey, getPaystackKeys } from "../_shared/paystack.ts";
+import { getPaystackSecretKeyAsync, getPaystackKeysAsync } from "../_shared/paystack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,7 +23,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     let paystackSecretKey = "";
     try {
-      paystackSecretKey = getPaystackSecretKey();
+      paystackSecretKey = await getPaystackSecretKeyAsync();
     } catch (e) {
       console.warn("Paystack key warning:", e);
     }

@@ -630,8 +630,8 @@ const Checkout = () => {
         },
       });
 
-      if (error) {
-        const msg = await getFunctionErrorMessage(error);
+      if (error || data?.error) {
+        const msg = data?.error || (await getFunctionErrorMessage(error));
         toast.error(msg || "Could not initialize Paystack payment.");
         setSubmitting(false);
         return;

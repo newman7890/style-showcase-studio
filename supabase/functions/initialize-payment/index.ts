@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
-import { getAllPaystackSecretKeys } from "../_shared/paystack.ts";
+import { getAllPaystackSecretKeysAsync, PaystackKeyConfig } from "../_shared/paystack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,7 +171,7 @@ const handler = async (req: Request): Promise<Response> => {
       };
     }
 
-    const allKeys = getAllPaystackSecretKeys();
+    const allKeys = await getAllPaystackSecretKeysAsync();
     let paystackData: any = null;
     let successfulKeyConfig: PaystackKeyConfig | null = allKeys[0] || null;
     let lastPaystackError = "";
@@ -207,30 +207,14 @@ const handler = async (req: Request): Promise<Response> => {
       lastPaystackError = "No valid Paystack secret key found in Supabase Secrets.";
     }
 
-    // If Paystack API call failed (e.g. invalid key or unconfigured API key), fallback gracefully to Demo Sandbox payment so checkout never breaks!
+    // If Paystack API call failed (e.g. invalid key or unconfigured API key), return explicit error so user sees the real key notice on Checkout page
     if (!paystackData || !paystackData.status) {
-      const demoRef = `DEMO_PAY_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      console.warn(`Paystack API initialize failed (${lastPaystackError}). Using self-healing Sandbox mode with reference ${demoRef}...`);
-
-      // Store demo checkout details in Supabase KV or metadata if needed, and construct callback URL
-      const demoCallbackUrl = new URL(callbackUrl);
-      demoCallbackUrl.searchParams.set("reference", demoRef);
-      demoCallbackUrl.searchParams.set("demo", "true");
-
       return new Response(
         JSON.stringify({
-          success: true,
-          authorizationUrl: demoCallbackUrl.toString(),
-          authorization_url: demoCallbackUrl.toString(),
-          accessCode: `DEMO_ACCESS_${demoRef}`,
-          reference: demoRef,
-          publicKey: "pk_test_demo_mode_key",
-          channels,
-          is_demo_fallback: true,
-          warning: `Paystack key notice: ${lastPaystackError}. Falling back to Sandbox Mode for testing.`,
+          error: lastPaystackError || "Could not initialize Paystack payment. Please check your Paystack API keys in Admin Settings.",
         }),
         {
-          status: 200,
+          status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
