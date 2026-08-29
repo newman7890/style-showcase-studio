@@ -22,7 +22,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
-import { PRESET_FASHION_CATEGORIES } from "@/constants/categories";
+import { PRESET_CATEGORIES_BY_DEPARTMENT } from "@/constants/categories";
 
 interface Product {
   id: string;
@@ -193,9 +193,10 @@ const Department = () => {
         }
       }
       let loadedCats: Category[] = (catRes.data as Category[]) || [];
-      if (slug === "fashion") {
+      const presets = PRESET_CATEGORIES_BY_DEPARTMENT[slug];
+      if (presets) {
         const existingSlugs = new Set(loadedCats.map((c) => c.slug));
-        const missingPresets: Category[] = PRESET_FASHION_CATEGORIES
+        const missingPresets: Category[] = presets
           .filter((p) => !existingSlugs.has(p.slug))
           .map((p) => ({
             id: p.id,

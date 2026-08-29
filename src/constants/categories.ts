@@ -98,3 +98,73 @@ export const PRESET_FASHION_CATEGORIES: CategoryItem[] = [
   { id: "traditional-shirts", name: "Traditional Shirts", slug: "traditional-shirts", department: "fashion", group: "African / Traditional Fashion" },
   { id: "fabrics-textiles", name: "Fabrics & Textiles", slug: "fabrics-textiles", department: "fashion", group: "African / Traditional Fashion" },
 ];
+
+export const PRESET_GADGETS_CATEGORIES: CategoryItem[] = [
+  // Smartphones & Tablets
+  { id: "smartphones", name: "Smartphones 📱", slug: "smartphones", department: "gadgets", group: "Smartphones & Tablets" },
+  { id: "tablets", name: "Tablets 📲", slug: "tablets", department: "gadgets", group: "Smartphones & Tablets" },
+
+  // Wearables
+  { id: "wearables", name: "Wearables ⌚", slug: "wearables", department: "gadgets", group: "Wearables" },
+  { id: "smartwatches", name: "Smartwatches", slug: "smartwatches", department: "gadgets", group: "Wearables" },
+  { id: "fitness-trackers", name: "Fitness Trackers", slug: "fitness-trackers", department: "gadgets", group: "Wearables" },
+  { id: "smart-rings", name: "Smart Rings", slug: "smart-rings", department: "gadgets", group: "Wearables" },
+  { id: "smart-glasses", name: "Smart Glasses", slug: "smart-glasses", department: "gadgets", group: "Wearables" },
+
+  // Audio
+  { id: "audio-headphones", name: "Audio 🎧", slug: "audio-headphones", department: "gadgets", group: "Audio" },
+  { id: "earbuds-earphones", name: "Earbuds & Earphones", slug: "earbuds-earphones", department: "gadgets", group: "Audio" },
+  { id: "headphones", name: "Headphones", slug: "headphones", department: "gadgets", group: "Audio" },
+  { id: "bluetooth-speakers", name: "Bluetooth Speakers", slug: "bluetooth-speakers", department: "gadgets", group: "Audio" },
+  { id: "wireless-microphones", name: "Wireless Microphones", slug: "wireless-microphones", department: "gadgets", group: "Audio" },
+
+  // Power & Charging
+  { id: "power-banks", name: "Power Banks 🔋", slug: "power-banks", department: "gadgets", group: "Power & Charging" },
+  { id: "chargers-adapters", name: "Chargers & Adapters 🔌", slug: "chargers-adapters", department: "gadgets", group: "Power & Charging" },
+  { id: "wireless-chargers", name: "Wireless Chargers", slug: "wireless-chargers", department: "gadgets", group: "Power & Charging" },
+  { id: "usb-cables-data-cables", name: "USB & Data Cables", slug: "usb-cables-data-cables", department: "gadgets", group: "Power & Charging" },
+
+  // Phone Accessories
+  { id: "gadget-accessories", name: "Phone Accessories 📱", slug: "gadget-accessories", department: "gadgets", group: "Phone Accessories" },
+  { id: "phone-cases", name: "Phone Cases", slug: "phone-cases", department: "gadgets", group: "Phone Accessories" },
+  { id: "screen-protectors", name: "Screen Protectors", slug: "screen-protectors", department: "gadgets", group: "Phone Accessories" },
+  { id: "phone-stands-holders", name: "Phone Stands & Holders", slug: "phone-stands-holders", department: "gadgets", group: "Phone Accessories" },
+  { id: "selfie-sticks-tripods", name: "Selfie Sticks & Tripods", slug: "selfie-sticks-tripods", department: "gadgets", group: "Phone Accessories" },
+  { id: "phone-coolers", name: "Phone Coolers", slug: "phone-coolers", department: "gadgets", group: "Phone Accessories" },
+
+  // Cameras & Photography
+  { id: "cameras-photography", name: "Cameras & Photography 📷", slug: "cameras-photography", department: "gadgets", group: "Cameras & Photography" },
+  { id: "drones", name: "Drones & RC", slug: "drones", department: "gadgets", group: "Cameras & Photography" },
+  { id: "action-cameras", name: "Action Cameras", slug: "action-cameras", department: "gadgets", group: "Cameras & Photography" },
+  { id: "digital-cameras", name: "Digital Cameras", slug: "digital-cameras", department: "gadgets", group: "Cameras & Photography" },
+  { id: "camera-accessories", name: "Camera Accessories", slug: "camera-accessories", department: "gadgets", group: "Cameras & Photography" },
+
+  // Gaming & VR
+  { id: "gaming-gadgets", name: "Gaming Gadgets 🎮", slug: "gaming-gadgets", department: "gadgets", group: "Gaming & VR" },
+  { id: "vr-headsets", name: "VR Headsets 🥽", slug: "vr-headsets", department: "gadgets", group: "Gaming & VR" },
+
+  // Smart Home & Lighting
+  { id: "smart-home", name: "Smart Home Devices 🏠", slug: "smart-home", department: "gadgets", group: "Smart Home & Lighting" },
+  { id: "led-smart-lights", name: "LED & Smart Lights 💡", slug: "led-smart-lights", department: "gadgets", group: "Smart Home & Lighting" },
+  { id: "projectors", name: "Projectors 📹", slug: "projectors", department: "gadgets", group: "Smart Home & Lighting" },
+  { id: "tv-boxes-streaming", name: "TV Boxes & Streaming Devices", slug: "tv-boxes-streaming", department: "gadgets", group: "Smart Home & Lighting" },
+
+  // Computer Accessories
+  { id: "computer-accessories", name: "Computer Accessories 💻", slug: "computer-accessories", department: "gadgets", group: "Computer Accessories" },
+  { id: "usb-hubs-adapters", name: "USB Hubs & Adapters", slug: "usb-hubs-adapters", department: "gadgets", group: "Computer Accessories" },
+
+  // Storage & Memory
+  { id: "memory-cards-flash-drives", name: "Memory Cards & Flash Drives 💾", slug: "memory-cards-flash-drives", department: "gadgets", group: "Storage & Memory" },
+
+  // Car Gadgets & Tracking
+  { id: "car-gadgets", name: "Car Gadgets 🚗", slug: "car-gadgets", department: "gadgets", group: "Car Gadgets & Tracking" },
+  { id: "gps-tracking-devices", name: "GPS & Tracking Devices 📍", slug: "gps-tracking-devices", department: "gadgets", group: "Car Gadgets & Tracking" },
+
+  // Other Gadgets
+  { id: "other-gadgets", name: "Other Gadgets", slug: "other-gadgets", department: "gadgets", group: "Other Gadgets" },
+];
+
+export const PRESET_CATEGORIES_BY_DEPARTMENT: Record<string, CategoryItem[]> = {
+  fashion: PRESET_FASHION_CATEGORIES,
+  gadgets: PRESET_GADGETS_CATEGORIES,
+};
