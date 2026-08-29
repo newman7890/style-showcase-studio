@@ -867,8 +867,14 @@ function StepBank({ form, set, errors }: StepProps) {
 }
 
 function StepStore({ form, set, errors, files, setFile, uploadingSlots }: FileStepProps) {
-  const [detectingGps, setDetectingGps] = useState(false);
-  const { toast } = useToast();
+  useEffect(() => {
+    if (!form.pickup_address && (form.business_address || form.address)) {
+      set("pickup_address", form.business_address || form.address);
+    }
+    if (!form.pickup_phone && form.phone) {
+      set("pickup_phone", form.phone);
+    }
+  }, []);
 
   const handleDetectGps = () => {
     if (!navigator.geolocation) {
@@ -993,7 +999,7 @@ function StepStore({ form, set, errors, files, setFile, uploadingSlots }: FileSt
           <div>
             <Label className="text-xs">Pickup Street Address / Shop Name</Label>
             <Input
-              value={form.pickup_address || form.business_address || form.address}
+              value={form.pickup_address}
               onChange={(e) => set("pickup_address", e.target.value)}
               placeholder="e.g. Shop #12, Accra Central Market, or House 45, East Legon"
               className="text-xs"
@@ -1013,7 +1019,7 @@ function StepStore({ form, set, errors, files, setFile, uploadingSlots }: FileSt
             <div>
               <Label className="text-xs">Pickup Contact Phone</Label>
               <Input
-                value={form.pickup_phone || form.phone}
+                value={form.pickup_phone}
                 onChange={(e) => set("pickup_phone", e.target.value)}
                 placeholder="e.g. 024xxxxxxx"
                 className="text-xs"
