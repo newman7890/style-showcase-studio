@@ -222,9 +222,9 @@ class SupabaseService {
       
       Map<String, dynamic>? sellerData;
       if (response != null && response is List && response.isNotEmpty) {
-        sellerData = Map<String, dynamic>.from(response.first as Map);
+        sellerData = Map<String, dynamic>.from(response.first);
       } else if (response != null && response is Map) {
-        sellerData = Map<String, dynamic>.from(response as Map);
+        sellerData = Map<String, dynamic>.from(response);
       }
 
       if (sellerData != null && sellerData['fulfillment_model'] != null) {
