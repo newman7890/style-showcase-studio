@@ -85,6 +85,12 @@ interface SellerRow {
   rejection_reason: string | null;
   commission_override: number | null;
   paystack_subaccount_code: string | null;
+  fulfillment_model: string | null;
+  pickup_address: string | null;
+  pickup_landmark: string | null;
+  pickup_latitude: number | null;
+  pickup_longitude: number | null;
+  pickup_phone: string | null;
   applied_at: string;
 }
 
@@ -419,7 +425,18 @@ export const SellerApprovalsManagement = () => {
                       </div>
                     </Panel>
 
-                    <Panel title="Store" className="md:col-span-2">
+                    <Panel title="Store & Fulfillment" className="md:col-span-2">
+                      <KV k="Fulfillment Model" v={r.fulfillment_model === "hub_dropoff" ? "🏢 Trades Point Hub Drop-Off" : "🛵 Direct Doorstep Pickup"} />
+                      {r.fulfillment_model !== "hub_dropoff" && (
+                        <>
+                          <KV k="Pickup address" v={r.pickup_address || r.business_address || r.address} />
+                          <KV k="Pickup landmark" v={r.pickup_landmark} />
+                          <KV k="Pickup phone" v={r.pickup_phone} />
+                          {r.pickup_latitude && r.pickup_longitude && (
+                            <KV k="GPS Pin" v={`${r.pickup_latitude.toFixed(4)}° N, ${r.pickup_longitude.toFixed(4)}° W`} />
+                          )}
+                        </>
+                      )}
                       <KV k="Store name" v={r.store_name} />
                       <KV k="Return address" v={r.return_address} />
                       <KV k="Description" v={r.store_description} />

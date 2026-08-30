@@ -582,7 +582,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final sellerLng = _seller?['pickup_longitude'];
     final storeName = _seller?['business_name'] ?? _seller?['store_name'] ?? 'Seller Shop';
 
-    final isDirectPickup = sellerModel == 'direct_pickup' || (sellerAddress != null && sellerAddress.toString().isNotEmpty);
+    final isDirectPickup = sellerModel != 'hub_dropoff' && (sellerModel == 'direct_pickup' || (sellerAddress != null && sellerAddress.toString().isNotEmpty));
 
     if (isDirectPickup && sellerAddress != null && sellerAddress.toString().isNotEmpty) {
       final navTarget = (sellerMapsUrl != null && sellerMapsUrl.isNotEmpty)

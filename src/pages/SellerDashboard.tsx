@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon, MapPin, ExternalLink, Mail, Phone, Building2, Info } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon, MapPin, ExternalLink, Mail, Phone, Building2, Info, Truck, Navigation } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -126,6 +126,19 @@ const SellerDashboard = () => {
   const [dropoffModalOpen, setDropoffModalOpen] = useState(false);
   const [selectedHubId, setSelectedHubId] = useState("");
   const [submittingDropoff, setSubmittingDropoff] = useState(false);
+
+  // Seller fulfillment profile state
+  const [sellerProfile, setSellerProfile] = useState<any>(null);
+  const [savingFulfillment, setSavingFulfillment] = useState(false);
+  const [fulfillmentForm, setFulfillmentForm] = useState({
+    fulfillment_model: "direct_pickup",
+    pickup_address: "",
+    pickup_landmark: "",
+    pickup_phone: "",
+    pickup_latitude: null as number | null,
+    pickup_longitude: null as number | null,
+  });
+  const [detectingGps, setDetectingGps] = useState(false);
 
   const handleMultipleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -381,7 +394,7 @@ const SellerDashboard = () => {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const [p, oi, s, hubsRes, dropoffsRes] = await Promise.all([
+    const [p, oi, s, hubsRes, dropoffsRes, profRes] = await Promise.all([
       supabase.from("products").select("*").eq("seller_id", user.id).order("created_at", { ascending: false }),
       supabase
         .from("order_items")
@@ -391,13 +404,25 @@ const SellerDashboard = () => {
         .limit(50),
       supabase.rpc("get_seller_earnings_summary", { _seller_id: user.id }),
       supabase.from("hubs").select("*").eq("is_active", true),
-      supabase.from("seller_dropoffs").select("*, hubs(name)").eq("seller_id", user.id).order("created_at", { ascending: false })
+      supabase.from("seller_dropoffs").select("*, hubs(name)").eq("seller_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("seller_profiles").select("*").eq("user_id", user.id).maybeSingle()
     ]);
     setProducts((p.data as any) ?? []);
     setOrderItems((oi.data as any) ?? []);
     setSummary(Array.isArray(s.data) ? s.data[0] : s.data);
     setHubs((hubsRes.data as any) ?? []);
     setDropoffs((dropoffsRes.data as any) ?? []);
+    if (profRes.data) {
+      setSellerProfile(profRes.data);
+      setFulfillmentForm({
+        fulfillment_model: profRes.data.fulfillment_model || "direct_pickup",
+        pickup_address: profRes.data.pickup_address || profRes.data.business_address || profRes.data.address || "",
+        pickup_landmark: profRes.data.pickup_landmark || "",
+        pickup_phone: profRes.data.pickup_phone || profRes.data.phone || "",
+        pickup_latitude: profRes.data.pickup_latitude ?? null,
+        pickup_longitude: profRes.data.pickup_longitude ?? null,
+      });
+    }
     setLoading(false);
   };
 
@@ -433,6 +458,61 @@ const SellerDashboard = () => {
       toast({ title: "Error", description: err.message || "Failed to schedule drop-off.", variant: "destructive" });
     } finally {
       setSubmittingDropoff(false);
+    }
+  };
+
+  const handleDetectGps = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "GPS Error", description: "Geolocation is not supported by your browser.", variant: "destructive" });
+      return;
+    }
+    setDetectingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setFulfillmentForm((prev) => ({
+          ...prev,
+          pickup_latitude: pos.coords.latitude,
+          pickup_longitude: pos.coords.longitude,
+        }));
+        setDetectingGps(false);
+        toast({ title: "GPS Coordinates Detected 📍", description: `${pos.coords.latitude.toFixed(4)}° N, ${pos.coords.longitude.toFixed(4)}° W` });
+      },
+      (err) => {
+        setDetectingGps(false);
+        toast({ title: "GPS Error", description: err.message || "Could not detect location.", variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleSaveFulfillmentSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setSavingFulfillment(true);
+    try {
+      const { error } = await supabase
+        .from("seller_profiles")
+        .update({
+          fulfillment_model: fulfillmentForm.fulfillment_model,
+          pickup_address: fulfillmentForm.pickup_address || null,
+          pickup_landmark: fulfillmentForm.pickup_landmark || null,
+          pickup_phone: fulfillmentForm.pickup_phone || null,
+          pickup_latitude: fulfillmentForm.pickup_latitude,
+          pickup_longitude: fulfillmentForm.pickup_longitude,
+        })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Fulfillment Settings Saved 🚚",
+        description: `Your shop fulfillment model is now set to ${fulfillmentForm.fulfillment_model === "direct_pickup" ? "Direct Doorstep Pickup" : "Hub Drop-off"}.`,
+      });
+      load();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to save settings.", variant: "destructive" });
+    } finally {
+      setSavingFulfillment(false);
     }
   };
 
@@ -729,6 +809,9 @@ const SellerDashboard = () => {
                 </TabsTrigger>
                 <TabsTrigger value="dropoffs" className="text-xs sm:text-sm px-3 sm:px-3.5 py-2 data-[state=active]:bg-background">
                   <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 shrink-0" />Drop-offs
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="text-xs sm:text-sm px-3 sm:px-3.5 py-2 data-[state=active]:bg-background">
+                  <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 shrink-0" />Fulfillment Settings
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -1374,6 +1457,124 @@ const SellerDashboard = () => {
                   </div>
                 )}
               </div>
+            </TabsContent>
+            <TabsContent value="settings" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-primary" />
+                    Order Delivery & Fulfillment Model
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSaveFulfillmentSettings} className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div
+                        onClick={() => setFulfillmentForm({ ...fulfillmentForm, fulfillment_model: "direct_pickup" })}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          fulfillmentForm.fulfillment_model === "direct_pickup"
+                            ? "border-primary bg-primary/5 dark:bg-primary/10 shadow-sm"
+                            : "border-border hover:border-muted-foreground/40 bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 font-semibold text-sm">
+                          <span className="text-lg">🛵</span> Direct Doorstep Pickup
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                          Riders pick up sold orders directly from your shop or home live GPS address.
+                        </p>
+                      </div>
+
+                      <div
+                        onClick={() => setFulfillmentForm({ ...fulfillmentForm, fulfillment_model: "hub_dropoff" })}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          fulfillmentForm.fulfillment_model === "hub_dropoff"
+                            ? "border-primary bg-primary/5 dark:bg-primary/10 shadow-sm"
+                            : "border-border hover:border-muted-foreground/40 bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 font-semibold text-sm">
+                          <span className="text-lg">🏢</span> Trades Point Hub Drop-Off
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                          You drop off sold items at any central Trades Point Hub within 24 hours of order placement.
+                        </p>
+                      </div>
+                    </div>
+
+                    {fulfillmentForm.fulfillment_model === "direct_pickup" && (
+                      <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-4">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <Label className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                            <MapPin className="w-4 h-4" /> Doorstep Pickup Location & Live GPS Pin
+                          </Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDetectGps}
+                            disabled={detectingGps}
+                            className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+                          >
+                            {detectingGps ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5 text-primary" />}
+                            {detectingGps ? "Detecting..." : "Detect Live GPS Pin"}
+                          </Button>
+                        </div>
+
+                        {fulfillmentForm.pickup_latitude && fulfillmentForm.pickup_longitude && (
+                          <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                            <span>
+                              Live GPS Pin: <strong>{fulfillmentForm.pickup_latitude.toFixed(4)}° N, {fulfillmentForm.pickup_longitude.toFixed(4)}° W</strong>
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="space-y-3">
+                          <div>
+                            <Label htmlFor="setting_pickup_address" className="text-xs font-medium">Pickup Street Address / Shop Name</Label>
+                            <Input
+                              id="setting_pickup_address"
+                              value={fulfillmentForm.pickup_address}
+                              onChange={(e) => setFulfillmentForm({ ...fulfillmentForm, pickup_address: e.target.value })}
+                              placeholder="e.g. Shop #12, Accra Central Market, or House 45, East Legon"
+                              className="mt-1 bg-background"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <Label htmlFor="setting_pickup_landmark" className="text-xs font-medium">Nearest Landmark</Label>
+                              <Input
+                                id="setting_pickup_landmark"
+                                value={fulfillmentForm.pickup_landmark}
+                                onChange={(e) => setFulfillmentForm({ ...fulfillmentForm, pickup_landmark: e.target.value })}
+                                placeholder="e.g. Opposite Shell Filling Station"
+                                className="mt-1 bg-background"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="setting_pickup_phone" className="text-xs font-medium">Pickup Dispatch Contact Phone</Label>
+                              <Input
+                                id="setting_pickup_phone"
+                                value={fulfillmentForm.pickup_phone}
+                                onChange={(e) => setFulfillmentForm({ ...fulfillmentForm, pickup_phone: e.target.value })}
+                                placeholder="e.g. 0244123456"
+                                className="mt-1 bg-background"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <Button type="submit" disabled={savingFulfillment} className="w-full sm:w-auto">
+                      {savingFulfillment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      {savingFulfillment ? "Saving..." : "Save Fulfillment Settings"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>

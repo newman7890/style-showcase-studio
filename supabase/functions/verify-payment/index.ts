@@ -355,14 +355,58 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Insert order items
         if (checkoutDetails.items && Array.isArray(checkoutDetails.items) && checkoutDetails.items.length > 0) {
-          const itemsToInsert = checkoutDetails.items.map((item: any) => ({
-            order_id: newOrder.id,
-            product_id: item.product_id,
-            quantity: item.quantity,
-            price: item.price,
-            selected_color: item.selected_color || null,
-            selected_size: item.selected_size || null,
-          }));
+          const productIds = checkoutDetails.items.map((i: any) => i.product_id).filter(Boolean);
+          const { data: prods } = await supabase
+            .from("products")
+            .select("id, seller_id")
+            .in("id", productIds);
+
+          const sellerIds = prods ? [...new Set(prods.map((p) => p.seller_id).filter(Boolean))] : [];
+          let sellerHubMap = new Map<string, string>();
+
+          if (sellerIds.length > 0) {
+            const { data: sellerProfs } = await supabase
+              .from("seller_profiles")
+              .select("user_id, fulfillment_model")
+              .in("user_id", sellerIds);
+
+            const hubDropoffSellers = new Set(
+              (sellerProfs || [])
+                .filter((sp) => sp.fulfillment_model === "hub_dropoff")
+                .map((sp) => sp.user_id)
+            );
+
+            if (hubDropoffSellers.size > 0) {
+              const { data: defaultHub } = await supabase
+                .from("hubs")
+                .select("id")
+                .eq("is_active", true)
+                .limit(1)
+                .maybeSingle();
+
+              if (defaultHub?.id) {
+                for (const sId of hubDropoffSellers) {
+                  sellerHubMap.set(sId, defaultHub.id);
+                }
+              }
+            }
+          }
+
+          const prodSellerMap = new Map((prods || []).map((p) => [p.id, p.seller_id]));
+
+          const itemsToInsert = checkoutDetails.items.map((item: any) => {
+            const sId = prodSellerMap.get(item.product_id);
+            const hubId = sId ? sellerHubMap.get(sId) || null : null;
+            return {
+              order_id: newOrder.id,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              price: item.price,
+              selected_color: item.selected_color || null,
+              selected_size: item.selected_size || null,
+              origin_hub_id: hubId,
+            };
+          });
 
           const { error: itemsErr } = await supabase.from("order_items").insert(itemsToInsert);
           if (itemsErr) {
