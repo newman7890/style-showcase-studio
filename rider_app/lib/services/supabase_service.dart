@@ -214,20 +214,46 @@ class SupabaseService {
     return items;
   }
 
-  // Fetch seller info via RPC
+  // Fetch seller info via RPC (with direct table fallback for complete fulfillment fields)
   static Future<Map<String, dynamic>?> fetchSellerInfo(String sellerId) async {
     try {
       final response = await client
           .rpc('get_public_seller_info', params: {'seller_uuid': sellerId});
       
+      Map<String, dynamic>? sellerData;
       if (response != null && response is List && response.isNotEmpty) {
-        return response.first as Map<String, dynamic>;
+        sellerData = Map<String, dynamic>.from(response.first as Map);
       } else if (response != null && response is Map) {
-        return response as Map<String, dynamic>;
+        sellerData = Map<String, dynamic>.from(response as Map);
       }
-      return null;
+
+      if (sellerData != null && sellerData['fulfillment_model'] != null) {
+        return sellerData;
+      }
+
+      // Fallback query if RPC result lacked fulfillment_model
+      final directRes = await client
+          .from('seller_profiles')
+          .select('fulfillment_model, pickup_address, pickup_landmark, pickup_latitude, pickup_longitude, pickup_phone, pickup_google_maps_url, business_name, business_address, address, phone')
+          .eq('user_id', sellerId)
+          .maybeSingle();
+
+      if (directRes != null) {
+        return Map<String, dynamic>.from(directRes);
+      }
+
+      return sellerData;
     } catch (e) {
-      return null;
+      try {
+        final fallbackRes = await client
+            .from('seller_profiles')
+            .select('fulfillment_model, pickup_address, pickup_landmark, pickup_latitude, pickup_longitude, pickup_phone, pickup_google_maps_url, business_name, business_address, address, phone')
+            .eq('user_id', sellerId)
+            .maybeSingle();
+        return fallbackRes != null ? Map<String, dynamic>.from(fallbackRes) : null;
+      } catch (_) {
+        return null;
+      }
     }
   }
 
