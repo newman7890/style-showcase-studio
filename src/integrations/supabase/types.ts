@@ -1185,6 +1185,13 @@ export type Database = {
           tax_id: string | null
           updated_at: string
           user_id: string
+          fulfillment_model: string | null
+          pickup_address: string | null
+          pickup_landmark: string | null
+          pickup_latitude: number | null
+          pickup_longitude: number | null
+          pickup_phone: string | null
+          pickup_google_maps_url: string | null
           vat_number: string | null
         }
         Insert: {
@@ -1237,6 +1244,13 @@ export type Database = {
           tax_id?: string | null
           updated_at?: string
           user_id: string
+          fulfillment_model?: string | null
+          pickup_address?: string | null
+          pickup_landmark?: string | null
+          pickup_latitude?: number | null
+          pickup_longitude?: number | null
+          pickup_phone?: string | null
+          pickup_google_maps_url?: string | null
           vat_number?: string | null
         }
         Update: {
@@ -1289,6 +1303,13 @@ export type Database = {
           tax_id?: string | null
           updated_at?: string
           user_id?: string
+          fulfillment_model?: string | null
+          pickup_address?: string | null
+          pickup_landmark?: string | null
+          pickup_latitude?: number | null
+          pickup_longitude?: number | null
+          pickup_phone?: string | null
+          pickup_google_maps_url?: string | null
           vat_number?: string | null
         }
         Relationships: []
