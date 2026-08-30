@@ -21,11 +21,31 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   bool _updating = false;
 
   static const Map<String, Map<String, Color>> statusStyle = {
-    'pending': {'bg': Color(0x26FBBF24), 'text': Color(0xFFFBBF24), 'dot': Color(0xFFFBBF24)},
-    'processing': {'bg': Color(0x2660A5FA), 'text': Color(0xFF60A5FA), 'dot': Color(0xFF60A5FA)},
-    'shipped': {'bg': Color(0x26C084FC), 'text': Color(0xFFC084FC), 'dot': Color(0xFFC084FC)},
-    'delivered': {'bg': Color(0x264ADE80), 'text': Color(0xFF4ADE80), 'dot': Color(0xFF4ADE80)},
-    'cancelled': {'bg': Color(0x26F87171), 'text': Color(0xFFF87171), 'dot': Color(0xFFF87171)},
+    'pending': {
+      'bg': Color(0x26FBBF24),
+      'text': Color(0xFFFBBF24),
+      'dot': Color(0xFFFBBF24),
+    },
+    'processing': {
+      'bg': Color(0x2660A5FA),
+      'text': Color(0xFF60A5FA),
+      'dot': Color(0xFF60A5FA),
+    },
+    'shipped': {
+      'bg': Color(0x26C084FC),
+      'text': Color(0xFFC084FC),
+      'dot': Color(0xFFC084FC),
+    },
+    'delivered': {
+      'bg': Color(0x264ADE80),
+      'text': Color(0xFF4ADE80),
+      'dot': Color(0xFF4ADE80),
+    },
+    'cancelled': {
+      'bg': Color(0x26F87171),
+      'text': Color(0xFFF87171),
+      'dot': Color(0xFFF87171),
+    },
   };
 
   @override
@@ -77,7 +97,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red.shade700,
+          ),
         );
       }
     } finally {
@@ -104,7 +127,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red.shade700,
+          ),
         );
       }
     } finally {
@@ -373,7 +399,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Future<void> _openInMaps(String address) async {
-    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}',
+    );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -398,14 +426,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (_loading) {
       return Scaffold(
         backgroundColor: AppTheme.background,
-        body: const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppTheme.primary),
+        ),
       );
     }
 
     if (_order == null) {
       return Scaffold(
         backgroundColor: AppTheme.background,
-        body: Center(child: Text('Order not found', style: TextStyle(color: Colors.white.withValues(alpha: 0.4)))),
+        body: Center(
+          child: Text(
+            'Order not found',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+          ),
+        ),
       );
     }
 
@@ -426,12 +461,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
         title: Text(
           order['tracking_code'] ?? 'Order Details',
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: RefreshIndicator(
+        onRefresh: _fetchOrder,
+        color: AppTheme.primary,
+        backgroundColor: AppTheme.surface,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(order, status, colors),
@@ -450,23 +494,35 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             const SizedBox(height: 16),
             GestureDetector(
               onTap: () {
-                Navigator.of(context).pushNamed('/support?orderId=${widget.orderId}');
+                Navigator.of(
+                  context,
+                ).pushNamed('/support?orderId=${widget.orderId}');
               },
               child: Container(
                 height: 44,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
                   color: Colors.white.withValues(alpha: 0.05),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(LucideIcons.lifeBuoy, size: 16, color: Colors.white.withValues(alpha: 0.7)),
+                    Icon(
+                      LucideIcons.lifeBuoy,
+                      size: 16,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Report Issue / Need Help with this Order?',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -476,10 +532,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildHeader(Map<String, dynamic> order, String status, Map<String, Color> colors) {
+  Widget _buildHeader(
+    Map<String, dynamic> order,
+    String status,
+    Map<String, Color> colors,
+  ) {
     final createdAt = DateTime.tryParse(order['created_at'] ?? '');
     final formattedDate = createdAt != null
         ? '${createdAt.day}/${createdAt.month}/${createdAt.year} ${createdAt.hour}:${createdAt.minute.toString().padLeft(2, '0')}'
@@ -500,10 +561,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             children: [
               Text(
                 order['tracking_code'] ?? 'N/A',
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: colors['bg'],
                   borderRadius: BorderRadius.circular(20),
@@ -512,13 +580,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 6, height: 6,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: colors['dot']),
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors['dot'],
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       status.toUpperCase(),
-                      style: TextStyle(color: colors['text'], fontSize: 11, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: colors['text'],
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -529,7 +605,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             const SizedBox(height: 8),
             Text(
               'Placed on $formattedDate',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
+                fontSize: 12,
+              ),
             ),
           ],
         ],
@@ -544,17 +623,29 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildSectionHeader('Customer Details', LucideIcons.user, const Color(0xFF60A5FA)),
+              _buildSectionHeader(
+                'Customer Details',
+                LucideIcons.user,
+                const Color(0xFF60A5FA),
+              ),
               Row(
                 children: [
                   if (order['shipping_phone'] != null)
                     IconButton(
-                      icon: const Icon(LucideIcons.phone, size: 18, color: Color(0xFF60A5FA)),
+                      icon: const Icon(
+                        LucideIcons.phone,
+                        size: 18,
+                        color: Color(0xFF60A5FA),
+                      ),
                       onPressed: () => _makeCall(order['shipping_phone']),
                     ),
                   if (order['shipping_email'] != null)
                     IconButton(
-                      icon: const Icon(LucideIcons.mail, size: 18, color: Color(0xFF60A5FA)),
+                      icon: const Icon(
+                        LucideIcons.mail,
+                        size: 18,
+                        color: Color(0xFF60A5FA),
+                      ),
                       onPressed: () => _sendEmail(order['shipping_email']),
                     ),
                 ],
@@ -574,22 +665,31 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _buildPickupSection() {
     final sellerModel = _seller?['fulfillment_model']?.toString();
-    final sellerAddress = _seller?['pickup_address'] ?? _seller?['business_address'] ?? _seller?['address'];
+    final sellerAddress =
+        _seller?['pickup_address'] ??
+        _seller?['business_address'] ??
+        _seller?['address'];
     final sellerLandmark = _seller?['pickup_landmark']?.toString();
     final sellerPhone = _seller?['pickup_phone'] ?? _seller?['phone'];
     final sellerMapsUrl = _seller?['pickup_google_maps_url']?.toString();
     final sellerLat = _seller?['pickup_latitude'];
     final sellerLng = _seller?['pickup_longitude'];
-    final storeName = _seller?['business_name'] ?? _seller?['store_name'] ?? 'Seller Shop';
+    final storeName =
+        _seller?['business_name'] ?? _seller?['store_name'] ?? 'Seller Shop';
 
-    final isDirectPickup = sellerModel != 'hub_dropoff' && (sellerModel == 'direct_pickup' || (sellerAddress != null && sellerAddress.toString().isNotEmpty));
+    final isDirectPickup =
+        sellerModel != 'hub_dropoff' &&
+        (sellerModel == 'direct_pickup' ||
+            (sellerAddress != null && sellerAddress.toString().isNotEmpty));
 
-    if (isDirectPickup && sellerAddress != null && sellerAddress.toString().isNotEmpty) {
+    if (isDirectPickup &&
+        sellerAddress != null &&
+        sellerAddress.toString().isNotEmpty) {
       final navTarget = (sellerMapsUrl != null && sellerMapsUrl.isNotEmpty)
           ? sellerMapsUrl
           : (sellerLat != null && sellerLng != null)
-              ? 'https://www.google.com/maps/search/?api=1&query=$sellerLat,$sellerLng'
-              : 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(sellerAddress.toString())}';
+          ? 'https://www.google.com/maps/search/?api=1&query=$sellerLat,$sellerLng'
+          : 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(sellerAddress.toString())}';
 
       return _buildSectionCard(
         borderColor: AppTheme.primary.withValues(alpha: 0.3),
@@ -599,16 +699,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildSectionHeader('Pickup (Doorstep)', LucideIcons.bike, AppTheme.primary),
+                _buildSectionHeader(
+                  'Pickup (Doorstep)',
+                  LucideIcons.bike,
+                  AppTheme.primary,
+                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
                     '🛵 Direct Pickup',
-                    style: TextStyle(color: AppTheme.primary, fontSize: 10, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: AppTheme.primary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -626,9 +737,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(child: _buildInfoRow('Seller Phone', sellerPhone.toString())),
+                  Expanded(
+                    child: _buildInfoRow(
+                      'Seller Phone',
+                      sellerPhone.toString(),
+                    ),
+                  ),
                   IconButton(
-                    icon: const Icon(LucideIcons.phoneCall, size: 18, color: Color(0xFF4ADE80)),
+                    icon: const Icon(
+                      LucideIcons.phoneCall,
+                      size: 18,
+                      color: Color(0xFF4ADE80),
+                    ),
                     onPressed: () => _makeCall(sellerPhone.toString()),
                     constraints: const BoxConstraints(),
                     padding: EdgeInsets.zero,
@@ -657,7 +777,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     SizedBox(width: 8),
                     Text(
                       '📍 Navigate to Seller Live Location',
-                      style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -683,7 +807,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildSectionHeader('Pickup (Hub)', LucideIcons.building, const Color(0xFF60A5FA)),
+              _buildSectionHeader(
+                'Pickup (Hub)',
+                LucideIcons.building,
+                const Color(0xFF60A5FA),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -692,7 +820,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 child: const Text(
                   '🏢 Hub Drop-Off',
-                  style: TextStyle(color: Color(0xFF60A5FA), fontSize: 10, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Color(0xFF60A5FA),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -718,9 +850,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(LucideIcons.navigation, size: 14, color: Colors.white.withValues(alpha: 0.8)),
+                  Icon(
+                    LucideIcons.navigation,
+                    size: 14,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
                   const SizedBox(width: 8),
-                  Text('Navigate to $hubName', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(
+                    'Navigate to $hubName',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -731,18 +874,32 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _buildDeliveryAddress(Map<String, dynamic> order) {
-    final fullAddr = '${order['shipping_address']}, ${order['shipping_city']}, ${order['shipping_region']}';
+    final fullAddr =
+        '${order['shipping_address']}, ${order['shipping_city']}, ${order['shipping_region']}';
     return _buildSectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Delivery Address', LucideIcons.mapPin, const Color(0xFFFBBF24)),
+          _buildSectionHeader(
+            'Delivery Address',
+            LucideIcons.mapPin,
+            const Color(0xFFFBBF24),
+          ),
           const SizedBox(height: 16),
-          Text(order['shipping_address'] ?? '', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
+          Text(
+            order['shipping_address'] ?? '',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 14,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(
             '${order['shipping_city']}, ${order['shipping_region']}',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.4),
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 16),
           GestureDetector(
@@ -756,9 +913,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(LucideIcons.navigation, size: 16, color: Colors.white.withValues(alpha: 0.7)),
+                  Icon(
+                    LucideIcons.navigation,
+                    size: 16,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
                   const SizedBox(width: 8),
-                  Text('Open in Google Maps', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(
+                    'Open in Google Maps',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -772,7 +940,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return _buildSectionCard(
       child: Column(
         children: [
-          _buildSectionHeader('Order Items (${_items.length})', LucideIcons.truck, const Color(0xFFC084FC)),
+          _buildSectionHeader(
+            'Order Items (${_items.length})',
+            LucideIcons.truck,
+            const Color(0xFFC084FC),
+          ),
           const SizedBox(height: 16),
           ..._items.map((item) {
             final product = item['products'] as Map<String, dynamic>?;
@@ -786,11 +958,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       borderRadius: BorderRadius.circular(12),
                       child: Image.network(
                         product!['image'],
-                        width: 48, height: 48, fit: BoxFit.cover,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
-                          width: 48, height: 48,
+                          width: 48,
+                          height: 48,
                           color: Colors.white.withValues(alpha: 0.1),
-                          child: const Icon(LucideIcons.image, color: Colors.white24),
+                          child: const Icon(
+                            LucideIcons.image,
+                            color: Colors.white24,
+                          ),
                         ),
                       ),
                     ),
@@ -801,18 +979,29 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       children: [
                         Text(
                           product?['name'] ?? 'Product',
-                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Text(
                           'Qty: ${item['quantity']} × GHS ${price.toStringAsFixed(2)}',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.4),
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Text(
                     'GHS ${(price * (item['quantity'] as int? ?? 1)).toStringAsFixed(2)}',
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -828,15 +1017,30 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return _buildSectionCard(
       child: Column(
         children: [
-          _buildSectionHeader('Payment Summary', LucideIcons.creditCard, AppTheme.primary),
+          _buildSectionHeader(
+            'Payment Summary',
+            LucideIcons.creditCard,
+            AppTheme.primary,
+          ),
           const SizedBox(height: 16),
-          _buildInfoRow('Payment Method', (order['payment_method'] ?? 'N/A').toString().toUpperCase()),
+          _buildInfoRow(
+            'Payment Method',
+            (order['payment_method'] ?? 'N/A').toString().toUpperCase(),
+          ),
           const SizedBox(height: 8),
           _buildInfoRow(
             'Payment Status',
-            ((order['payment_status'] == 'paid' || ['confirmed', 'processing', 'shipped', 'delivered'].contains(order['status']))
-                ? 'PAID'
-                : (order['payment_status'] ?? 'unpaid')).toString().toUpperCase(),
+            ((order['payment_status'] == 'paid' ||
+                        [
+                          'confirmed',
+                          'processing',
+                          'shipped',
+                          'delivered',
+                        ].contains(order['status']))
+                    ? 'PAID'
+                    : (order['payment_status'] ?? 'unpaid'))
+                .toString()
+                .toUpperCase(),
           ),
           const SizedBox(height: 12),
           Divider(color: Colors.white.withValues(alpha: 0.08)),
@@ -844,10 +1048,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total Amount', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+              const Text(
+                'Total Amount',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               Text(
                 'GHS ${total.toStringAsFixed(2)}',
-                style: const TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: AppTheme.primary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -876,7 +1091,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red.shade700,
+          ),
         );
       }
     } finally {
@@ -898,11 +1116,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF3B82F6),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             elevation: 0,
           ),
           icon: _updating
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
               : const Icon(LucideIcons.bike, size: 20),
           label: Text(
             _updating ? 'Updating...' : 'Claim Delivery Order 🚴',
@@ -919,11 +1146,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.primary,
             foregroundColor: Colors.black,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             elevation: 0,
           ),
           icon: _updating
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.black,
+                  ),
+                )
               : const Icon(LucideIcons.checkCircle2, size: 20),
           label: Text(
             _updating ? 'Updating...' : 'Complete Delivery (Mark Delivered)',
@@ -940,11 +1176,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF8B5CF6),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             elevation: 0,
           ),
           icon: _updating
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
               : const Icon(LucideIcons.truck, size: 20),
           label: Text(
             _updating ? 'Updating...' : 'Start Delivery (Mark as Shipped 🚚)',
@@ -962,7 +1207,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor ?? Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: borderColor ?? Colors.white.withValues(alpha: 0.08),
+        ),
       ),
       child: child,
     );
@@ -973,7 +1220,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       children: [
         Icon(icon, size: 18, color: color),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
@@ -983,7 +1237,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.4),
+            fontSize: 12,
+          ),
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
