@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
-import { getAllPaystackSecretKeysAsync, PaystackKeyConfig } from "../_shared/paystack.ts";
+import { getAllPaystackSecretKeysAsync, getPaystackPublicKey, PaystackKeyConfig } from "../_shared/paystack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,11 +10,11 @@ const corsHeaders = {
 };
 
 const PaymentSchema = z.object({
-  orderId: z.string().uuid("Invalid order ID").optional(),
+  orderId: z.string().uuid("Invalid order ID").optional().nullable(),
   email: z.string().email("Invalid email").max(254),
   amount: z.number().positive("Amount must be positive").finite().max(10_000_000, "Amount too large"),
-  paymentMethod: z.enum(["mtn_momo", "tigo_cash", "telecel_cash", "bank_card"]),
-  mobileNumber: z.string().min(7).max(20).optional(),
+  paymentMethod: z.string().optional().nullable(),
+  mobileNumber: z.union([z.string().min(7).max(20), z.literal(""), z.null()]).optional(),
   callbackUrl: z.string().url("Invalid callback URL").max(500),
   checkoutDetails: z.object({
     shipping_name: z.string(),
@@ -31,13 +31,13 @@ const PaymentSchema = z.object({
       product_id: z.string(),
       quantity: z.number(),
       price: z.number(),
-      selected_color: z.any().optional(),
-      selected_size: z.any().optional(),
+      selected_color: z.any().optional().nullable(),
+      selected_size: z.any().optional().nullable(),
     })),
-  }).optional(),
+  }).optional().nullable(),
 });
 
-const normalizeGhanaMobileNumber = (phone?: string) => {
+const normalizeGhanaMobileNumber = (phone?: string | null) => {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("233") && digits.length === 12) {
@@ -61,7 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const auth = await authenticate(req);
-    const userId = auth?.userId || "guest_user";
+    const userId = auth?.userId || null;
 
     const rawBody = await req.json();
     const parsed = PaymentSchema.safeParse(rawBody);
@@ -100,41 +100,11 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    console.log(`Initializing payment, server amount: ${serverAmount}, method: ${paymentMethod}, orderId: ${orderId || "new_checkout"}`);
+    console.log(`Initializing payment, server amount: ${serverAmount}, method: ${paymentMethod || "default"}, orderId: ${orderId || "new_checkout"}`);
 
     const amountInPesewas = Math.round(serverAmount * 100);
 
-    let channels: string[] = [];
-    let mobileMoneyProvider: string | undefined;
-
-    switch (paymentMethod) {
-      case "mtn_momo":
-        channels = ["mobile_money"];
-        mobileMoneyProvider = "mtn";
-        break;
-      case "tigo_cash":
-        channels = ["mobile_money"];
-        mobileMoneyProvider = "atl";
-        break;
-      case "telecel_cash":
-        channels = ["mobile_money"];
-        mobileMoneyProvider = "vod";
-        break;
-      case "bank_card":
-        channels = ["card", "mobile_money"];
-        break;
-      default:
-        channels = ["card", "mobile_money"];
-    }
-
-    const normalizedMobileNumber = normalizeGhanaMobileNumber(mobileNumber);
-
-    if (channels.includes("mobile_money") && mobileMoneyProvider && !normalizedMobileNumber) {
-      return new Response(
-        JSON.stringify({ error: "Valid Ghana mobile money number is required for mobile money payments" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
+    const channels = ["card", "mobile_money"];
 
     const refCode = orderId ? `ORDER_${orderId}_${Date.now()}` : `PAY_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
@@ -148,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
       metadata: {
         order_id: orderId || null,
         user_id: userId,
-        payment_method: paymentMethod,
+        payment_method: paymentMethod || "bank_card",
         checkout_details: checkoutDetails || null,
         custom_fields: [
           {
@@ -159,13 +129,6 @@ const handler = async (req: Request): Promise<Response> => {
         ],
       },
     };
-
-    if (mobileMoneyProvider && normalizedMobileNumber) {
-      paystackPayload.mobile_money = {
-        phone: normalizedMobileNumber,
-        provider: mobileMoneyProvider,
-      };
-    }
 
     const allKeys = await getAllPaystackSecretKeysAsync();
     let paystackData: any = null;
@@ -200,15 +163,23 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
     } else {
-      lastPaystackError = "No valid Paystack secret key configured in Admin Settings.";
+      const errMsg = "No valid Paystack Secret Key found. Paystack Secret Keys must start with 'sk_live_' or 'sk_test_'. Please update PAYSTACK_SECRET_KEY in your Supabase Secrets or Admin Settings.";
+      console.error(errMsg);
+      return new Response(
+        JSON.stringify({ error: errMsg }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
     }
 
-    // If Paystack API call failed (e.g. invalid key or unconfigured API key), return explicit error
+    // If Paystack API call failed, return a clear error so the user knows what's wrong
     if (!paystackData || !paystackData.status || !paystackData.data?.authorization_url) {
+      const errMsg = lastPaystackError || "Failed to connect to Paystack. Please check your API key in Admin Settings.";
+      console.error("Paystack initialization failed:", errMsg);
       return new Response(
-        JSON.stringify({
-          error: `Paystack error: ${lastPaystackError || "Could not initialize payment"}. Please enter a valid Paystack Secret Key in Admin Dashboard -> Platform Settings.`,
-        }),
+        JSON.stringify({ error: errMsg }),
         {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -223,7 +194,7 @@ const handler = async (req: Request): Promise<Response> => {
         authorization_url: paystackData.data.authorization_url,
         accessCode: paystackData.data.access_code,
         reference: paystackData.data.reference,
-        publicKey: successfulKeyConfig?.publicKey || "",
+        publicKey: successfulKeyConfig?.publicKey || getPaystackPublicKey() || "",
         channels,
       }),
       {

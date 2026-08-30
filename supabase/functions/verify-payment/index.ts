@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate, hasRole } from "../_shared/auth.ts";
-import { getAllPaystackSecretKeys } from "../_shared/paystack.ts";
+import { getAllPaystackSecretKeysAsync } from "../_shared/paystack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -133,6 +133,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    let paystackData: any = null;
+
     // Sandbox / Direct payment verification fallback
     if (reference.startsWith("DEMO_PAY_") || reference.startsWith("PAY_DIRECT_")) {
       console.log(`Direct/Demo reference ${reference} detected — synthesizing successful payment response...`);
@@ -150,7 +152,7 @@ const handler = async (req: Request): Promise<Response> => {
         },
       };
     } else {
-      const allKeys = getAllPaystackSecretKeys();
+      const allKeys = await getAllPaystackSecretKeysAsync();
       let lastError = "";
 
       // Retry up to 3 times with 1.2s delay to allow Paystack backend propagation

@@ -584,15 +584,6 @@ const Checkout = () => {
       }
     } catch {}
 
-    const isMomo = paymentMethod !== "bank_card";
-    resetMomoFeedback();
-    if (isMomo) {
-      const digits = momoNumber.replace(/\D/g, "");
-      if (!(digits.length === 10 || digits.length === 9 || digits.length === 12)) {
-        toast.error("Enter a valid Ghana mobile money number"); return;
-      }
-    }
-
     setSubmitting(true);
     try {
       const orderItems = cartItems.map((item) => ({
@@ -639,23 +630,16 @@ const Checkout = () => {
 
       console.log("initialize-payment response data:", JSON.stringify(data));
 
-      // Always redirect to Paystack's hosted checkout page (most reliable path)
-      const redirectUrl = data?.authorizationUrl || data?.authorization_url;
-      if (redirectUrl) {
-        window.location.href = redirectUrl;
-        return;
-      }
-
-      // Fallback: try inline popup only if redirect URL is missing
-      if (data?.accessCode && (window as any).PaystackPop && data?.publicKey) {
+      // 1. Try inline popup — publicKey + reference is all we need
+      if (data?.publicKey && data?.reference && (window as any).PaystackPop) {
         try {
-          const handler = (window as any).PaystackPop.setup({
+          const popupConfig: Record<string, any> = {
             key: data.publicKey,
             email: formData.shipping_email,
             amount: Math.round(finalTotal * 100),
             currency: "GHS",
             ref: data.reference,
-            channels: data.channels,
+            channels: data.channels || ["card", "mobile_money"],
             callback: (response: any) => {
               const paidReference = response?.reference ?? data.reference;
               window.location.href = `${callbackUrl}?reference=${paidReference}`;
@@ -664,12 +648,21 @@ const Checkout = () => {
               setSubmitting(false);
               toast.info("Payment cancelled. No order was placed.");
             },
-          });
+          };
+
+          const handler = (window as any).PaystackPop.setup(popupConfig);
           handler.openIframe();
           return;
         } catch (popupError) {
-          console.error("Paystack popup initialization failed:", popupError);
+          console.error("Paystack inline popup failed, using redirect fallback:", popupError);
         }
+      }
+
+      // 2. Fallback: Redirect to Paystack's hosted checkout page if popup is blocked
+      const redirectUrl = data?.authorizationUrl || data?.authorization_url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
       }
 
       console.error("Payment initialization: no redirect URL or popup available. Full response:", data);
@@ -840,74 +833,78 @@ const Checkout = () => {
                   </div>
                 </section>
 
-                {/* Payment Method */}
-                <section>
-                  <h2 className="text-lg font-semibold mb-1">Payment Method</h2>
-                  <p className="text-sm text-muted-foreground mb-4">Choose how you want to pay</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {([
-                      { id: "mtn_momo", label: "MTN MoMo" },
-                      { id: "telecel_cash", label: "Telecel Cash" },
-                      { id: "tigo_cash", label: "AT Money" },
-                      { id: "bank_card", label: "Card" },
-                    ] as { id: PaymentMethod; label: string }[]).map((m) => {
-                      const active = paymentMethod === m.id;
-                      return (
-                        <button
-                          type="button"
-                          key={m.id}
-                          onClick={() => {
-                            setPaymentMethod(m.id);
-                            resetMomoFeedback();
-                          }}
-                          className={`flex items-center justify-center gap-2 h-12 px-3 border text-xs uppercase tracking-wider transition-colors ${
-                            active
-                              ? "border-foreground bg-foreground text-background"
-                              : "border-border bg-transparent text-foreground hover:border-foreground"
-                          }`}
-                        >
-                          {m.id === "bank_card" ? <CreditCard className="w-4 h-4" /> : <Smartphone className="w-4 h-4" />}
-                          {m.label}
-                        </button>
-                      );
-                    })}
+                {/* Payment Method Selector */}
+                <section className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold mb-1">Payment Method</h2>
+                    <p className="text-xs text-muted-foreground">Select your preferred payment channel on Paystack</p>
                   </div>
 
-                  {paymentMethod !== "bank_card" && (
-                    <div className="mt-4">
-                      <Label htmlFor="momo_number" className="text-xs uppercase tracking-wider text-muted-foreground">
-                        Mobile Money Number
-                      </Label>
-                      <Input
-                        id="momo_number"
-                        name="momo_number"
-                        type="tel"
-                        inputMode="numeric"
-                        value={momoNumber}
-                        onChange={(e) => setMomoNumber(e.target.value)}
-                        placeholder="e.g. 0244123456"
-                        className="mt-1.5 rounded-none border-border bg-transparent h-12 focus:ring-0 focus:border-foreground"
-                      />
-                      <p className="text-xs text-muted-foreground mt-2">
-                        A prompt will be sent to this number. Enter your Mobile Money PIN on your phone to authorize.
-                      </p>
-                      {momoInlineFeedback && (
-                        <div className="mt-3 flex items-start gap-3 border border-destructive/30 bg-destructive/10 px-3 py-3 text-sm text-foreground">
-                          <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />
-                          <div className="space-y-1">
-                            <p className="font-medium">{momoInlineFeedback.title}</p>
-                            <p className="text-xs text-muted-foreground">{momoInlineFeedback.description}</p>
-                          </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Mobile Money Card */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("mtn_momo")}
+                      className={`p-4 border text-left rounded-xl transition-all flex flex-col justify-between relative ${
+                        paymentMethod !== "bank_card"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
+                          : "border-border bg-card hover:bg-secondary/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-bold text-sm">
+                          <Smartphone className="w-4 h-4 text-primary" />
+                          <span>Mobile Money</span>
                         </div>
-                      )}
-                    </div>
-                  )}
+                        {paymentMethod !== "bank_card" && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        MTN MoMo, Telecel Cash, AirtelTigo Money
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-border/50 text-[10px] font-semibold text-muted-foreground">
+                        <span className="bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded">MTN</span>
+                        <span className="bg-red-500/10 text-red-600 px-1.5 py-0.5 rounded">Telecel</span>
+                        <span className="bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded">AT</span>
+                      </div>
+                    </button>
 
-                  <div className="mt-4 flex items-start gap-3 p-3 border border-border bg-secondary/30">
-                    <span className="text-base leading-none mt-0.5">🔒</span>
-                    <p className="text-xs text-muted-foreground">
-                      Payments are processed securely by Paystack.
-                    </p>
+                    {/* Bank Card */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("bank_card")}
+                      className={`p-4 border text-left rounded-xl transition-all flex flex-col justify-between relative ${
+                        paymentMethod === "bank_card"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
+                          : "border-border bg-card hover:bg-secondary/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-bold text-sm">
+                          <CreditCard className="w-4 h-4 text-primary" />
+                          <span>Debit / Credit Card</span>
+                        </div>
+                        {paymentMethod === "bank_card" && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Visa, Mastercard, Verve & GhIPSS Cards
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-border/50 text-[10px] font-semibold text-muted-foreground">
+                        <span className="bg-blue-600/10 text-blue-600 px-1.5 py-0.5 rounded">Visa</span>
+                        <span className="bg-orange-600/10 text-orange-600 px-1.5 py-0.5 rounded">Mastercard</span>
+                      </div>
+                    </button>
+                  </div>
+
+
+
+                  <div className="flex items-center gap-3 p-3.5 border border-border bg-secondary/20 rounded-xl">
+                    <span className="text-lg leading-none">🔒</span>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Encrypted Paystack Gateway</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Your payment is processed securely via Paystack. Trades Point never stores your PIN or card digits.
+                      </p>
+                    </div>
                   </div>
                 </section>
 

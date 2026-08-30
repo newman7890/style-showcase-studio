@@ -27,7 +27,7 @@ export const SubscribersManagement = () => {
         .order("subscribed_at", { ascending: false });
 
       if (error) throw error;
-      setSubscribers((data as Subscriber[]) || []);
+      setSubscribers((data as unknown as Subscriber[]) || []);
     } catch (err: any) {
       console.error("Error fetching subscribers:", err);
       toast.error("Failed to load newsletter subscribers");

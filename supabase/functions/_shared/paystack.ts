@@ -20,7 +20,8 @@ const getEnvVal = (name: string): string => {
 const isValidSecretKey = (key: string): boolean => {
   if (!key) return false;
   const trimmed = cleanKeyString(key);
-  return trimmed.length >= 10;
+  // Only accept live Paystack secret keys (must start with sk_live_)
+  return trimmed.startsWith("sk_live_");
 };
 
 export interface PaystackKeyConfig {
@@ -34,7 +35,7 @@ export const getAllPaystackSecretKeys = (): PaystackKeyConfig[] => {
     { secretName: "PAYSTACK_SECRET_KEY", publicName: "PAYSTACK_PUBLIC_KEY" },
     { secretName: "Paystack_Live_Secret_Key", publicName: "Paystack_Live_Public_Key" },
     { secretName: "PAYSTACK_LIVE_SECRET_KEY", publicName: "PAYSTACK_LIVE_PUBLIC_KEY" },
-    { secretName: "Paystack_Test_Secret_Key", publicName: "Paystack_Test_Public_Key" },
+    // Test key entry removed – live mode only
   ];
 
   const results: PaystackKeyConfig[] = [];
@@ -93,6 +94,8 @@ export const getAllPaystackSecretKeysAsync = async (): Promise<PaystackKeyConfig
             publicKey: pubKey,
             sourceName: "platform_settings (database)",
           });
+        } else if (!isValidSecretKey(secKey)) {
+          console.warn(`platform_settings paystack_secret_key is invalid format (must start with sk_live_ or sk_test_). Got: '${secKey.substring(0, 8)}...'`);
         }
       }
     }
@@ -100,6 +103,7 @@ export const getAllPaystackSecretKeysAsync = async (): Promise<PaystackKeyConfig
     console.warn("Could not query platform_settings for paystack keys:", e);
   }
 
+  console.log(`getAllPaystackSecretKeysAsync: found ${results.length} valid key(s): ${results.map(r => r.sourceName).join(", ") || "none"}`);
   return results;
 };
 

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BottomNav } from "@/components/BottomNav";
+import { useAuth } from "@/hooks/useAuth";
+import { createNotification } from "@/services/notificationService";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +27,7 @@ interface AddressType {
 
 const Address = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [addresses, setAddresses] = useState<AddressType[]>(() => {
     try {
       const saved = localStorage.getItem("tp_saved_addresses");
