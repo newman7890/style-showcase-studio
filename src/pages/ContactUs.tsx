@@ -20,15 +20,15 @@ const ContactUs = () => {
       icon: Phone,
       title: "Call Us",
       description: "Talk to our support team",
-      value: "+1 (800) 123-4567",
-      action: () => window.open("tel:+18001234567"),
+      value: "0530044589",
+      action: () => window.open("tel:+233530044589"),
     },
     {
       icon: Mail,
       title: "Email Us",
       description: "Get help via email",
-      value: "support@shopapp.com",
-      action: () => window.open("mailto:support@shopapp.com"),
+      value: "info@tradespoint.store",
+      action: () => window.open("mailto:info@tradespoint.store"),
     },
     {
       icon: MessageCircle,
@@ -132,9 +132,7 @@ const ContactUs = () => {
               <h3 className="font-medium">Office Location</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              123 Commerce Street, Suite 456<br />
-              New York, NY 10001<br />
-              United States
+              Accra, Ghana
             </p>
           </div>
 
