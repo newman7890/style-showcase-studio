@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Percent, Key, CheckCircle2 } from "lucide-react";
+import { Percent, Key, CheckCircle2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,20 +11,18 @@ import { useToast } from "@/hooks/use-toast";
 export const PlatformSettingsManagement = () => {
   const { toast } = useToast();
   const [value, setValue] = useState<string>("10");
-  const [paystackSecretKey, setPaystackSecretKey] = useState<string>("");
   const [paystackPublicKey, setPaystackPublicKey] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     supabase
       .from("platform_settings")
-      .select("default_commission_percent, paystack_secret_key, paystack_public_key")
+      .select("default_commission_percent, paystack_public_key")
       .eq("id", 1)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
           setValue(String((data as any).default_commission_percent ?? 10));
-          setPaystackSecretKey((data as any).paystack_secret_key || "");
           setPaystackPublicKey((data as any).paystack_public_key || "");
         }
       });
@@ -38,7 +36,6 @@ export const PlatformSettingsManagement = () => {
       .from("platform_settings")
       .update({
         default_commission_percent: n,
-        paystack_secret_key: paystackSecretKey.trim() || null,
         paystack_public_key: paystackPublicKey.trim() || null,
         updated_at: new Date().toISOString(),
       })
@@ -70,23 +67,20 @@ export const PlatformSettingsManagement = () => {
       <Card className="max-w-xl border-primary/20 bg-card/60 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-primary">
-            <Key className="w-5 h-5" /> Paystack Integration Keys (Database)
+            <Key className="w-5 h-5" /> Paystack Public Integration Settings
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="sec_key">Paystack Live Secret Key (sk_live_...)</Label>
-            <Input
-              id="sec_key"
-              type="password"
-              placeholder="Enter Paystack Secret Key"
-              value={paystackSecretKey}
-              onChange={(e) => setPaystackSecretKey(e.target.value)}
-              className="font-mono mt-1"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Required for initializing live payments and creating seller split subaccounts.
-            </p>
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                Paystack Secret Key Secured
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Secret keys (<code className="text-emerald-500">sk_live_...</code>) are stored exclusively in encrypted Supabase Environment Secrets (backend-only) to prevent any web exposure.
+              </p>
+            </div>
           </div>
 
           <div>
@@ -106,7 +100,7 @@ export const PlatformSettingsManagement = () => {
 
           <div className="pt-2 flex justify-end">
             <Button onClick={save} disabled={saving} className="w-full sm:w-auto gap-2">
-              {saving ? "Saving..." : <><CheckCircle2 className="w-4 h-4" /> Save Settings & Keys</>}
+              {saving ? "Saving..." : <><CheckCircle2 className="w-4 h-4" /> Save Settings</>}
             </Button>
           </div>
         </CardContent>

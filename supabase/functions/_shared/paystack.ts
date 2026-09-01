@@ -77,30 +77,23 @@ export const getAllPaystackSecretKeysAsync = async (): Promise<PaystackKeyConfig
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (supabaseUrl && serviceRoleKey) {
+    if (supabaseUrl && serviceRoleKey && results.length > 0) {
       const client = createClient(supabaseUrl, serviceRoleKey);
       const { data } = await client
         .from("platform_settings")
-        .select("paystack_secret_key, paystack_public_key")
+        .select("paystack_public_key")
         .eq("id", 1)
         .maybeSingle();
 
-      if (data?.paystack_secret_key) {
-        const secKey = cleanKeyString(String(data.paystack_secret_key));
-        const pubKey = cleanKeyString(String(data.paystack_public_key || ""));
-        if (isValidSecretKey(secKey) && !results.some(r => r.secretKey === secKey)) {
-          results.unshift({
-            secretKey: secKey,
-            publicKey: pubKey,
-            sourceName: "platform_settings (database)",
-          });
-        } else if (!isValidSecretKey(secKey)) {
-          console.warn(`platform_settings paystack_secret_key is invalid format (must start with sk_live_ or sk_test_). Got: '${secKey.substring(0, 8)}...'`);
+      if (data?.paystack_public_key) {
+        const pubKey = cleanKeyString(String(data.paystack_public_key));
+        if (pubKey && !results[0].publicKey) {
+          results[0].publicKey = pubKey;
         }
       }
     }
   } catch (e) {
-    console.warn("Could not query platform_settings for paystack keys:", e);
+    console.warn("Could not query platform_settings for paystack public key:", e);
   }
 
   console.log(`getAllPaystackSecretKeysAsync: found ${results.length} valid key(s): ${results.map(r => r.sourceName).join(", ") || "none"}`);
