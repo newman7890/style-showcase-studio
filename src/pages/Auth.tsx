@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
+import { getFriendlyErrorMessage } from "@/utils/errorMessage";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -66,9 +67,10 @@ const Auth = () => {
         navigate("/");
       }
     } catch (error: any) {
+      const friendlyMsg = getFriendlyErrorMessage(error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: friendlyMsg.includes("Connection") ? "Connection Error" : "Authentication Error",
+        description: friendlyMsg,
         variant: "destructive",
       });
     } finally {
@@ -94,7 +96,12 @@ const Auth = () => {
       });
       setIsForgotPassword(false);
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      const friendlyMsg = getFriendlyErrorMessage(error);
+      toast({
+        title: friendlyMsg.includes("Connection") ? "Connection Error" : "Error",
+        description: friendlyMsg,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

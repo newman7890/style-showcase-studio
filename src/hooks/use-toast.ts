@@ -137,6 +137,28 @@ type Toast = Omit<ToasterToast, "id">;
 function toast({ ...props }: Toast) {
   const id = genId();
 
+  let title = props.title;
+  let description = props.description;
+
+  const descStr = typeof description === "string" ? description : "";
+  const titleStr = typeof title === "string" ? title : "";
+
+  if (
+    descStr.includes("Failed to fetch") ||
+    descStr.includes("NetworkError") ||
+    descStr.includes("TypeError") ||
+    titleStr.includes("Failed to fetch")
+  ) {
+    title = "No Internet Connection";
+    description = "Please check your network connection and try again.";
+  }
+
+  const sanitizedProps = {
+    ...props,
+    title,
+    description,
+  };
+
   const update = (props: ToasterToast) =>
     dispatch({
       type: "UPDATE_TOAST",
@@ -147,7 +169,7 @@ function toast({ ...props }: Toast) {
   dispatch({
     type: "ADD_TOAST",
     toast: {
-      ...props,
+      ...sanitizedProps,
       id,
       open: true,
       onOpenChange: (open) => {
