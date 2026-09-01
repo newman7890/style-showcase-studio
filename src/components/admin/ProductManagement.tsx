@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, AlertTriangle, Package, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Package, Sparkles, Loader2, Star } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -294,7 +294,7 @@ export const ProductManagement = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      setImageFiles(files);
+      setImageFiles((prev) => [...prev, ...files]);
       const readers = files.map((file) => {
         return new Promise<string>((resolve) => {
           const reader = new FileReader();
@@ -303,8 +303,8 @@ export const ProductManagement = () => {
         });
       });
       
-      Promise.all(readers).then((previews) => {
-        setImagePreviews(previews);
+      Promise.all(readers).then((newPreviews) => {
+        setImagePreviews((prev) => [...prev, ...newPreviews]);
       });
     }
   };
@@ -328,7 +328,7 @@ export const ProductManagement = () => {
     );
     
     if (files.length > 0) {
-      setImageFiles(files);
+      setImageFiles((prev) => [...prev, ...files]);
       const readers = files.map((file: any) => {
         return new Promise<string>((resolve) => {
           const reader = new FileReader();
@@ -337,8 +337,8 @@ export const ProductManagement = () => {
         });
       });
       
-      Promise.all(readers).then((previews) => {
-        setImagePreviews(previews);
+      Promise.all(readers).then((newPreviews) => {
+        setImagePreviews((prev) => [...prev, ...newPreviews]);
       });
     }
   };
@@ -378,8 +378,41 @@ export const ProductManagement = () => {
   };
 
   const removeImage = (index: number) => {
+    const previewToRemove = imagePreviews[index];
+    const isNewFile = previewToRemove?.startsWith('data:');
+
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+
+    if (isNewFile) {
+      // Count how many existing (non-data:) URLs come before this index
+      const existingBefore = imagePreviews.slice(0, index).filter((p) => !p.startsWith('data:')).length;
+      const fileIndex = index - existingBefore;
+      setImageFiles((prev) => prev.filter((_, i) => i !== fileIndex));
+    }
+  };
+
+  const makeCoverImage = (index: number) => {
+    if (index === 0) return;
+    setImagePreviews((prev) => {
+      const updated = [...prev];
+      const [moved] = updated.splice(index, 1);
+      updated.unshift(moved);
+      return updated;
+    });
+    // If both are new files, also reorder imageFiles
+    const isNewFile = imagePreviews[index]?.startsWith('data:');
+    const isFirstNewFile = imagePreviews[0]?.startsWith('data:');
+    if (isNewFile && isFirstNewFile) {
+      setImageFiles((prev) => {
+        const updated = [...prev];
+        const existingBefore = imagePreviews.slice(0, index).filter((p) => !p.startsWith('data:')).length;
+        const fileIndex = index - existingBefore;
+        const [moved] = updated.splice(fileIndex, 1);
+        updated.unshift(moved);
+        return updated;
+      });
+    }
+    toast({ title: "Cover image updated", description: "This image will be the main product photo." });
   };
 
   const resetForm = () => {
@@ -599,19 +632,29 @@ export const ProductManagement = () => {
                                 type="button"
                                 onClick={() => removeImage(index)}
                                 className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Remove this image"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3 h-3" />
                               </button>
-                              {index === 0 && (
-                                <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
-                                  Main
+                              {index === 0 ? (
+                                <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[10px] px-2 py-0.5 rounded font-semibold">
+                                  ★ Cover
                                 </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => makeCoverImage(index)}
+                                  className="absolute bottom-1 left-1 bg-background/80 text-foreground text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 font-medium"
+                                  title="Set as main cover image"
+                                >
+                                  <Star className="w-3 h-3" /> Make Cover
+                                </button>
                               )}
                             </div>
                           ))}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Drag new images or click to replace
+                          Drag new images or click to add more. Hover to remove or set cover.
                         </p>
                       </div>
                     ) : (
