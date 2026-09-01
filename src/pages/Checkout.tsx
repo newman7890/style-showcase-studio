@@ -70,7 +70,7 @@ const Checkout = () => {
 
   const [formData, setFormData] = useState({
     shipping_name: "", shipping_email: "", shipping_phone: "",
-    shipping_address: "", shipping_city: "", shipping_region: "", shipping_town: "",
+    shipping_address: "", shipping_city: "", shipping_region: "Greater Accra", shipping_town: "",
   });
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("mtn_momo");
@@ -792,14 +792,32 @@ const Checkout = () => {
                 {/* Shipping Information */}
                 <section>
                   <h2 className="text-lg font-semibold mb-1">Shipping Information</h2>
+
+                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-start gap-3 text-xs mt-3 mb-2">
+                    <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                        📍 Greater Accra Express Delivery Active
+                      </span>
+                      <p className="text-muted-foreground text-[11px] mt-0.5">
+                        Same-Day & 24hr doorstep delivery is currently optimized for Greater Accra. Regional hubs expanding soon!
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
                       <Label htmlFor="shipping_region" className="text-xs uppercase tracking-wider text-muted-foreground">{t("region")}</Label>
-                      <select id="shipping_region" name="shipping_region" value={formData.shipping_region} onChange={handleChange} required
+                      <select id="shipping_region" name="shipping_region" value={formData.shipping_region || "Greater Accra"} onChange={handleChange} required
                         className="mt-1.5 w-full h-12 rounded-none border border-border bg-transparent px-3 text-sm focus:outline-none focus:border-foreground">
                         <option value="">{t("selectRegion")}</option>
                         {GHANA_REGIONS.map((region) => (<option key={region} value={region}>{region}</option>))}
                       </select>
+                      {formData.shipping_region && formData.shipping_region !== "Greater Accra" && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 font-medium">
+                          ⚡ Deliveries to {formData.shipping_region} take 2-3 additional business days as regional hubs expand.
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="shipping_city" className="text-xs uppercase tracking-wider text-muted-foreground">{t("city")}</Label>
