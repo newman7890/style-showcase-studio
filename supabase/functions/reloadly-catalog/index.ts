@@ -1,11 +1,8 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 async function requireUser(req: Request) {
   const authHeader = req.headers.get("Authorization");
@@ -81,10 +78,20 @@ async function getAccessToken(clientId, clientSecret, preferredAudience) {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("reloadly-catalog function called");
+  const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate Limiting by IP (60 catalog requests per minute)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("reloadly-catalog", ipClientId, { maxRequests: 60, windowMs: 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return new Response(JSON.stringify({ error: "Too many requests. Please wait." }), {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": ipCheck.resetInSec.toString() },
+    });
   }
 
   // Public, read-only catalog browsing: shoppers must be able to see the gift

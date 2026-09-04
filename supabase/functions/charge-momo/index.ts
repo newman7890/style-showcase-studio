@@ -2,12 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
 import { getPaystackSecretKey } from "../_shared/paystack.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const ChargeSchema = z.object({
   orderId: z.string().uuid("Invalid order ID"),
@@ -25,23 +21,42 @@ const normalizeGhanaMobileNumber = (phone: string) => {
   return null;
 };
 
-const buildErrorResponse = (
-  status: number,
-  payload: {
-    error: string;
-    userMessage: string;
-    errorCode: string;
-    fallback?: boolean;
-    promptSent?: boolean;
-  }
-) =>
-  new Response(JSON.stringify(payload), {
-    status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
-  });
-
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const buildErrorResponse = (
+    status: number,
+    payload: {
+      error: string;
+      userMessage: string;
+      errorCode: string;
+      fallback?: boolean;
+      promptSent?: boolean;
+    },
+    extraHeaders: Record<string, string> = {}
+  ) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { "Content-Type": "application/json", ...corsHeaders, ...extraHeaders },
+    });
+
+  // Rate Limiting by IP (15 requests per 10 minutes)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("charge-momo", ipClientId, { maxRequests: 15, windowMs: 10 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return buildErrorResponse(
+      429,
+      {
+        error: "Too many payment attempts",
+        userMessage: "Too many Mobile Money attempts. Please wait a few minutes before trying again.",
+        errorCode: "RATE_LIMIT_EXCEEDED",
+        fallback: true,
+        promptSent: false,
+      },
+      { "Retry-After": ipCheck.resetInSec.toString() }
+    );
+  }
 
   try {
     const auth = await authenticate(req);
@@ -55,8 +70,24 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const paystackSecretKey = getPaystackSecretKey();
+    // Rate Limiting by User (10 requests per 10 minutes)
+    const userClientId = getClientIdentifier(req, auth.userId);
+    const userCheck = checkRateLimit("charge-momo", userClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
+    if (!userCheck.allowed) {
+      return buildErrorResponse(
+        429,
+        {
+          error: "User rate limit exceeded",
+          userMessage: "Too many Mobile Money attempts for this account. Please wait before retrying.",
+          errorCode: "RATE_LIMIT_EXCEEDED",
+          fallback: true,
+          promptSent: false,
+        },
+        { "Retry-After": userCheck.resetInSec.toString() }
+      );
+    }
 
+    const paystackSecretKey = getPaystackSecretKey();
     const rawBody = await req.json();
     const parsed = ChargeSchema.safeParse(rawBody);
     if (!parsed.success) {

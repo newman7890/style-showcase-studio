@@ -1,15 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, SUPABASE_URL, ANON_KEY } from "../_shared/auth.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate Limiting by IP (30 queries per 10 minutes)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("ai-product-search", ipClientId, { maxRequests: 30, windowMs: 10 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return new Response(
+      JSON.stringify({ error: "Rate limit reached for AI search. Please wait a moment.", products: [] }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": ipCheck.resetInSec.toString(),
+        },
+      }
+    );
   }
 
   try {
@@ -19,6 +34,23 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate Limiting by User (20 queries per 10 minutes)
+    const userClientId = getClientIdentifier(req, auth.userId);
+    const userCheck = checkRateLimit("ai-product-search", userClientId, { maxRequests: 20, windowMs: 10 * 60 * 1000 });
+    if (!userCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "Search rate limit exceeded for your account. Please wait a moment.", products: [] }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": userCheck.resetInSec.toString(),
+          },
+        }
       );
     }
 

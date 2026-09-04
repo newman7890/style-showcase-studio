@@ -1,14 +1,21 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, hasRole, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Rate Limiting (10 delete attempts per 10 minutes)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("admin-delete-user", ipClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return new Response(JSON.stringify({ error: "Too many delete requests. Please wait." }), {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": ipCheck.resetInSec.toString() },
+    });
+  }
 
   try {
     const ctx = await authenticate(req);

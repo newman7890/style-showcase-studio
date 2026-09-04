@@ -1,14 +1,29 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authenticate, hasRole } from "../_shared/auth.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limit by IP (30 per 10 minutes)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("ai-generate-desc", ipClientId, { maxRequests: 30, windowMs: 10 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return new Response(
+      JSON.stringify({ error: "AI generation rate limit exceeded. Please wait a moment." }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": ipCheck.resetInSec.toString(),
+        },
+      }
+    );
   }
 
   try {
@@ -24,6 +39,22 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const userClientId = getClientIdentifier(req, auth.userId);
+    const userCheck = checkRateLimit("ai-generate-desc", userClientId, { maxRequests: 30, windowMs: 10 * 60 * 1000 });
+    if (!userCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded for description generator. Please wait a moment." }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": userCheck.resetInSec.toString(),
+          },
+        }
+      );
     }
 
     const { productName, category, price, imageUrl } = await req.json().catch(() => ({}));

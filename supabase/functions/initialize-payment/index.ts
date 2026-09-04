@@ -4,12 +4,8 @@ import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
 import { getAllPaystackSecretKeysAsync, getPaystackPublicKey, PaystackKeyConfig } from "../_shared/paystack.ts";
 import { calculateAuthoritativeCheckoutTotal } from "../_shared/pricing.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const PaymentSchema = z.object({
   orderId: z.string().uuid("Invalid order ID").optional().nullable(),
@@ -40,15 +36,50 @@ const PaymentSchema = z.object({
 });
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("initialize-payment function called");
+  const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Rate Limiting by IP (20 payment inits per 5 minutes)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("initialize-payment", ipClientId, { maxRequests: 20, windowMs: 5 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return new Response(
+      JSON.stringify({ error: "Too many payment initialization attempts. Please wait a few minutes before trying again." }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": ipCheck.resetInSec.toString(),
+          ...corsHeaders,
+        },
+      }
+    );
+  }
+
   try {
     const auth = await authenticate(req);
     const userId = auth?.userId || null;
+
+    if (userId) {
+      const userClientId = getClientIdentifier(req, userId);
+      const userCheck = checkRateLimit("initialize-payment", userClientId, { maxRequests: 20, windowMs: 5 * 60 * 1000 });
+      if (!userCheck.allowed) {
+        return new Response(
+          JSON.stringify({ error: "Payment attempt rate limit exceeded for your account. Please wait before retrying." }),
+          {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              "Retry-After": userCheck.resetInSec.toString(),
+              ...corsHeaders,
+            },
+          }
+        );
+      }
+    }
 
     const rawBody = await req.json();
     const parsed = PaymentSchema.safeParse(rawBody);

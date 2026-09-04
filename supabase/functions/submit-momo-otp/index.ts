@@ -2,51 +2,48 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
 import { getPaystackSecretKey } from "../_shared/paystack.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-// Rate limiting: 10 OTP attempts per 10 minutes per user/IP
-const rateLimitMap = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const MAX_ATTEMPTS = 10;
-
-function checkOtpRateLimit(key: string): boolean {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = (rateLimitMap.get(key) || []).filter((t) => t > windowStart);
-  if (timestamps.length >= MAX_ATTEMPTS) {
-    return false;
-  }
-  timestamps.push(now);
-  rateLimitMap.set(key, timestamps);
-  return true;
-}
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const Schema = z.object({
   reference: z.string().min(5).max(200).regex(/^[A-Za-z0-9_-]+$/, "Invalid reference"),
   otp: z.string().trim().min(3).max(12).regex(/^[A-Za-z0-9]+$/, "Invalid OTP"),
 });
 
-const buildErrorResponse = (
-  status: number,
-  payload: {
-    error: string;
-    userMessage: string;
-    errorCode: string;
-    promptSent?: boolean;
-  }
-) =>
-  new Response(JSON.stringify(payload), {
-    status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
-  });
-
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const buildErrorResponse = (
+    status: number,
+    payload: {
+      error: string;
+      userMessage: string;
+      errorCode: string;
+      promptSent?: boolean;
+    },
+    extraHeaders: Record<string, string> = {}
+  ) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { "Content-Type": "application/json", ...corsHeaders, ...extraHeaders },
+    });
+
+  // Rate limiting: 10 OTP attempts per 10 minutes per IP/User
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("submit-momo-otp", ipClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return buildErrorResponse(
+      429,
+      {
+        error: "Too many OTP attempts",
+        userMessage: "Too many OTP attempts. Please wait 10 minutes before trying again.",
+        errorCode: "RATE_LIMIT_EXCEEDED",
+        promptSent: false,
+      },
+      { "Retry-After": ipCheck.resetInSec.toString() }
+    );
+  }
 
   try {
     const auth = await authenticate(req);
@@ -58,16 +55,19 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "ip";
-    const rateLimitKey = `${auth.userId}_${clientIp}`;
-
-    if (!checkOtpRateLimit(rateLimitKey)) {
-      return buildErrorResponse(429, {
-        error: "Too many attempts",
-        userMessage: "Too many incorrect OTP attempts. Please wait a few minutes before trying again.",
-        errorCode: "RATE_LIMITED",
-        promptSent: false,
-      });
+    const userClientId = getClientIdentifier(req, auth.userId);
+    const userCheck = checkRateLimit("submit-momo-otp", userClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
+    if (!userCheck.allowed) {
+      return buildErrorResponse(
+        429,
+        {
+          error: "Too many OTP attempts for this account",
+          userMessage: "Too many OTP attempts. Please wait 10 minutes before trying again.",
+          errorCode: "RATE_LIMIT_EXCEEDED",
+          promptSent: false,
+        },
+        { "Retry-After": userCheck.resetInSec.toString() }
+      );
     }
 
     const paystackSecretKey = getPaystackSecretKey();

@@ -2,34 +2,49 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
 import { getPaystackSecretKey } from "../_shared/paystack.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const Schema = z.object({
   reference: z.string().min(5).max(200).regex(/^[A-Za-z0-9_-]+$/, "Invalid reference"),
 });
 
-const buildErrorResponse = (
-  status: number,
-  payload: {
-    error: string;
-    userMessage: string;
-    errorCode: string;
-    fallback?: boolean;
-    promptSent?: boolean;
-  }
-) =>
-  new Response(JSON.stringify(payload), {
-    status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
-  });
-
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const buildErrorResponse = (
+    status: number,
+    payload: {
+      error: string;
+      userMessage: string;
+      errorCode: string;
+      fallback?: boolean;
+      promptSent?: boolean;
+    },
+    extraHeaders: Record<string, string> = {}
+  ) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { "Content-Type": "application/json", ...corsHeaders, ...extraHeaders },
+    });
+
+  // Rate Limiting by IP (60 status checks per 2 minutes)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("check-charge-status", ipClientId, { maxRequests: 60, windowMs: 2 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return buildErrorResponse(
+      429,
+      {
+        error: "Too many status checks",
+        userMessage: "Too many status checks. Please wait a moment.",
+        errorCode: "RATE_LIMIT_EXCEEDED",
+        fallback: true,
+        promptSent: false,
+      },
+      { "Retry-After": ipCheck.resetInSec.toString() }
+    );
+  }
 
   try {
     const auth = await authenticate(req);

@@ -4,12 +4,8 @@ import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
 import { getAllPaystackSecretKeysAsync } from "../_shared/paystack.ts";
 import { calculateAuthoritativeCheckoutTotal } from "../_shared/pricing.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const VerifySchema = z.object({
   reference: z
@@ -85,10 +81,27 @@ async function decrementStock(
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("verify-payment function called");
+  const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate Limiting by IP (30 verification checks per 5 minutes)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("verify-payment", ipClientId, { maxRequests: 30, windowMs: 5 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return new Response(
+      JSON.stringify({ error: "Too many payment verification attempts. Please wait a moment." }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": ipCheck.resetInSec.toString(),
+          ...corsHeaders,
+        },
+      }
+    );
   }
 
   try {

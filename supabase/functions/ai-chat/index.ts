@@ -1,35 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, SERVICE_ROLE_KEY, SUPABASE_URL, ANON_KEY } from "../_shared/auth.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const MAX_MESSAGES = 15;
 const MAX_CONTENT_LENGTH = 1000;
-
-// Rate limiting: 30 requests per hour per user / IP to protect API quotas
-const rateLimitMap = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const MAX_REQUESTS_PER_WINDOW = 30;
-
-function checkRateLimit(key: string): { allowed: boolean; remaining: number; resetInSec: number } {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = (rateLimitMap.get(key) || []).filter((t) => t > windowStart);
-
-  if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
-    const oldest = timestamps[0];
-    const resetInSec = Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - now) / 1000);
-    return { allowed: false, remaining: 0, resetInSec };
-  }
-
-  timestamps.push(now);
-  rateLimitMap.set(key, timestamps);
-  return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - timestamps.length, resetInSec: 0 };
-}
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -53,17 +29,17 @@ function sanitizeMessages(input: unknown): ChatMessage[] {
 }
 
 serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const auth = await authenticate(req);
-    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anonymous";
-    const rateLimitKey = auth?.userId || `ip_${clientIp}`;
+    const clientId = getClientIdentifier(req, auth?.userId);
 
-    // Enforce Rate Limiting to prevent API quota drain
-    const rateCheck = checkRateLimit(rateLimitKey);
+    // Enforce Rate Limiting to prevent API quota drain (30 requests per hour)
+    const rateCheck = checkRateLimit("ai-chat", clientId, { maxRequests: 30, windowMs: 60 * 60 * 1000 });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({

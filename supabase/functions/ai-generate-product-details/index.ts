@@ -1,32 +1,8 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authenticate, hasRole } from "../_shared/auth.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Rate limiting map: identifier -> array of timestamps
-const rateLimitMap = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const MAX_REQUESTS_PER_WINDOW = 30; // max 30 product generations per hour per seller/admin
-
-function checkRateLimit(key: string): { allowed: boolean; remaining: number; resetInSec: number } {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = (rateLimitMap.get(key) || []).filter((t) => t > windowStart);
-
-  if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
-    const oldest = timestamps[0];
-    const resetInSec = Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - now) / 1000);
-    return { allowed: false, remaining: 0, resetInSec };
-  }
-
-  timestamps.push(now);
-  rateLimitMap.set(key, timestamps);
-  return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - timestamps.length, resetInSec: 0 };
-}
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 // Intelligent dynamic fallback generator with randomization
 function generateSmartFallback(name: string, category: string) {
@@ -145,8 +121,29 @@ function generateSmartFallback(name: string, category: string) {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limiting by IP (50 requests per hour)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("ai-generate-details", ipClientId, { maxRequests: 50, windowMs: 60 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return new Response(
+      JSON.stringify({
+        error: "AI Generation limit reached. Please wait before generating more product details.",
+        resetInSec: ipCheck.resetInSec,
+      }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": String(ipCheck.resetInSec),
+        },
+      }
+    );
   }
 
   try {
@@ -158,8 +155,9 @@ serve(async (req) => {
       );
     }
 
-    // Rate limiting per user
-    const rateCheck = checkRateLimit(auth.userId);
+    // Rate limiting per user (30 per hour)
+    const userClientId = getClientIdentifier(req, auth.userId);
+    const rateCheck = checkRateLimit("ai-generate-details", userClientId, { maxRequests: 30, windowMs: 60 * 60 * 1000 });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({

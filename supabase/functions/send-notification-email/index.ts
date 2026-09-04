@@ -1,11 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, hasRole, escapeHtml, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 // Hard-coded template dictionary — never accept freeform HTML from clients.
 const TEMPLATES: Record<string, { subject: string; heading: string; body: string }> = {
@@ -32,7 +29,18 @@ const TEMPLATES: Record<string, { subject: string; heading: string; body: string
 };
 
 serve(async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Rate Limiting (20 emails per 10 minutes)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("send-notification-email", ipClientId, { maxRequests: 20, windowMs: 10 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return new Response(JSON.stringify({ error: "Too many email requests. Please wait." }), {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": ipCheck.resetInSec.toString() },
+    });
+  }
 
   try {
     // Require an admin caller — never accept user-supplied HTML in emails.

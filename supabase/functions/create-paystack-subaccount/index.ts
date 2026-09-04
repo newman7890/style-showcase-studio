@@ -2,22 +2,28 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, hasRole, isServiceRoleCall, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
 import { getPaystackSecretKeyAsync, getPaystackKeysAsync } from "../_shared/paystack.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 interface RequestBody {
   sellerId?: string; // seller_profiles.id or seller_profiles.user_id
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("create-paystack-subaccount function called");
+  const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate Limiting (15 attempts per 10 minutes)
+  const ipClientId = getClientIdentifier(req, null);
+  const ipCheck = checkRateLimit("create-subaccount", ipClientId, { maxRequests: 15, windowMs: 10 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    return new Response(JSON.stringify({ error: "Too many subaccount requests. Please wait." }), {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": ipCheck.resetInSec.toString() },
+    });
   }
 
   try {
