@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authenticate, hasRole } from "../_shared/auth.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 // Intelligent dynamic fallback generator with randomization
 function generateSmartFallback(name: string, category: string) {
@@ -126,26 +126,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate limiting by IP (50 requests per hour)
-  const ipClientId = getClientIdentifier(req, null);
-  const ipCheck = checkRateLimit("ai-generate-details", ipClientId, { maxRequests: 50, windowMs: 60 * 60 * 1000 });
-  if (!ipCheck.allowed) {
-    return new Response(
-      JSON.stringify({
-        error: "AI Generation limit reached. Please wait before generating more product details.",
-        resetInSec: ipCheck.resetInSec,
-      }),
-      {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Retry-After": String(ipCheck.resetInSec),
-        },
-      }
-    );
-  }
-
   try {
     const auth = await authenticate(req);
     if (!auth) {
@@ -157,7 +137,7 @@ serve(async (req) => {
 
     // Rate limiting per user (30 per hour)
     const userClientId = getClientIdentifier(req, auth.userId);
-    const rateCheck = checkRateLimit("ai-generate-details", userClientId, { maxRequests: 30, windowMs: 60 * 60 * 1000 });
+    const rateCheck = await checkGlobalRateLimitAsync(auth.client, "ai-generate-details", userClientId, { maxRequests: 30, windowMs: 60 * 60 * 1000 });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({

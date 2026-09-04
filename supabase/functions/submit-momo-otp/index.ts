@@ -3,7 +3,7 @@ import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
 import { getPaystackSecretKey } from "../_shared/paystack.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const Schema = z.object({
   reference: z.string().min(5).max(200).regex(/^[A-Za-z0-9_-]+$/, "Invalid reference"),
@@ -29,22 +29,6 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders, ...extraHeaders },
     });
 
-  // Rate limiting: 10 OTP attempts per 10 minutes per IP/User
-  const ipClientId = getClientIdentifier(req, null);
-  const ipCheck = checkRateLimit("submit-momo-otp", ipClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
-  if (!ipCheck.allowed) {
-    return buildErrorResponse(
-      429,
-      {
-        error: "Too many OTP attempts",
-        userMessage: "Too many OTP attempts. Please wait 10 minutes before trying again.",
-        errorCode: "RATE_LIMIT_EXCEEDED",
-        promptSent: false,
-      },
-      { "Retry-After": ipCheck.resetInSec.toString() }
-    );
-  }
-
   try {
     const auth = await authenticate(req);
     if (!auth) {
@@ -55,13 +39,14 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // Rate limiting: 10 OTP attempts per 10 minutes per User
     const userClientId = getClientIdentifier(req, auth.userId);
     const userCheck = await checkGlobalRateLimitAsync(auth.client, "submit-momo-otp", userClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
     if (!userCheck.allowed) {
       return buildErrorResponse(
         429,
         {
-          error: "Too many OTP attempts for this account",
+          error: "Too many OTP attempts",
           userMessage: "Too many OTP attempts. Please wait 10 minutes before trying again.",
           errorCode: "RATE_LIMIT_EXCEEDED",
           promptSent: false,

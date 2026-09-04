@@ -5,7 +5,7 @@ import { authenticate, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts
 import { getAllPaystackSecretKeysAsync } from "../_shared/paystack.ts";
 import { calculateAuthoritativeCheckoutTotal } from "../_shared/pricing.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const VerifySchema = z.object({
   reference: z
@@ -87,17 +87,20 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate Limiting by IP (30 verification checks per 5 minutes)
-  const ipClientId = getClientIdentifier(req, null);
-  const ipCheck = checkRateLimit("verify-payment", ipClientId, { maxRequests: 30, windowMs: 5 * 60 * 1000 });
-  if (!ipCheck.allowed) {
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  const auth = await authenticate(req);
+  const clientId = getClientIdentifier(req, auth?.userId);
+
+  // Rate Limiting (30 verification checks per 5 minutes)
+  const rateCheck = await checkGlobalRateLimitAsync(auth?.client || supabase, "verify-payment", clientId, { maxRequests: 30, windowMs: 5 * 60 * 1000 });
+  if (!rateCheck.allowed) {
     return new Response(
       JSON.stringify({ error: "Too many payment verification attempts. Please wait a moment." }),
       {
         status: 429,
         headers: {
           "Content-Type": "application/json",
-          "Retry-After": ipCheck.resetInSec.toString(),
+          "Retry-After": rateCheck.resetInSec.toString(),
           ...corsHeaders,
         },
       }
@@ -105,7 +108,6 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const auth = await authenticate(req);
     if (auth) {
       console.log(`verify-payment authenticated user: ${auth.userId}`);
     }
@@ -119,8 +121,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
     const { reference } = parsed.data;
     console.log(`Verifying payment with reference: ${reference}`);
-
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
     // Idempotency check: if order with this payment_reference is already marked paid, return success
     const { data: existingOrder } = await supabase

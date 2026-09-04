@@ -1,21 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, hasRole, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
-  // Rate Limiting (10 delete attempts per 10 minutes)
-  const ipClientId = getClientIdentifier(req, null);
-  const ipCheck = checkRateLimit("admin-delete-user", ipClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
-  if (!ipCheck.allowed) {
-    return new Response(JSON.stringify({ error: "Too many delete requests. Please wait." }), {
-      status: 429,
-      headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": ipCheck.resetInSec.toString() },
-    });
-  }
 
   try {
     const ctx = await authenticate(req);
@@ -31,6 +21,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Rate Limiting (10 delete attempts per 10 minutes)
+    const clientId = getClientIdentifier(req, ctx.userId);
+    const rateCheck = await checkGlobalRateLimitAsync(ctx.client, "admin-delete-user", clientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
+    if (!rateCheck.allowed) {
+      return new Response(JSON.stringify({ error: "Too many delete requests. Please wait." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": rateCheck.resetInSec.toString() },
       });
     }
 

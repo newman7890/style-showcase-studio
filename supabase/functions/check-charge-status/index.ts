@@ -3,7 +3,7 @@ import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
 import { getPaystackSecretKey } from "../_shared/paystack.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const Schema = z.object({
   reference: z.string().min(5).max(200).regex(/^[A-Za-z0-9_-]+$/, "Invalid reference"),
@@ -29,23 +29,6 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders, ...extraHeaders },
     });
 
-  // Rate Limiting by IP (60 status checks per 2 minutes)
-  const ipClientId = getClientIdentifier(req, null);
-  const ipCheck = checkRateLimit("check-charge-status", ipClientId, { maxRequests: 60, windowMs: 2 * 60 * 1000 });
-  if (!ipCheck.allowed) {
-    return buildErrorResponse(
-      429,
-      {
-        error: "Too many status checks",
-        userMessage: "Too many status checks. Please wait a moment.",
-        errorCode: "RATE_LIMIT_EXCEEDED",
-        fallback: true,
-        promptSent: false,
-      },
-      { "Retry-After": ipCheck.resetInSec.toString() }
-    );
-  }
-
   try {
     const auth = await authenticate(req);
     if (!auth) {
@@ -56,6 +39,23 @@ const handler = async (req: Request): Promise<Response> => {
         fallback: true,
         promptSent: false,
       });
+    }
+
+    // Rate Limiting (60 status checks per 2 minutes)
+    const clientId = getClientIdentifier(req, auth.userId);
+    const rateCheck = await checkGlobalRateLimitAsync(auth.client, "check-charge-status", clientId, { maxRequests: 60, windowMs: 2 * 60 * 1000 });
+    if (!rateCheck.allowed) {
+      return buildErrorResponse(
+        429,
+        {
+          error: "Too many status checks",
+          userMessage: "Too many status checks. Please wait a moment.",
+          errorCode: "RATE_LIMIT_EXCEEDED",
+          fallback: true,
+          promptSent: false,
+        },
+        { "Retry-After": rateCheck.resetInSec.toString() }
+      );
     }
 
     const paystackSecretKey = getPaystackSecretKey();

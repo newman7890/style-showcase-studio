@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, hasRole, isServiceRoleCall, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
 import { getPaystackSecretKeyAsync, getPaystackKeysAsync } from "../_shared/paystack.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 interface RequestBody {
   sellerId?: string; // seller_profiles.id or seller_profiles.user_id
@@ -16,24 +16,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate Limiting (15 attempts per 10 minutes)
-  const ipClientId = getClientIdentifier(req, null);
-  const ipCheck = checkRateLimit("create-subaccount", ipClientId, { maxRequests: 15, windowMs: 10 * 60 * 1000 });
-  if (!ipCheck.allowed) {
-    return new Response(JSON.stringify({ error: "Too many subaccount requests. Please wait." }), {
-      status: 429,
-      headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": ipCheck.resetInSec.toString() },
-    });
-  }
-
   try {
-    let paystackSecretKey = "";
-    try {
-      paystackSecretKey = await getPaystackSecretKeyAsync();
-    } catch (e) {
-      console.warn("Paystack key warning:", e);
-    }
-
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
     // Verify caller authentication or service role call
@@ -50,6 +33,23 @@ const handler = async (req: Request): Promise<Response> => {
       }
       callerUserId = auth.userId;
       isAdmin = await hasRole(callerUserId, "admin");
+    }
+
+    // Rate Limiting (15 attempts per 10 minutes)
+    const clientId = getClientIdentifier(req, callerUserId);
+    const rateCheck = await checkGlobalRateLimitAsync(adminClient, "create-subaccount", clientId, { maxRequests: 15, windowMs: 10 * 60 * 1000 });
+    if (!rateCheck.allowed) {
+      return new Response(JSON.stringify({ error: "Too many subaccount requests. Please wait." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": rateCheck.resetInSec.toString() },
+      });
+    }
+
+    let paystackSecretKey = "";
+    try {
+      paystackSecretKey = await getPaystackSecretKeyAsync();
+    } catch (e) {
+      console.warn("Paystack key warning:", e);
     }
 
     const body: RequestBody = await req.json().catch(() => ({}));

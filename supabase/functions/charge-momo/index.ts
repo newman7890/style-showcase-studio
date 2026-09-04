@@ -3,7 +3,7 @@ import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
 import { getPaystackSecretKey } from "../_shared/paystack.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const ChargeSchema = z.object({
   orderId: z.string().uuid("Invalid order ID"),
@@ -40,23 +40,6 @@ const handler = async (req: Request): Promise<Response> => {
       status,
       headers: { "Content-Type": "application/json", ...corsHeaders, ...extraHeaders },
     });
-
-  // Rate Limiting by IP (15 requests per 10 minutes)
-  const ipClientId = getClientIdentifier(req, null);
-  const ipCheck = checkRateLimit("charge-momo", ipClientId, { maxRequests: 15, windowMs: 10 * 60 * 1000 });
-  if (!ipCheck.allowed) {
-    return buildErrorResponse(
-      429,
-      {
-        error: "Too many payment attempts",
-        userMessage: "Too many Mobile Money attempts. Please wait a few minutes before trying again.",
-        errorCode: "RATE_LIMIT_EXCEEDED",
-        fallback: true,
-        promptSent: false,
-      },
-      { "Retry-After": ipCheck.resetInSec.toString() }
-    );
-  }
 
   try {
     const auth = await authenticate(req);

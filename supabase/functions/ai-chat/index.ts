@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, SERVICE_ROLE_KEY, SUPABASE_URL, ANON_KEY } from "../_shared/auth.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const MAX_MESSAGES = 15;
 const MAX_CONTENT_LENGTH = 1000;
@@ -39,7 +39,7 @@ serve(async (req: Request) => {
     const clientId = getClientIdentifier(req, auth?.userId);
 
     // Enforce Rate Limiting to prevent API quota drain (30 requests per hour)
-    const rateCheck = checkRateLimit("ai-chat", clientId, { maxRequests: 30, windowMs: 60 * 60 * 1000 });
+    const rateCheck = await checkGlobalRateLimitAsync(auth?.client || null, "ai-chat", clientId, { maxRequests: 30, windowMs: 60 * 60 * 1000 });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({

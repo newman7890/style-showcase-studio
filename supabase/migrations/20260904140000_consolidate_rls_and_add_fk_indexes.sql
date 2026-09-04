@@ -105,10 +105,9 @@ USING (
 );
 
 CREATE POLICY "orders_insert_policy" ON public.orders
-FOR INSERT TO authenticated, anon
+FOR INSERT TO authenticated
 WITH CHECK (
   auth.uid() = user_id
-  OR user_id IS NULL
   OR public.has_role(auth.uid(), 'admin'::app_role)
 );
 
@@ -183,12 +182,12 @@ USING (
 );
 
 CREATE POLICY "order_items_insert_policy" ON public.order_items
-FOR INSERT TO authenticated, anon
+FOR INSERT TO authenticated
 WITH CHECK (
   EXISTS (
     SELECT 1 FROM public.orders
     WHERE orders.id = order_items.order_id
-      AND (orders.user_id = auth.uid() OR orders.user_id IS NULL)
+      AND orders.user_id = auth.uid()
   )
   OR public.has_role(auth.uid(), 'admin'::app_role)
 );

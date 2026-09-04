@@ -5,7 +5,7 @@ import { authenticate, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts
 import { getAllPaystackSecretKeysAsync, getPaystackPublicKey, PaystackKeyConfig } from "../_shared/paystack.ts";
 import { calculateAuthoritativeCheckoutTotal } from "../_shared/pricing.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const PaymentSchema = z.object({
   orderId: z.string().uuid("Invalid order ID").optional().nullable(),
@@ -42,44 +42,26 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate Limiting by IP (20 payment inits per 5 minutes)
-  const ipClientId = getClientIdentifier(req, null);
-  const ipCheck = checkRateLimit("initialize-payment", ipClientId, { maxRequests: 20, windowMs: 5 * 60 * 1000 });
-  if (!ipCheck.allowed) {
-    return new Response(
-      JSON.stringify({ error: "Too many payment initialization attempts. Please wait a few minutes before trying again." }),
-      {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Retry-After": ipCheck.resetInSec.toString(),
-          ...corsHeaders,
-        },
-      }
-    );
-  }
-
   try {
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const auth = await authenticate(req);
     const userId = auth?.userId || null;
+    const clientId = getClientIdentifier(req, userId);
 
-    if (userId) {
-      const userClientId = getClientIdentifier(req, userId);
-      const userCheck = await checkGlobalRateLimitAsync(adminClient, "initialize-payment", userClientId, { maxRequests: 20, windowMs: 5 * 60 * 1000 });
-      if (!userCheck.allowed) {
-        return new Response(
-          JSON.stringify({ error: "Payment attempt rate limit exceeded for your account. Please wait before retrying." }),
-          {
-            status: 429,
-            headers: {
-              "Content-Type": "application/json",
-              "Retry-After": userCheck.resetInSec.toString(),
-              ...corsHeaders,
-            },
-          }
-        );
-      }
+    // Rate Limiting (20 payment inits per 5 minutes)
+    const rateCheck = await checkGlobalRateLimitAsync(adminClient, "initialize-payment", clientId, { maxRequests: 20, windowMs: 5 * 60 * 1000 });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "Too many payment initialization attempts. Please wait a few minutes before trying again." }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": rateCheck.resetInSec.toString(),
+            ...corsHeaders,
+          },
+        }
+      );
     }
 
     const rawBody = await req.json();
