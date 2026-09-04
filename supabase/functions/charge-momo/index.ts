@@ -3,7 +3,7 @@ import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
 import { getPaystackSecretKey } from "../_shared/paystack.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkRateLimit, checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const ChargeSchema = z.object({
   orderId: z.string().uuid("Invalid order ID"),
@@ -72,7 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Rate Limiting by User (10 requests per 10 minutes)
     const userClientId = getClientIdentifier(req, auth.userId);
-    const userCheck = checkRateLimit("charge-momo", userClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
+    const userCheck = await checkGlobalRateLimitAsync(auth.client, "charge-momo", userClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
     if (!userCheck.allowed) {
       return buildErrorResponse(
         429,

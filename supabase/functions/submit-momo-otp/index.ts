@@ -3,7 +3,7 @@ import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate } from "../_shared/auth.ts";
 import { getPaystackSecretKey } from "../_shared/paystack.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, getClientIdentifier } from "../_shared/rateLimit.ts";
+import { checkRateLimit, checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
 const Schema = z.object({
   reference: z.string().min(5).max(200).regex(/^[A-Za-z0-9_-]+$/, "Invalid reference"),
@@ -56,7 +56,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const userClientId = getClientIdentifier(req, auth.userId);
-    const userCheck = checkRateLimit("submit-momo-otp", userClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
+    const userCheck = await checkGlobalRateLimitAsync(auth.client, "submit-momo-otp", userClientId, { maxRequests: 10, windowMs: 10 * 60 * 1000 });
     if (!userCheck.allowed) {
       return buildErrorResponse(
         429,

@@ -46,3 +46,40 @@ export function getClientIdentifier(req: Request, userId?: string | null): strin
   if (forwarded) return `ip_${forwarded.split(",")[0].trim()}`;
   return "ip_anonymous";
 }
+
+/**
+ * Checks rate limit against PostgreSQL database for globally synchronized limits across all edge instances.
+ * Falls back automatically to in-memory check if database is unreachable or table not yet migrated.
+ */
+export async function checkGlobalRateLimitAsync(
+  supabaseClient: any,
+  namespace: string,
+  key: string,
+  config: RateLimitConfig = { maxRequests: 30, windowMs: 60 * 1000 }
+): Promise<{ allowed: boolean; remaining: number; resetInSec: number }> {
+  const compositeKey = `${namespace}:${key}`;
+  const windowSec = Math.max(1, Math.ceil(config.windowMs / 1000));
+
+  try {
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient.rpc("check_global_rate_limit", {
+        p_key: compositeKey,
+        p_max_requests: config.maxRequests,
+        p_window_seconds: windowSec,
+      });
+
+      if (!error && data && typeof data.allowed === "boolean") {
+        return {
+          allowed: data.allowed,
+          remaining: Number(data.remaining) || 0,
+          resetInSec: Number(data.reset_in_sec) || 0,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("Global rate limit check fallback to local:", e);
+  }
+
+  // Graceful fallback to local in-memory sliding window
+  return checkRateLimit(namespace, key, config);
+}
