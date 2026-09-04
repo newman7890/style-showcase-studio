@@ -154,14 +154,15 @@ async function createStudioFallback(
 }
 
 /**
- * Preload AI models into browser cache using reliable CDN endpoints
+ * Preload AI models into browser cache using local origin or CDN endpoints
  */
 export async function preloadAiModels(): Promise<void> {
   try {
     const imgly = await import("@imgly/background-removal");
     if (typeof imgly.preload === "function") {
+      const localPath = typeof window !== "undefined" ? `${window.location.origin}/imgly-data/` : "/imgly-data/";
       await imgly.preload({
-        publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.4.5/dist/",
+        publicPath: localPath,
         model: "small",
       });
     }
@@ -172,8 +173,7 @@ export async function preloadAiModels(): Promise<void> {
 
 /**
  * Removes the background of an image using in-browser AI models.
- * Automatically fails over through verified CDNs and gracefully falls back to studio image
- * so user workflows are NEVER blocked by CDN network limits or ad-blockers.
+ * Automatically attempts local self-hosted models first, then fails over through verified CDNs.
  */
 export async function processAiBackgroundRemoval(
   source: string | File | Blob,
@@ -203,10 +203,13 @@ export async function processAiBackgroundRemoval(
     return createStudioFallback(preparedBlob, filenamePrefix);
   }
 
-  // Verified working CDN mirrors in priority order:
-  // 1. staticimgly 1.4.5 (fastest CDN mirror)
-  // 2. unpkg 1.4.5 (reliable global backup)
+  // Priority order for AI model assets:
+  // 1. Local Origin /imgly-data/ (Instant, No CORS, No Ad-blocker blocks, Self-hosted)
+  // 2. staticimgly 1.4.5 (fastest external CDN)
+  // 3. unpkg 1.4.5 (reliable global NPM mirror)
+  const localOriginPath = typeof window !== "undefined" ? `${window.location.origin}/imgly-data/` : "/imgly-data/";
   const CDN_CANDIDATES = [
+    localOriginPath,
     "https://staticimgly.com/@imgly/background-removal-data/1.4.5/dist/",
     "https://unpkg.com/@imgly/background-removal-data@1.4.5/dist/",
   ];

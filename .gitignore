@@ -38,3 +38,4 @@ replay_pid*
 scratch/
 scratch-renderme/
 supabase/.temp/
+public/imgly-data/
