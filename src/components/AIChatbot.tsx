@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Send, Loader2, Bot, User, Package, HelpCircle, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,8 @@ export const AIChatbot = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { t } = useLanguage();
+  const location = useLocation();
+  const isHiddenRoute = location.pathname.startsWith("/rider") || location.pathname.startsWith("/admin");
 
   useEffect(() => {
     const handleOpenChat = () => setIsOpen(true);
@@ -182,16 +185,19 @@ export const AIChatbot = () => {
   return (
     <>
       {/* Floating Chat Button */}
-      <motion.button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 right-4 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        initial={{ scale: 0 }}
-        animate={{ scale: isOpen ? 0 : 1 }}
-      >
-        <MessageCircle className="w-6 h-6" />
-      </motion.button>
+      {!isHiddenRoute && (
+        <motion.button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-24 right-4 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center cursor-pointer"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          initial={{ scale: 0 }}
+          animate={{ scale: isOpen ? 0 : 1 }}
+          aria-label="Open Live Chat"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </motion.button>
+      )}
 
       {/* Chat Window */}
       <AnimatePresence>
