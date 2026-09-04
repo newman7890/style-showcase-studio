@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 
-interface CartItem {
+export interface CartItem {
   id: string;
   product_id: string;
   quantity: number;
@@ -18,12 +18,40 @@ interface CartItem {
   };
 }
 
-export const useCart = () => {
+interface CartContextType {
+  cartItems: CartItem[];
+  loading: boolean;
+  addToCart: (
+    productId: string,
+    quantity?: number,
+    selectedColor?: { name: string; hex: string; image: string | null } | null,
+    selectedSize?: string | null
+  ) => Promise<void>;
+  updateQuantity: (cartItemId: string, quantity: number) => Promise<void>;
+  removeFromCart: (cartItemId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
+  fetchCart: () => Promise<void>;
+  total: number;
+  itemCount: number;
+}
+
+const CartContext = createContext<CartContextType | null>(null);
+
+export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCart = async () => {
+  // Synchronous ref to prevent stale closures in callbacks & debounced timers
+  const cartItemsRef = useRef<CartItem[]>([]);
+  cartItemsRef.current = cartItems;
+
+  // Track debounced update timers keyed by cartItemId
+  const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Track original baseline quantities for rollback on network failure
+  const rollbackQuantities = useRef<Map<string, number>>(new Map());
+
+  const fetchCart = useCallback(async () => {
     if (!user) {
       setCartItems([]);
       setLoading(false);
@@ -52,7 +80,6 @@ export const useCart = () => {
 
       if (error) {
         console.warn("Cart fetch with color/size failed, trying basic fetch:", error.message);
-        // Fallback for when selected_color/selected_size columns don't exist yet in remote schema
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("cart_items")
           .select(`
@@ -79,15 +106,24 @@ export const useCart = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchCart();
-  }, [user]);
+  }, [fetchCart]);
+
+  // Clean up any pending debounce timers on unmount
+  useEffect(() => {
+    return () => {
+      debounceTimers.current.forEach((timer) => clearTimeout(timer));
+      debounceTimers.current.clear();
+      rollbackQuantities.current.clear();
+    };
+  }, []);
 
   const addToCart = async (
-    productId: string, 
-    quantity: number = 1, 
+    productId: string,
+    quantity: number = 1,
     selectedColor: { name: string; hex: string; image: string | null } | null = null,
     selectedSize: string | null = null
   ) => {
@@ -104,31 +140,28 @@ export const useCart = () => {
         .eq("user_id", user.id)
         .eq("product_id", productId);
 
-      // If any existing item is found for this user & product, update quantity (satisfies UNIQUE (user_id, product_id))
       const existing = existingItems && existingItems.length > 0 ? existingItems[0] : null;
 
       if (existing) {
-        // Update quantity & selected options
+        const newQty = existing.quantity + quantity;
         const { error } = await supabase
           .from("cart_items")
           .update({
-            quantity: existing.quantity + quantity,
+            quantity: newQty,
             ...(selectedColor ? { selected_color: selectedColor } : {}),
             ...(selectedSize ? { selected_size: selectedSize } : {}),
           })
           .eq("id", existing.id);
 
         if (error) {
-          // Fallback if selected_color/selected_size don't exist in schema
           const { error: fallbackError } = await supabase
             .from("cart_items")
-            .update({ quantity: existing.quantity + quantity })
+            .update({ quantity: newQty })
             .eq("id", existing.id);
 
           if (fallbackError) throw fallbackError;
         }
       } else {
-        // Insert new item
         const { error } = await supabase
           .from("cart_items")
           .insert({
@@ -168,27 +201,84 @@ export const useCart = () => {
     }
   };
 
+  /**
+   * updateQuantity:
+   * Instantaneous Optimistic Update (0ms response).
+   * React state updates immediately so numbers and totals change on tap.
+   * Supabase network sync is debounced (350ms) to coalesce rapid clicks.
+   */
   const updateQuantity = async (cartItemId: string, quantity: number) => {
     if (quantity < 1) {
       await removeFromCart(cartItemId);
       return;
     }
 
-    try {
-      const { error } = await supabase
-        .from("cart_items")
-        .update({ quantity })
-        .eq("id", cartItemId);
+    const currentItem = cartItemsRef.current.find((item) => item.id === cartItemId);
+    if (!currentItem) return;
 
-      if (error) throw error;
-      await fetchCart();
-    } catch (error) {
-      console.error("Error updating quantity:", error);
-      toast.error("Failed to update quantity");
+    // Record original quantity once per series of rapid clicks for rollback
+    if (!rollbackQuantities.current.has(cartItemId)) {
+      rollbackQuantities.current.set(cartItemId, currentItem.quantity);
     }
+
+    // 1. OPTIMISTIC UPDATE: Immediate 0ms local state change
+    setCartItems((prev) =>
+      prev.map((item) => (item.id === cartItemId ? { ...item, quantity } : item))
+    );
+
+    // 2. Clear any pending debounce timer for this item
+    if (debounceTimers.current.has(cartItemId)) {
+      clearTimeout(debounceTimers.current.get(cartItemId)!);
+    }
+
+    // 3. Debounced network sync to Supabase
+    const timer = setTimeout(async () => {
+      debounceTimers.current.delete(cartItemId);
+      const original = rollbackQuantities.current.get(cartItemId);
+      rollbackQuantities.current.delete(cartItemId);
+
+      try {
+        const { error } = await supabase
+          .from("cart_items")
+          .update({ quantity })
+          .eq("id", cartItemId);
+
+        if (error) throw error;
+        // Success: state already has latest quantity, no refetch required
+      } catch (error) {
+        console.error("Error syncing cart quantity to server:", error);
+        // Roll back to previous quantity on error
+        if (original !== undefined) {
+          setCartItems((prev) =>
+            prev.map((item) =>
+              item.id === cartItemId ? { ...item, quantity: original } : item
+            )
+          );
+        }
+        toast.error("Could not update quantity. Please check your connection.");
+      }
+    }, 350);
+
+    debounceTimers.current.set(cartItemId, timer);
   };
 
+  /**
+   * removeFromCart:
+   * Instantaneous Optimistic Removal.
+   * Removes from state immediately (0ms) and persists to Supabase in background.
+   */
   const removeFromCart = async (cartItemId: string) => {
+    // Cancel any pending debounced updates for this item
+    if (debounceTimers.current.has(cartItemId)) {
+      clearTimeout(debounceTimers.current.get(cartItemId)!);
+      debounceTimers.current.delete(cartItemId);
+    }
+    rollbackQuantities.current.delete(cartItemId);
+
+    const previousItems = cartItemsRef.current;
+    // 1. OPTIMISTIC: remove immediately
+    setCartItems((prev) => prev.filter((item) => item.id !== cartItemId));
+
     try {
       const { error } = await supabase
         .from("cart_items")
@@ -196,16 +286,28 @@ export const useCart = () => {
         .eq("id", cartItemId);
 
       if (error) throw error;
-      await fetchCart();
       toast.success("Removed from cart");
     } catch (error) {
       console.error("Error removing from cart:", error);
+      // Roll back
+      setCartItems(previousItems);
       toast.error("Failed to remove from cart");
     }
   };
 
+  /**
+   * clearCart:
+   * Instantaneous Optimistic Cart Reset.
+   */
   const clearCart = async () => {
     if (!user) return;
+
+    debounceTimers.current.forEach((timer) => clearTimeout(timer));
+    debounceTimers.current.clear();
+    rollbackQuantities.current.clear();
+
+    const previousItems = cartItemsRef.current;
+    setCartItems([]);
 
     try {
       const { error } = await supabase
@@ -214,27 +316,40 @@ export const useCart = () => {
         .eq("user_id", user.id);
 
       if (error) throw error;
-      await fetchCart();
       toast.success("Cart cleared");
     } catch (error) {
       console.error("Error clearing cart:", error);
+      setCartItems(previousItems);
       toast.error("Failed to clear cart");
     }
   };
 
   const total = cartItems.reduce(
-    (sum, item) => sum + item.products.price * item.quantity,
+    (sum, item) => sum + (item.products?.price || 0) * item.quantity,
     0
   );
 
-  return {
+  const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const value: CartContextType = {
     cartItems,
     loading,
     addToCart,
     updateQuantity,
     removeFromCart,
     clearCart,
+    fetchCart,
     total,
-    itemCount: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+    itemCount,
   };
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+};
+
+export const useCart = (): CartContextType => {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error("useCart must be used within a CartProvider");
+  }
+  return context;
 };

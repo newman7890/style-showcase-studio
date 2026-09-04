@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { CartProvider } from "@/hooks/useCart";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
@@ -54,7 +55,8 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <LanguageProvider>
+          <CartProvider>
+            <LanguageProvider>
             <SourceProtection />
             <Toaster />
             <Sonner />
@@ -117,7 +119,8 @@ const App = () => (
               </Routes>
               <AIChatbot />
             </BrowserRouter>
-          </LanguageProvider>
+            </LanguageProvider>
+          </CartProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

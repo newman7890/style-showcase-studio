@@ -133,17 +133,21 @@ const Cart = () => {
                         {!(item.selected_color as any)?.isGiftCard ? (
                           <>
                             <button
+                              type="button"
                               onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary transition-colors"
+                              className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                              aria-label="Decrease quantity"
                             >
-                              <Minus className="w-3 h-3" />
+                              <Minus className="w-3 h-3 pointer-events-none" />
                             </button>
-                            <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+                            <span className="text-sm font-medium w-6 text-center select-none tabular-nums">{item.quantity}</span>
                             <button
+                              type="button"
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary transition-colors"
+                              className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                              aria-label="Increase quantity"
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-3 h-3 pointer-events-none" />
                             </button>
                           </>
                         ) : (
@@ -156,10 +160,12 @@ const Cart = () => {
                       </p>
 
                       <button
+                        type="button"
                         onClick={() => removeFromCart(item.id)}
-                        className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                        aria-label="Remove item"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-4 h-4 pointer-events-none" />
                       </button>
                     </div>
 
@@ -197,8 +203,13 @@ const Cart = () => {
                               <p className="text-xs text-muted-foreground mt-1">Size: {item.selected_size}</p>
                             )}
                           </div>
-                          <button onClick={() => removeFromCart(item.id)} className="text-muted-foreground">
-                            <X className="w-4 h-4" />
+                          <button
+                            type="button"
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-muted-foreground hover:text-foreground active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                            aria-label="Remove item"
+                          >
+                            <X className="w-4 h-4 pointer-events-none" />
                           </button>
                         </div>
                         <div className="flex items-center justify-between mt-3">
@@ -206,17 +217,21 @@ const Cart = () => {
                             {!(item.selected_color as any)?.isGiftCard ? (
                               <>
                                 <button
+                                  type="button"
                                   onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                  className="w-7 h-7 border border-border rounded-full flex items-center justify-center"
+                                  className="w-7 h-7 border border-border rounded-full flex items-center justify-center hover:bg-secondary active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                                  aria-label="Decrease quantity"
                                 >
-                                  <Minus className="w-3 h-3" />
+                                  <Minus className="w-3 h-3 pointer-events-none" />
                                 </button>
-                                <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
+                                <span className="text-sm font-medium w-5 text-center select-none tabular-nums">{item.quantity}</span>
                                 <button
+                                  type="button"
                                   onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                  className="w-7 h-7 border border-border rounded-full flex items-center justify-center"
+                                  className="w-7 h-7 border border-border rounded-full flex items-center justify-center hover:bg-secondary active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                                  aria-label="Increase quantity"
                                 >
-                                  <Plus className="w-3 h-3" />
+                                  <Plus className="w-3 h-3 pointer-events-none" />
                                 </button>
                               </>
                             ) : (
