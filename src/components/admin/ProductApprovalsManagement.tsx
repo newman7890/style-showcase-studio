@@ -173,19 +173,22 @@ export const ProductApprovalsManagement = () => {
         )
       );
 
-      toast({
-        title: "Studio Background Removed! ✨",
-        description: "Converted to clean transparent studio PNG.",
-      });
+      if (result.isFallback) {
+        toast({
+          title: "Photo Optimized ✨",
+          description: "Photo converted for studio display. (AI auto-masking was skipped because model servers were unreachable).",
+        });
+      } else {
+        toast({
+          title: "Studio Background Removed! ✨",
+          description: "Converted to clean transparent studio PNG.",
+        });
+      }
     } catch (err: any) {
       console.error("Studio Background Removal Error:", err);
-      const isFetchErr = err?.message?.includes("Failed to fetch") || err?.name === "TypeError";
       toast({
-        title: isFetchErr ? "Network Connection Notice" : "Processing Notice",
-        description: isFetchErr
-          ? "Unable to download AI background removal models. Please check your connection and try again."
-          : (err.message || "Failed to remove image background."),
-        variant: "destructive",
+        title: "Photo Processing Notice",
+        description: err?.message || "Could not process image automatically. You can continue uploading the photo directly.",
       });
       setStudioImages((prev) =>
         prev.map((img, i) => (i === index ? { ...img, isProcessingBg: false } : img))

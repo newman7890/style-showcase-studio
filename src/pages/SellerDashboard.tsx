@@ -206,19 +206,22 @@ const SellerDashboard = () => {
         )
       );
 
-      toast({
-        title: "Studio Image Ready! ✨",
-        description: "Background successfully removed for this photo.",
-      });
+      if (result.isFallback) {
+        toast({
+          title: "Photo Optimized ✨",
+          description: "Photo formatted for studio display. (AI background removal was skipped because model servers were unreachable).",
+        });
+      } else {
+        toast({
+          title: "Studio Image Ready! ✨",
+          description: "Background successfully removed for this photo.",
+        });
+      }
     } catch (err: any) {
       console.error("Background removal error:", err);
-      const isFetchError = err?.message?.includes("Failed to fetch") || err?.name === "TypeError";
       toast({
-        title: isFetchError ? "Internet Connection Required" : "Processing Notice",
-        description: isFetchError
-          ? "Unable to download AI background removal models. Please check your internet connection and try again."
-          : (err.message || "Failed to remove background."),
-        variant: "destructive",
+        title: "Photo Notice",
+        description: err?.message || "Could not process image automatically. You can still upload the photo directly.",
       });
       setGalleryImages((prev) =>
         prev.map((img, i) => (i === index ? { ...img, processingBg: false } : img))
@@ -604,19 +607,22 @@ const SellerDashboard = () => {
       setColors((prev) =>
         prev.map((c, i) => (i === index ? { ...c, file: result.file, image: result.previewUrl } : c))
       );
-      toast({
-        title: "Studio Image Ready! ✨",
-        description: "Background successfully removed for this color.",
-      });
+      if (result.isFallback) {
+        toast({
+          title: "Color Photo Optimized ✨",
+          description: "Photo formatted for studio display. (AI background removal was skipped because model servers were unreachable).",
+        });
+      } else {
+        toast({
+          title: "Studio Image Ready! ✨",
+          description: "Background successfully removed for this color.",
+        });
+      }
     } catch (err: any) {
       console.error("Background removal error for color:", err);
-      const isFetchError = err?.message?.includes("Failed to fetch") || err?.name === "TypeError";
       toast({
-        title: isFetchError ? "Internet Connection Required" : "Processing Notice",
-        description: isFetchError
-          ? "Unable to download AI background removal models. Please check your internet connection and try again."
-          : (err.message || "Failed to remove background."),
-        variant: "destructive",
+        title: "Color Photo Notice",
+        description: err?.message || "Could not process image automatically. You can still upload the photo directly.",
       });
     } finally {
       updateColor(index, "processingBg", false);

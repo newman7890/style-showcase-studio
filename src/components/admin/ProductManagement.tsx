@@ -375,10 +375,17 @@ export const ProductManagement = () => {
       const result = await processAiBackgroundRemoval(source, `color-${index}`);
       updateColor(index, "file", result.file);
       updateColor(index, "image", result.previewUrl);
-      toast({
-        title: "Studio Image Ready! ✨",
-        description: "Background successfully removed for this color.",
-      });
+      if (result.isFallback) {
+        toast({
+          title: "Color Photo Formatted ✨",
+          description: "Photo formatted for studio display. (AI background removal was skipped because model servers were unreachable).",
+        });
+      } else {
+        toast({
+          title: "Studio Image Ready! ✨",
+          description: "Background successfully removed for this color.",
+        });
+      }
     } catch (err: any) {
       console.error("Color BG removal error:", err);
       toast({
@@ -431,19 +438,22 @@ export const ProductManagement = () => {
         )
       );
 
-      toast({
-        title: "Studio Background Removed! ✨",
-        description: "Photo background successfully converted to clean studio PNG.",
-      });
+      if (result.isFallback) {
+        toast({
+          title: "Photo Optimized ✨",
+          description: "Photo converted for studio display. (AI auto-masking was skipped because model servers were unreachable).",
+        });
+      } else {
+        toast({
+          title: "Studio Background Removed! ✨",
+          description: "Photo background successfully converted to clean studio PNG.",
+        });
+      }
     } catch (err: any) {
       console.error("Background removal error:", err);
-      const isFetchError = err?.message?.includes("Failed to fetch") || err?.name === "TypeError";
       toast({
-        title: isFetchError ? "Internet Connection Required" : "Processing Error",
-        description: isFetchError
-          ? "Unable to download AI background removal models. Please check your internet connection and try again."
-          : (err.message || "Failed to remove background."),
-        variant: "destructive",
+        title: "Photo Processing Notice",
+        description: err?.message || "Could not process photo automatically. You can continue uploading the photo directly.",
       });
     } finally {
       setProcessingBgIndex(null);
