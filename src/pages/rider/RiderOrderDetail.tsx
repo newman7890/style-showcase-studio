@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, MapPin, Phone, Package, CheckCircle2,
-  Loader2, Navigation, Clock, Mail, Truck
+  Loader2, Navigation, Clock, Mail, Truck, KeyRound, ShieldCheck, X
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface OrderItem {
   id: string;
@@ -32,6 +36,7 @@ interface Order {
   updated_at: string | null;
   discount_amount: number | null;
   payment_method: string;
+  pickup_confirmed_at?: string | null;
 }
 
 interface PickupInfo {
@@ -58,6 +63,16 @@ const RiderOrderDetail = () => {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+
+  // OTP Handshake verification states
+  const [pickupModalOpen, setPickupModalOpen] = useState(false);
+  const [pickupPin, setPickupPin] = useState("");
+  const [verifyingPickup, setVerifyingPickup] = useState(false);
+
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
+  const [deliveryOtp, setDeliveryOtp] = useState("");
+  const [verifyingDelivery, setVerifyingDelivery] = useState(false);
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -97,21 +112,67 @@ const RiderOrderDetail = () => {
     }
   };
 
-  const handleMarkDelivered = async () => {
-    if (!order) return;
-    setUpdating(true);
+  const handleConfirmPickupOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order || !pickupPin.trim()) return;
+
+    setVerifyingPickup(true);
     try {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: "delivered", updated_at: new Date().toISOString() })
-        .eq("id", order.id);
+      const { data, error } = await supabase.rpc("confirm_pickup_otp", {
+        _order_id: order.id,
+        _otp: pickupPin.trim(),
+      });
+
       if (error) throw error;
-      toast({ title: "Order Delivered ✅", description: "Status updated successfully." });
-      navigate("/rider/dashboard");
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+
+      toast({
+        title: "Pickup Confirmed! 🚚",
+        description: "Seller handover verified. The order is now Shipped / In Transit.",
+      });
+
+      setPickupModalOpen(false);
+      setPickupPin("");
+      fetchOrder();
+    } catch (err: any) {
+      toast({
+        title: "Verification Failed",
+        description: err.message || "Invalid Pickup PIN. Please confirm the 4-digit PIN with the seller.",
+        variant: "destructive",
+      });
     } finally {
-      setUpdating(false);
+      setVerifyingPickup(false);
+    }
+  };
+
+  const handleConfirmDeliveryOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order || !deliveryOtp.trim()) return;
+
+    setVerifyingDelivery(true);
+    try {
+      const { data, error } = await supabase.rpc("confirm_delivery_otp", {
+        _order_id: order.id,
+        _otp: deliveryOtp.trim(),
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Order Delivered! 🎉",
+        description: "Customer delivery OTP verified successfully.",
+      });
+
+      setDeliveryModalOpen(false);
+      setDeliveryOtp("");
+      navigate("/rider/dashboard");
+    } catch (err: any) {
+      toast({
+        title: "Delivery Failed",
+        description: err.message || "Invalid Delivery OTP. Ask the customer for their 6-digit code.",
+        variant: "destructive",
+      });
+    } finally {
+      setVerifyingDelivery(false);
     }
   };
 
@@ -394,21 +455,139 @@ const RiderOrderDetail = () => {
               </a>
             </div>
 
-            {isDeliverable && (
+            {/* Smart Step Verification Buttons */}
+            {['pending', 'confirmed', 'processing'].includes(order.status) && (
               <button
-                onClick={handleMarkDelivered}
+                onClick={() => setPickupModalOpen(true)}
+                disabled={updating}
+                className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#6d28d9] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              >
+                <KeyRound className="w-5 h-5" /> Confirm Pickup from Seller
+              </button>
+            )}
+
+            {order.status === 'shipped' && (
+              <button
+                onClick={() => setDeliveryModalOpen(true)}
                 disabled={updating}
                 className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#4ade80] to-[#16a34a] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-green-500/25 disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
               >
-                {updating ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" /> Updating...</>
-                ) : (
-                  <><CheckCircle2 className="w-5 h-5" /> Mark as Delivered</>
-                )}
+                <CheckCircle2 className="w-5 h-5" /> Confirm Customer Delivery (OTP)
               </button>
+            )}
+
+            {order.status === 'delivered' && (
+              <div className="w-full py-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold text-sm flex items-center justify-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <span>Order Delivered & Handshake Verified</span>
+              </div>
             )}
           </motion.div>
         </div>
+
+        {/* Pickup Handover PIN Modal */}
+        <Dialog open={pickupModalOpen} onOpenChange={setPickupModalOpen}>
+          <DialogContent className="max-w-sm bg-[#111827] border-white/10 text-white">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-purple-400">
+                <KeyRound className="w-5 h-5" /> Seller Handover PIN
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleConfirmPickupOtp} className="space-y-4 py-2">
+              <p className="text-xs text-white/60 leading-relaxed">
+                Enter the <strong>4-digit Pickup PIN</strong> given to you by the seller upon physically receiving the package.
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="pickup-pin-input" className="text-xs text-white/80">4-Digit PIN Code</Label>
+                <Input
+                  id="pickup-pin-input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  autoFocus
+                  value={pickupPin}
+                  onChange={(e) => setPickupPin(e.target.value.replace(/\D/g, ""))}
+                  placeholder="• • • •"
+                  className="text-center font-mono text-2xl tracking-[0.5em] font-extrabold h-14 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus-visible:ring-purple-500"
+                />
+              </div>
+              <DialogFooter className="gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setPickupModalOpen(false); setPickupPin(""); }}
+                  className="border-white/10 text-white/80 hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={verifyingPickup || pickupPin.length !== 4}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                >
+                  {verifyingPickup ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Verifying...</>
+                  ) : (
+                    "Verify & Start Delivery 🚚"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Customer Delivery OTP Modal */}
+        <Dialog open={deliveryModalOpen} onOpenChange={setDeliveryModalOpen}>
+          <DialogContent className="max-w-sm bg-[#111827] border-white/10 text-white">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-emerald-400">
+                <CheckCircle2 className="w-5 h-5" /> Customer Delivery OTP
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleConfirmDeliveryOtp} className="space-y-4 py-2">
+              <p className="text-xs text-white/60 leading-relaxed">
+                Enter the <strong>6-digit Delivery Code</strong> displayed on the customer's phone or order tracking screen.
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="delivery-otp-input" className="text-xs text-white/80">6-Digit OTP</Label>
+                <Input
+                  id="delivery-otp-input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  autoFocus
+                  value={deliveryOtp}
+                  onChange={(e) => setDeliveryOtp(e.target.value.replace(/\D/g, ""))}
+                  placeholder="• • • • • •"
+                  className="text-center font-mono text-2xl tracking-[0.4em] font-extrabold h-14 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus-visible:ring-emerald-500"
+                />
+              </div>
+              <DialogFooter className="gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setDeliveryModalOpen(false); setDeliveryOtp(""); }}
+                  className="border-white/10 text-white/80 hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={verifyingDelivery || deliveryOtp.length !== 6}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                >
+                  {verifyingDelivery ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Verifying...</>
+                  ) : (
+                    "Complete Delivery ✅"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Home indicator */}
         <div className="flex-shrink-0 flex justify-center py-3 bg-[#111827] border-t border-white/5">

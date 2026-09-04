@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Package, MapPin, Phone, CheckCircle2,
   RefreshCw, Loader2, Clock, ChevronRight, LogOut, Bike,
-  LayoutGrid, Bell, User
+  LayoutGrid, Bell, User, KeyRound, Truck
 } from "lucide-react";
 
 interface Order {
@@ -353,12 +353,27 @@ const RiderDashboard = () => {
                             </button>
                           ) : (
                             isActive && (
-                              <button
-                                onClick={(e) => handleMarkDelivered(order.id, e)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-[#4ade80] to-[#16a34a] text-white rounded-xl text-xs font-bold shadow-md shadow-green-500/20 hover:opacity-90 transition-opacity"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Mark Delivered
-                              </button>
+                              order.status === "shipped" ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/rider/order/${order.id}`);
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-[#4ade80] to-[#16a34a] text-black font-bold rounded-xl text-xs shadow-md shadow-green-500/20 hover:opacity-90 transition-opacity"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Enter Delivery OTP 📦
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/rider/order/${order.id}`);
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-[#8b5cf6] to-[#6d28d9] text-white font-bold rounded-xl text-xs shadow-md shadow-purple-500/20 hover:opacity-90 transition-opacity"
+                                >
+                                  <KeyRound className="w-3.5 h-3.5" /> Enter Pickup PIN 🔐
+                                </button>
+                              )
                             )
                           )}
                         </div>

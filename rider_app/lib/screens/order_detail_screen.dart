@@ -110,32 +110,255 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Future<void> _handleMarkShipped() async {
     if (_order == null) return;
-    setState(() => _updating = true);
-    try {
-      await SupabaseService.markShipped(_order!['id']);
-      if (mounted) {
-        setState(() {
-          _order!['status'] = 'shipped';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order Status Updated: Shipped / On the Way 🚚'),
-            backgroundColor: Color(0xFFC084FC),
-          ),
+    _showPickupOtpVerificationSheet();
+  }
+
+  void _showPickupOtpVerificationSheet() {
+    final controllers = List.generate(4, (_) => TextEditingController());
+    final focusNodes = List.generate(4, (_) => FocusNode());
+    bool verifying = false;
+    String? errorText;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void submitOtp() async {
+              final otp = controllers.map((c) => c.text).join();
+              if (otp.length != 4) {
+                setSheetState(() => errorText = 'Please enter all 4 digits');
+                return;
+              }
+
+              setSheetState(() {
+                verifying = true;
+                errorText = null;
+              });
+
+              final messenger = ScaffoldMessenger.of(context);
+
+              try {
+                await SupabaseService.confirmPickupOtp(_order!['id'], otp);
+                if (ctx.mounted) {
+                  Navigator.of(ctx).pop();
+                }
+                if (mounted) {
+                  setState(() {
+                    _order!['status'] = 'shipped';
+                    _order!['pickup_confirmed_at'] = DateTime.now().toIso8601String();
+                  });
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Pickup Handover Verified! Order is now in transit 🚚'),
+                      backgroundColor: Color(0xFF8B5CF6),
+                    ),
+                  );
+                }
+              } catch (e) {
+                String msg = e.toString();
+                if (msg.contains('Invalid OTP') || msg.contains('Invalid pickup OTP')) {
+                  msg = 'Incorrect PIN. Ask the seller for their 4-digit pickup code.';
+                } else if (msg.contains('expired')) {
+                  msg = 'Pickup PIN expired. Please refresh.';
+                } else if (msg.contains('suspended')) {
+                  msg = 'Your rider account is suspended.';
+                }
+                setSheetState(() {
+                  verifying = false;
+                  errorText = msg;
+                });
+                for (var c in controllers) {
+                  c.clear();
+                }
+                focusNodes[0].requestFocus();
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle bar
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Icon
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                      ),
+                      child: const Icon(
+                        LucideIcons.packageCheck,
+                        color: Color(0xFFA78BFA),
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Title
+                    const Text(
+                      'Seller Pickup Handover PIN',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ask the seller for their 4-digit pickup PIN to confirm package handover.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 4-digit PIN input fields
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(4, (i) {
+                        return Container(
+                          width: 58,
+                          height: 62,
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          child: TextField(
+                            controller: controllers[i],
+                            focusNode: focusNodes[i],
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            maxLength: 1,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              filled: true,
+                              fillColor: Colors.white.withValues(alpha: 0.08),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: errorText != null
+                                      ? Colors.red.shade400
+                                      : Colors.white.withValues(alpha: 0.15),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFA78BFA),
+                                  width: 2,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: errorText != null
+                                      ? Colors.red.shade400
+                                      : Colors.white.withValues(alpha: 0.15),
+                                ),
+                              ),
+                            ),
+                            onChanged: (val) {
+                              if (val.isNotEmpty && i < 3) {
+                                focusNodes[i + 1].requestFocus();
+                              }
+                              if (val.isEmpty && i > 0) {
+                                focusNodes[i - 1].requestFocus();
+                              }
+                              final otp = controllers.map((c) => c.text).join();
+                              if (otp.length == 4) {
+                                submitOtp();
+                              }
+                            },
+                          ),
+                        );
+                      }),
+                    ),
+
+                    // Error message
+                    if (errorText != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        errorText!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.red.shade400,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    // Confirm button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: verifying ? null : submitOtp,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B5CF6),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: verifying
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(LucideIcons.checkCircle2, size: 20),
+                        label: Text(
+                          verifying ? 'Verifying PIN...' : 'Verify & Start Transit',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _updating = false);
-    }
+      },
+    );
   }
 
   Future<void> _handleMarkDelivered() async {
@@ -787,6 +1010,33 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
               ),
             ),
+            if (_order?['pickup_confirmed_at'] != null || ['shipped', 'delivered'].contains(_order?['status'])) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(LucideIcons.checkCircle2, size: 16, color: Color(0xFFA78BFA)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Pickup Handover Verified via 4-Digit Seller PIN 🔐',
+                        style: TextStyle(
+                          color: Color(0xFFA78BFA),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       );
@@ -868,6 +1118,33 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
             ),
           ),
+          if (_order?['pickup_confirmed_at'] != null || ['shipped', 'delivered'].contains(_order?['status'])) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: const [
+                  Icon(LucideIcons.checkCircle2, size: 16, color: Color(0xFFA78BFA)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Pickup Handover Verified via 4-Digit Hub PIN 🔐',
+                      style: TextStyle(
+                        color: Color(0xFFA78BFA),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1162,8 +1439,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 )
               : const Icon(LucideIcons.checkCircle2, size: 20),
           label: Text(
-            _updating ? 'Updating...' : 'Complete Delivery (Mark Delivered)',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            _updating ? 'Verifying...' : 'Complete Delivery (Enter Customer OTP) 📦',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
         ),
       );
@@ -1190,10 +1467,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     color: Colors.white,
                   ),
                 )
-              : const Icon(LucideIcons.truck, size: 20),
+              : const Icon(LucideIcons.keySquare, size: 20),
           label: Text(
-            _updating ? 'Updating...' : 'Start Delivery (Mark as Shipped 🚚)',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            _updating ? 'Verifying...' : 'Verify Pickup Handover (Enter PIN) 🔐',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
         ),
       );

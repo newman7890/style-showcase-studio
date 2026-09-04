@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon, MapPin, ExternalLink, Mail, Phone, Building2, Info, Truck, Navigation } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon, MapPin, ExternalLink, Mail, Phone, Building2, Info, Truck, Navigation, KeyRound, ShieldCheck } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -398,7 +398,7 @@ const SellerDashboard = () => {
       supabase.from("products").select("*").eq("seller_id", user.id).order("created_at", { ascending: false }),
       supabase
         .from("order_items")
-        .select("id, quantity, unit_price, seller_earnings, commission_amount, created_at, order_id, product_id, products(name)")
+        .select("id, quantity, unit_price, seller_earnings, commission_amount, created_at, order_id, product_id, products(name, image), orders(id, status, tracking_code, pickup_otp, pickup_confirmed_at, shipping_name, shipping_city)")
         .eq("seller_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -1198,25 +1198,94 @@ const SellerDashboard = () => {
               ) : orderItems.length === 0 ? (
                 <Card><CardContent className="pt-6 text-center text-muted-foreground">No sales yet.</CardContent></Card>
               ) : (
-                <div className="space-y-2">
-                  {orderItems.map((oi) => (
-                    <Card key={oi.id}>
-                      <CardContent className="pt-4 flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">{oi.products?.name ?? "Product"}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Qty {oi.quantity} · {new Date(oi.created_at).toLocaleDateString()}
+                <div className="space-y-3">
+                  {orderItems.map((oi) => {
+                    const orderObj = (Array.isArray(oi.orders) ? oi.orders[0] : oi.orders) as any;
+                    const productObj = (Array.isArray(oi.products) ? oi.products[0] : oi.products) as any;
+                    const orderStatus = orderObj?.status || "pending";
+                    const isAwaitingPickup = ["pending", "confirmed", "processing"].includes(orderStatus);
+                    const isHandedOver = ["shipped", "delivered"].includes(orderStatus);
+                    const pickupOtp = orderObj?.pickup_otp;
+
+                    return (
+                      <Card key={oi.id} className="overflow-hidden border transition-all hover:border-primary/40">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              {productObj?.image ? (
+                                <img
+                                  src={productObj.image}
+                                  alt={productObj?.name}
+                                  className="w-12 h-12 object-cover rounded-lg border bg-muted shrink-0"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                  <Package className="w-6 h-6 text-muted-foreground/40" />
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-semibold text-sm leading-tight text-foreground">
+                                  {productObj?.name ?? "Product"}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                                  <span>Qty: <strong>{oi.quantity}</strong></span>
+                                  <span>·</span>
+                                  <span>Ordered: {new Date(oi.created_at).toLocaleDateString()}</span>
+                                  {orderObj?.tracking_code && (
+                                    <>
+                                      <span>·</span>
+                                      <span className="font-mono text-[11px] text-primary">#{orderObj.tracking_code}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <div className="font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                                GH₵{Number(oi.seller_earnings ?? 0).toFixed(2)}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground">
+                                fee GH₵{Number(oi.commission_amount ?? 0).toFixed(2)}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">GH₵{Number(oi.seller_earnings ?? 0).toFixed(2)}</div>
-                          <div className="text-xs text-muted-foreground">
-                            fee GH₵{Number(oi.commission_amount ?? 0).toFixed(2)}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+
+                          {/* Pickup Handover OTP Box */}
+                          {isAwaitingPickup && pickupOtp && (
+                            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+                                  <KeyRound className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                  <span>RIDER PICKUP HANDOVER PIN</span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                  Give this 4-digit code to the dispatch rider <strong>ONLY</strong> when handing over the physical parcel.
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 self-start sm:self-center">
+                                <div className="bg-background px-3 py-1 rounded-lg border-2 border-amber-500/50 font-mono text-lg font-extrabold tracking-widest text-amber-600 dark:text-amber-400 shadow-xs">
+                                  {pickupOtp}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {isHandedOver && (
+                            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                                <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                                <span>Handed over to Dispatch Rider · Verified via Handover PIN</span>
+                              </div>
+                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] uppercase font-bold">
+                                {orderStatus}
+                              </Badge>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>
