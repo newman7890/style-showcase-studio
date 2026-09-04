@@ -162,7 +162,7 @@ export async function preloadAiModels(): Promise<void> {
     if (typeof imgly.preload === "function") {
       await imgly.preload({
         publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.4.5/dist/",
-        model: "isnet_quint8" as any,
+        model: "small",
       });
     }
   } catch (err) {
@@ -180,7 +180,7 @@ export async function processAiBackgroundRemoval(
   filenamePrefix = "studio-clean",
   options?: ProcessStudioOptions
 ): Promise<ProcessedStudioImage> {
-  const timeoutMs = options?.timeoutMs || 45000;
+  const timeoutMs = options?.timeoutMs || 60000;
   options?.onProgress?.("Optimizing image for AI analysis...", 5);
 
   // 1. Optimize and resize image before passing to heavy WASM
@@ -204,12 +204,10 @@ export async function processAiBackgroundRemoval(
   }
 
   // Verified working CDN mirrors in priority order:
-  // 1. staticimgly 1.4.5 (fastest, tested <500ms)
-  // 2. staticimgly 1.5.7 (stable backup)
-  // 3. unpkg 1.4.5 (cross-provider fallback if staticimgly domain is blocked by adblockers)
+  // 1. staticimgly 1.4.5 (fastest CDN mirror)
+  // 2. unpkg 1.4.5 (reliable global backup)
   const CDN_CANDIDATES = [
     "https://staticimgly.com/@imgly/background-removal-data/1.4.5/dist/",
-    "https://staticimgly.com/@imgly/background-removal-data/1.5.7/dist/",
     "https://unpkg.com/@imgly/background-removal-data@1.4.5/dist/",
   ];
 
@@ -222,7 +220,7 @@ export async function processAiBackgroundRemoval(
 
       const removalPromise = removeBgFn(preparedBlob, {
         publicPath,
-        model: "isnet_quint8" as any, // Fast quantized model (40MB vs 80MB)
+        model: "small",
         output: {
           format: "image/png",
           quality: 0.9,
