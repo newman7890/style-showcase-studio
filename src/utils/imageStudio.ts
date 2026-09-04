@@ -51,11 +51,11 @@ async function optimizeImageForAi(
     let srcUrl = "";
     let isTempUrl = false;
 
-    if (source instanceof Blob || source instanceof File) {
+    if (typeof source === "string") {
+      srcUrl = source;
+    } else if (source instanceof Blob) {
       srcUrl = URL.createObjectURL(source);
       isTempUrl = true;
-    } else if (typeof source === "string") {
-      srcUrl = source;
     } else {
       return reject(new Error("Invalid image source provided."));
     }
