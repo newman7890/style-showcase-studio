@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
 import { getAllPaystackSecretKeysAsync, getPaystackPublicKey, PaystackKeyConfig } from "../_shared/paystack.ts";
+import { calculateAuthoritativeCheckoutTotal } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,23 +19,23 @@ const PaymentSchema = z.object({
   mobileNumber: z.union([z.string().min(7).max(20), z.literal(""), z.null()]).optional(),
   callbackUrl: z.string().url("Invalid callback URL").max(500),
   checkoutDetails: z.object({
-    shipping_name: z.string(),
-    shipping_email: z.string(),
-    shipping_phone: z.string(),
-    shipping_address: z.string(),
-    shipping_city: z.string(),
-    shipping_region: z.string(),
+    shipping_name: z.string().min(1, "Shipping name is required"),
+    shipping_email: z.string().email("Valid shipping email required"),
+    shipping_phone: z.string().min(5, "Shipping phone required"),
+    shipping_address: z.string().min(1, "Shipping address required"),
+    shipping_city: z.string().min(1, "Shipping city required"),
+    shipping_region: z.string().min(1, "Shipping region required"),
     shipping_town: z.string().optional().nullable(),
-    delivery_fee: z.number().default(0),
+    delivery_fee: z.number().optional().nullable(),
     discount_code: z.string().optional().nullable(),
     discount_amount: z.number().optional().nullable(),
     items: z.array(z.object({
-      product_id: z.string(),
-      quantity: z.number(),
-      price: z.number(),
+      product_id: z.string().min(1, "Product ID required"),
+      quantity: z.number().int("Quantity must be a whole number").min(1, "Quantity must be at least 1").max(100, "Maximum 100 per item"),
+      price: z.number().optional().nullable(),
       selected_color: z.any().optional().nullable(),
       selected_size: z.any().optional().nullable(),
-    })),
+    })).min(1, "At least one item is required"),
   }).optional().nullable(),
 });
 
@@ -63,6 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     let serverAmount = amount;
+    let authoritativeDetails = checkoutDetails;
 
     // 1. If orderId is supplied, strictly verify against database order total and ownership
     if (orderId) {
@@ -105,40 +107,22 @@ const handler = async (req: Request): Promise<Response> => {
       // CRITICAL: Always use database total_amount, overriding any client-supplied amount
       serverAmount = Number(orderRow.total_amount);
     } else if (checkoutDetails && checkoutDetails.items && checkoutDetails.items.length > 0) {
-      // 2. Direct checkout flow without existing order: Verify item prices against authoritative database records
-      const productIds = checkoutDetails.items.map((i) => i.product_id);
-      const { data: dbProducts, error: prodErr } = await adminClient
-        .from("products")
-        .select("id, price, stock, name")
-        .in("id", productIds);
-
-      if (prodErr || !dbProducts) {
+      // 2. Direct checkout flow: compute server-authoritative item prices, delivery fees, and discount codes
+      try {
+        const pricing = await calculateAuthoritativeCheckoutTotal(adminClient, checkoutDetails);
+        serverAmount = pricing.totalAmount;
+        authoritativeDetails = {
+          ...checkoutDetails,
+          delivery_fee: pricing.deliveryFee,
+          discount_amount: pricing.discountAmount,
+          items: pricing.items,
+        };
+      } catch (priceErr: any) {
         return new Response(
-          JSON.stringify({ error: "Failed to verify product prices against catalog." }),
+          JSON.stringify({ error: priceErr?.message || "Failed to calculate authoritative order total." }),
           { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
-
-      const productMap = new Map(dbProducts.map((p) => [p.id, p]));
-      let calculatedItemsTotal = 0;
-
-      for (const item of checkoutDetails.items) {
-        const prod = productMap.get(item.product_id);
-        if (!prod) {
-          return new Response(
-            JSON.stringify({ error: `Product ID ${item.product_id} no longer exists in catalog.` }),
-            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
-        }
-        const authoritativePrice = Number(prod.price);
-        calculatedItemsTotal += authoritativePrice * item.quantity;
-      }
-
-      const deliveryFee = Number(checkoutDetails.delivery_fee) || 0;
-      const discountAmount = Number(checkoutDetails.discount_amount) || 0;
-      const computedTotal = Math.max(0.1, calculatedItemsTotal + deliveryFee - discountAmount);
-
-      serverAmount = computedTotal;
     }
 
     if (!Number.isFinite(serverAmount) || serverAmount <= 0) {
@@ -166,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
         user_id: userId,
         payment_method: paymentMethod || "bank_card",
         verified_amount_pesewas: amountInPesewas,
-        checkout_details: checkoutDetails || null,
+        checkout_details: authoritativeDetails || null,
         custom_fields: [
           {
             display_name: "Customer Email",

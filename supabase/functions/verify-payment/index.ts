@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
 import { authenticate, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
 import { getAllPaystackSecretKeysAsync } from "../_shared/paystack.ts";
+import { calculateAuthoritativeCheckoutTotal } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,7 +30,6 @@ const generateTrackingCode = () => {
 
 /**
  * Decrement product stock for each purchased item.
- * Reduces both top-level `stock` integer and per-color stock in `colors` JSONB array.
  */
 async function decrementStock(
   supabase: any,
@@ -318,26 +318,18 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     } else if (checkoutDetails) {
-      // 2. Direct checkout case: Verify amount against server-authoritative catalog prices
-      const items = checkoutDetails.items || [];
-      const productIds = items.map((i: any) => i.product_id);
-      const { data: dbProducts } = await supabase
-        .from("products")
-        .select("id, price, stock")
-        .in("id", productIds);
-
-      const productMap = new Map((dbProducts || []).map((p: any) => [p.id, p]));
-      let expectedItemsTotal = 0;
-      for (const item of items) {
-        const prod = productMap.get(item.product_id);
-        const authoritativePrice = prod ? Number(prod.price) : Number(item.price);
-        expectedItemsTotal += authoritativePrice * Number(item.quantity);
+      // 2. Direct checkout case: Verify amount against server-authoritative catalog prices, delivery fee, and coupons
+      let pricing;
+      try {
+        pricing = await calculateAuthoritativeCheckoutTotal(supabase, checkoutDetails);
+      } catch (calcErr: any) {
+        return new Response(
+          JSON.stringify({ success: false, friendlyError: calcErr?.message || "Failed to calculate authoritative prices." }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
       }
 
-      const deliveryFee = Number(checkoutDetails.delivery_fee) || 0;
-      const discountAmount = Number(checkoutDetails.discount_amount) || 0;
-      const expectedTotalGhs = Math.max(0.1, expectedItemsTotal + deliveryFee - discountAmount);
-      const expectedPesewas = Math.round(expectedTotalGhs * 100);
+      const expectedPesewas = Math.round(pricing.totalAmount * 100);
 
       if (actualPaidAmountPesewas < expectedPesewas) {
         console.error(`SECURITY ALERT: Checkout payment underpaid (${actualPaidAmountPesewas} < ${expectedPesewas})`);
@@ -361,9 +353,9 @@ const handler = async (req: Request): Promise<Response> => {
         shipping_city: checkoutDetails.shipping_city,
         shipping_region: checkoutDetails.shipping_region,
         shipping_town: checkoutDetails.shipping_town || null,
-        delivery_fee: deliveryFee,
+        delivery_fee: pricing.deliveryFee,
         discount_code: checkoutDetails.discount_code || null,
-        discount_amount: discountAmount,
+        discount_amount: pricing.discountAmount,
         payment_method: metadata.payment_method || "bank_card",
         payment_reference: reference,
         status: "confirmed",
@@ -387,22 +379,19 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      // Insert order items
-      if (items.length > 0) {
-        const orderItemsPayload = items.map((item: any) => {
-          const prod = productMap.get(item.product_id);
-          return {
-            order_id: newOrder.id,
-            product_id: item.product_id,
-            quantity: item.quantity,
-            price: prod ? Number(prod.price) : Number(item.price),
-            selected_color: item.selected_color || null,
-            selected_size: item.selected_size || null,
-          };
-        });
+      // Insert validated order items
+      if (pricing.items.length > 0) {
+        const orderItemsPayload = pricing.items.map((item: any) => ({
+          order_id: newOrder.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price: item.price,
+          selected_color: item.selected_color || null,
+          selected_size: item.selected_size || null,
+        }));
 
         await supabase.from("order_items").insert(orderItemsPayload);
-        await decrementStock(supabase, items);
+        await decrementStock(supabase, pricing.items);
       }
 
       // Record seller earnings

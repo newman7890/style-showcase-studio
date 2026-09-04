@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crypto } from "https://deno.land/std@0.190.0/crypto/crypto.ts";
 import { getPaystackSecretKey } from "../_shared/paystack.ts";
+import { calculateAuthoritativeCheckoutTotal } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -222,26 +223,16 @@ const handler = async (req: Request): Promise<Response> => {
             }
           }
         } else if (checkoutDetails && userId) {
-          // 2. Direct checkout case: Verify amount against server-authoritative catalog prices
-          const items = checkoutDetails.items || [];
-          const productIds = items.map((i: any) => i.product_id);
-          const { data: dbProducts } = await supabase
-            .from("products")
-            .select("id, price, stock")
-            .in("id", productIds);
-
-          const productMap = new Map((dbProducts || []).map((p: any) => [p.id, p]));
-          let expectedItemsTotal = 0;
-          for (const item of items) {
-            const prod = productMap.get(item.product_id);
-            const authoritativePrice = prod ? Number(prod.price) : Number(item.price);
-            expectedItemsTotal += authoritativePrice * Number(item.quantity);
+          // 2. Direct checkout case: Verify amount against server-authoritative catalog prices, fees, and coupons
+          let pricing;
+          try {
+            pricing = await calculateAuthoritativeCheckoutTotal(supabase, checkoutDetails);
+          } catch (calcErr) {
+            console.error("Webhook pricing calculation error:", calcErr);
+            break;
           }
 
-          const deliveryFee = Number(checkoutDetails.delivery_fee) || 0;
-          const discountAmount = Number(checkoutDetails.discount_amount) || 0;
-          const expectedTotalGhs = Math.max(0.1, expectedItemsTotal + deliveryFee - discountAmount);
-          const expectedPesewas = Math.round(expectedTotalGhs * 100);
+          const expectedPesewas = Math.round(pricing.totalAmount * 100);
 
           if (eventAmountPesewas < expectedPesewas) {
             console.error(`SECURITY ALERT in Webhook: Underpayment (${eventAmountPesewas} < ${expectedPesewas})`);
@@ -263,9 +254,9 @@ const handler = async (req: Request): Promise<Response> => {
               shipping_city: checkoutDetails.shipping_city,
               shipping_region: checkoutDetails.shipping_region,
               shipping_town: checkoutDetails.shipping_town || null,
-              delivery_fee: deliveryFee,
+              delivery_fee: pricing.deliveryFee,
               discount_code: checkoutDetails.discount_code || null,
-              discount_amount: discountAmount,
+              discount_amount: pricing.discountAmount,
               payment_method: event.data.metadata?.payment_method || "bank_card",
               payment_reference: reference,
               status: "confirmed",
@@ -274,21 +265,18 @@ const handler = async (req: Request): Promise<Response> => {
             .select()
             .single();
 
-          if (!createErr && newOrder && checkoutDetails.items && Array.isArray(checkoutDetails.items)) {
-            const itemsToInsert = checkoutDetails.items.map((item: any) => {
-              const prod = productMap.get(item.product_id);
-              return {
-                order_id: newOrder.id,
-                product_id: item.product_id,
-                quantity: item.quantity,
-                price: prod ? Number(prod.price) : Number(item.price),
-                selected_color: item.selected_color || null,
-                selected_size: item.selected_size || null,
-              };
-            });
+          if (!createErr && newOrder && pricing.items.length > 0) {
+            const itemsToInsert = pricing.items.map((item: any) => ({
+              order_id: newOrder.id,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              price: item.price,
+              selected_color: item.selected_color || null,
+              selected_size: item.selected_size || null,
+            }));
             await supabase.from("order_items").insert(itemsToInsert);
             await supabase.from("cart_items").delete().eq("user_id", userId);
-            await decrementStock(supabase, checkoutDetails.items);
+            await decrementStock(supabase, pricing.items);
 
             try {
               await supabase.rpc("record_order_seller_earnings", { _order_id: newOrder.id });

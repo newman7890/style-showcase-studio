@@ -1,20 +1,40 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { authenticate } from "../_shared/auth.ts";
+import { authenticate, hasRole } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Intelligent dynamic fallback generator with randomization so every click produces fresh, unique details
+// Rate limiting map: identifier -> array of timestamps
+const rateLimitMap = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const MAX_REQUESTS_PER_WINDOW = 30; // max 30 product generations per hour per seller/admin
+
+function checkRateLimit(key: string): { allowed: boolean; remaining: number; resetInSec: number } {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const timestamps = (rateLimitMap.get(key) || []).filter((t) => t > windowStart);
+
+  if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    const oldest = timestamps[0];
+    const resetInSec = Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - now) / 1000);
+    return { allowed: false, remaining: 0, resetInSec };
+  }
+
+  timestamps.push(now);
+  rateLimitMap.set(key, timestamps);
+  return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - timestamps.length, resetInSec: 0 };
+}
+
+// Intelligent dynamic fallback generator with randomization
 function generateSmartFallback(name: string, category: string) {
   const safeNameInput = (name || "").trim();
   const safeCategoryInput = (category || "").trim();
   const lowerName = safeNameInput.toLowerCase();
   const lowerCat = safeCategoryInput.toLowerCase();
 
-  // Varied product title pool if name is missing
   const sampleTitles = [
     "Premium Urban Lifestyle Essential",
     "Classic Tailored Edition Item",
@@ -29,7 +49,7 @@ function generateSmartFallback(name: string, category: string) {
 
   let detectedCategory = safeCategoryInput || "Fashion";
   let detectedDepartment = "fashion";
-  let estimatedPrice = String(150 + (seed % 35) * 10); // Prices between GH₵150 and GH₵500
+  let estimatedPrice = String(150 + (seed % 35) * 10);
   let sizes = "S, M, L, XL";
   let materials = "Composition: Premium blend fabric\nCare: Machine wash cold or gentle dry clean";
   let fit = "Fit: Standard modern fit. Order your typical size.";
@@ -79,7 +99,7 @@ function generateSmartFallback(name: string, category: string) {
     fit = "Universal compatibility with iOS, Android, and Bluetooth 5.3 devices.";
     features = [
       `• High-performance technology integrated into ${detectedName}`,
-      "• Fast charging with extended battery battery life",
+      "• Fast charging with extended battery life",
       "• Sleek ergonomic finish designed for daily use",
       "• 1-Year warranty included"
     ];
@@ -99,33 +119,24 @@ function generateSmartFallback(name: string, category: string) {
   } else if (lowerName.includes("bag") || lowerName.includes("backpack") || lowerName.includes("wallet") || lowerName.includes("purse")) {
     detectedCategory = "Bags & Accessories";
     detectedDepartment = "fashion";
-    estimatedPrice = String(220 + (seed % 20) * 10);
+    estimatedPrice = String(220 + (seed % 30) * 10);
     sizes = "One Size";
-    materials = "Material: Premium water-resistant synthetic leather & durable lining\nCare: Wipe clean with damp cloth";
-    fit = "Spacious interior with multiple organized compartments.";
+    materials = "Material: Water-resistant synthetic leather & rugged nylon canvas";
+    fit = "Spacious compartments with reinforced stitching.";
     features = [
-      `• Multi-compartment storage for daily carry`,
-      "• Heavy-duty zippers & reinforced handles",
-      "• Elegant silhouette for formal and casual wear",
-      "• Water-resistant exterior finish"
+      `• Versatile design suitable for daily commuting and travel`,
+      "• Dedicated padded pocket for accessories",
+      "• Smooth heavy-duty zipper hardware",
+      "• Ergonomic adjustable strap"
     ];
   }
-
-  const descriptions = [
-    `Elevate your everyday style with the ${detectedName}. Thoughtfully designed for the ${detectedCategory} collection, it combines premium materials with modern craftsmanship to deliver supreme comfort and a refined aesthetic.`,
-    `The ${detectedName} features a contemporary silhouette crafted for maximum versatility. Perfect for our ${detectedCategory} selection, it offers exceptional quality, tactile comfort, and lasting durability.`,
-    `Add distinction to your collection with ${detectedName}. Meticulously created with attention to detail and high-grade materials, this item in ${detectedCategory} delivers timeless style and ease.`,
-    `Discover ${detectedName}—a blend of contemporary aesthetics and everyday functionality. Designed for our ${detectedCategory} lineup, it offers superior comfort and effortless elegance.`
-  ];
-
-  const description = descriptions[seed % descriptions.length];
 
   return {
     name: detectedName,
     category: detectedCategory,
     department: detectedDepartment,
     price: estimatedPrice,
-    description,
+    description: `Experience the exceptional craftsmanship of the ${detectedName}. Designed to offer unbeatable comfort, durability, and contemporary styling, making it an indispensable part of your collection.`,
     sizes,
     features: features.join("\n"),
     materials_info: materials,
@@ -140,6 +151,31 @@ serve(async (req) => {
 
   try {
     const auth = await authenticate(req);
+    if (!auth) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required to use AI Product Studio." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate limiting per user
+    const rateCheck = checkRateLimit(auth.userId);
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: "AI Generation limit reached. Please wait a short while before generating more product details.",
+          resetInSec: rateCheck.resetInSec,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateCheck.resetInSec),
+          },
+        }
+      );
+    }
 
     const body = await req.json().catch(() => ({}));
     const { productName, category, imageUrl } = body;
@@ -184,10 +220,8 @@ Respond ONLY with valid JSON. No markdown backticks.`;
     let promptText = `Product Name Input: ${safeName || "Detect from photo"}\nCategory Input: ${safeCategory || "Detect from photo"}`;
 
     if (imageUrl && (imageUrl.startsWith("http") || imageUrl.startsWith("data:image"))) {
-      // Truncate ultra-large data URLs if needed to prevent payload size errors
       let safeImageUrl = imageUrl;
       if (imageUrl.length > 2000000) {
-        // If image is larger than 2MB base64, send text prompt fallback or trimmed image
         safeImageUrl = imageUrl.slice(0, 2000000);
       }
 
@@ -213,12 +247,14 @@ Respond ONLY with valid JSON. No markdown backticks.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
         ],
+        temperature: 0.7,
+        max_tokens: 800,
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      const errText = await response.text();
+      console.error("AI API Error:", errText);
       const fallback = generateSmartFallback(safeName, safeCategory);
       return new Response(
         JSON.stringify(fallback),
@@ -227,24 +263,31 @@ Respond ONLY with valid JSON. No markdown backticks.`;
     }
 
     const data = await response.json();
-    let content = data.choices?.[0]?.message?.content || "";
-    content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    let parsedContent;
-    try {
-      parsedContent = JSON.parse(content);
-    } catch (e) {
-      console.error("Failed to parse AI response JSON:", content);
-      parsedContent = generateSmartFallback(safeName, safeCategory);
-    }
+    const rawContent = data.choices?.[0]?.message?.content?.trim() || "";
 
-    return new Response(
-      JSON.stringify(parsedContent),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const cleanedJson = rawContent
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+
+    try {
+      const parsedData = JSON.parse(cleanedJson);
+      return new Response(
+        JSON.stringify(parsedData),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } catch (parseErr) {
+      console.warn("Failed to parse AI JSON response, falling back:", parseErr);
+      const fallback = generateSmartFallback(safeName, safeCategory);
+      return new Response(
+        JSON.stringify(fallback),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
   } catch (error) {
     console.error("Error in ai-generate-product-details:", error);
-    const fallback = generateSmartFallback("Product", "General");
+    const fallback = generateSmartFallback("Product", "Fashion");
     return new Response(
       JSON.stringify(fallback),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

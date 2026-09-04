@@ -9,6 +9,23 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limiting: 10 OTP attempts per 10 minutes per user/IP
+const rateLimitMap = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const MAX_ATTEMPTS = 10;
+
+function checkOtpRateLimit(key: string): boolean {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const timestamps = (rateLimitMap.get(key) || []).filter((t) => t > windowStart);
+  if (timestamps.length >= MAX_ATTEMPTS) {
+    return false;
+  }
+  timestamps.push(now);
+  rateLimitMap.set(key, timestamps);
+  return true;
+}
+
 const Schema = z.object({
   reference: z.string().min(5).max(200).regex(/^[A-Za-z0-9_-]+$/, "Invalid reference"),
   otp: z.string().trim().min(3).max(12).regex(/^[A-Za-z0-9]+$/, "Invalid OTP"),
@@ -38,6 +55,18 @@ const handler = async (req: Request): Promise<Response> => {
         error: "Unauthorized",
         userMessage: "Please sign in to submit your Mobile Money OTP.",
         errorCode: "UNAUTHORIZED",
+      });
+    }
+
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "ip";
+    const rateLimitKey = `${auth.userId}_${clientIp}`;
+
+    if (!checkOtpRateLimit(rateLimitKey)) {
+      return buildErrorResponse(429, {
+        error: "Too many attempts",
+        userMessage: "Too many incorrect OTP attempts. Please wait a few minutes before trying again.",
+        errorCode: "RATE_LIMITED",
+        promptSent: false,
       });
     }
 
@@ -88,7 +117,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // After OTP, provider typically sends the wallet PIN prompt.
     const promptSent = ["pay_offline", "pending", "ongoing", "success"].includes(chargeStatus || "");
 
     return new Response(
@@ -98,22 +126,20 @@ const handler = async (req: Request): Promise<Response> => {
         status: chargeStatus,
         display_text: displayText,
         promptSent,
-        completed: chargeStatus === "success",
-        userMessage:
-          displayText ||
-          (chargeStatus === "success"
-            ? "Payment approved successfully."
-            : "OTP accepted. Check your phone for the Mobile Money PIN prompt."),
+        gateway_response: data.data?.gateway_response,
       }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
     );
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    console.error("submit-momo-otp error:", msg);
+  } catch (error: any) {
+    console.error("Error in submit-momo-otp:", error);
     return buildErrorResponse(500, {
-      error: msg,
-      userMessage: "We couldn't submit the OTP right now. Please try again shortly.",
+      error: error?.message || "Unknown error",
+      userMessage: "A network error occurred while submitting your OTP. Please try again.",
       errorCode: "SERVER_ERROR",
+      promptSent: false,
     });
   }
 };
