@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PRESET_CATEGORIES_BY_DEPARTMENT } from "@/constants/categories";
+import { processAiBackgroundRemoval } from "@/utils/imageStudio";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Name required").max(100),
@@ -184,33 +185,36 @@ const SellerDashboard = () => {
     );
 
     toast({
-      title: "AI Enhancing Image...",
-      description: `Removing background for photo #${index + 1}. Please wait...`,
+      title: "AI Studio Processing... ✨",
+      description: `Optimizing photo #${index + 1} and preparing background removal...`,
     });
 
     try {
-      const imgly = await import("@imgly/background-removal");
-      const removeBgFn = imgly.removeBackground || (imgly as any).default;
-      if (typeof removeBgFn !== "function") {
-        throw new Error("Background removal function could not be loaded.");
-      }
-      const blob = await removeBgFn(source);
-      const newFile = new File([blob], `studio-photo-${index}.png`, { type: "image/png" });
-      const url = URL.createObjectURL(blob);
+      const result = await processAiBackgroundRemoval(
+        source,
+        `seller-photo-${index}`,
+        {
+          maxDimension: 1024,
+        }
+      );
 
       setGalleryImages((prev) =>
-        prev.map((img, i) => (i === index ? { ...img, file: newFile, url, processingBg: false } : img))
+        prev.map((img, i) =>
+          i === index
+            ? { ...img, file: result.file, url: result.previewUrl, processingBg: false }
+            : img
+        )
       );
 
       toast({
-        title: "Studio Image Ready!",
+        title: "Studio Image Ready! ✨",
         description: "Background successfully removed for this photo.",
       });
     } catch (err: any) {
       console.error("Background removal error:", err);
       const isFetchError = err?.message?.includes("Failed to fetch") || err?.name === "TypeError";
       toast({
-        title: isFetchError ? "Internet Connection Required" : "Processing Error",
+        title: isFetchError ? "Internet Connection Required" : "Processing Notice",
         description: isFetchError
           ? "Unable to download AI background removal models. Please check your internet connection and try again."
           : (err.message || "Failed to remove background."),
@@ -586,30 +590,29 @@ const SellerDashboard = () => {
     if (!source) return;
     updateColor(index, "processingBg", true);
     toast({
-      title: "AI Enhancing Image...",
-      description: `Removing background for color "${color.name || 'variant'}". Please wait...`,
+      title: "AI Enhancing Image... ✨",
+      description: `Optimizing and removing background for color "${color.name || 'variant'}". Please wait...`,
     });
     try {
-      const imgly = await import("@imgly/background-removal");
-      const removeBgFn = imgly.removeBackground || (imgly as any).default;
-      if (typeof removeBgFn !== "function") {
-        throw new Error("Background removal function could not be loaded.");
-      }
-      const blob = await removeBgFn(source);
-      const newFile = new File([blob], `color-${index}.png`, { type: "image/png" });
-      const url = URL.createObjectURL(blob);
+      const result = await processAiBackgroundRemoval(
+        source,
+        `color-${index}`,
+        {
+          maxDimension: 1024,
+        }
+      );
       setColors((prev) =>
-        prev.map((c, i) => (i === index ? { ...c, file: newFile, image: url } : c))
+        prev.map((c, i) => (i === index ? { ...c, file: result.file, image: result.previewUrl } : c))
       );
       toast({
-        title: "Studio Image Ready!",
+        title: "Studio Image Ready! ✨",
         description: "Background successfully removed for this color.",
       });
     } catch (err: any) {
       console.error("Background removal error for color:", err);
       const isFetchError = err?.message?.includes("Failed to fetch") || err?.name === "TypeError";
       toast({
-        title: isFetchError ? "Internet Connection Required" : "Processing Error",
+        title: isFetchError ? "Internet Connection Required" : "Processing Notice",
         description: isFetchError
           ? "Unable to download AI background removal models. Please check your internet connection and try again."
           : (err.message || "Failed to remove background."),

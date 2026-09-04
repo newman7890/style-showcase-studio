@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
-import { authenticate } from "../_shared/auth.ts";
+import { authenticate, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
 import { getAllPaystackSecretKeysAsync, getPaystackPublicKey, PaystackKeyConfig } from "../_shared/paystack.ts";
 
 const corsHeaders = {
@@ -37,21 +38,6 @@ const PaymentSchema = z.object({
   }).optional().nullable(),
 });
 
-const normalizeGhanaMobileNumber = (phone?: string | null) => {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("233") && digits.length === 12) {
-    return `+${digits}`;
-  }
-  if (digits.startsWith("0") && digits.length === 10) {
-    return `+233${digits.slice(1)}`;
-  }
-  if (digits.length === 9) {
-    return `+233${digits}`;
-  }
-  return null;
-};
-
 const handler = async (req: Request): Promise<Response> => {
   console.log("initialize-payment function called");
 
@@ -69,43 +55,103 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Validation failed:", parsed.error.flatten());
       return new Response(
         JSON.stringify({ error: "Invalid input", details: parsed.error.flatten().fieldErrors }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const { orderId, email, amount, paymentMethod, mobileNumber, callbackUrl, checkoutDetails } = parsed.data;
+    const { orderId, email, amount, paymentMethod, callbackUrl, checkoutDetails } = parsed.data;
 
+    const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     let serverAmount = amount;
 
-    // If orderId is supplied, verify existing order amount
-    if (orderId && auth?.client) {
-      const { data: orderRow, error: orderErr } = await auth.client
-        .from("orders").select("id,total_amount,status").eq("id", orderId).maybeSingle();
+    // 1. If orderId is supplied, strictly verify against database order total and ownership
+    if (orderId) {
+      const { data: orderRow, error: orderErr } = await adminClient
+        .from("orders")
+        .select("id, total_amount, status, user_id, shipping_email, payment_status")
+        .eq("id", orderId)
+        .maybeSingle();
+
       if (orderErr || !orderRow) {
-        return new Response(JSON.stringify({ error: "Order not found or access denied" }), {
-          status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Order not found" }),
+          { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
       }
-      if (orderRow.status === "confirmed" || orderRow.status === "cancelled" || orderRow.status === "refunded") {
-        return new Response(JSON.stringify({ error: "Order is not payable" }), {
-          status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+
+      // Authorization check: order must belong to caller if authenticated, or email must match if guest
+      if (userId && orderRow.user_id && orderRow.user_id !== userId) {
+        return new Response(
+          JSON.stringify({ error: "Access denied: You do not own this order." }),
+          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
       }
+
+      if (!userId && orderRow.shipping_email && orderRow.shipping_email.toLowerCase() !== email.toLowerCase()) {
+        return new Response(
+          JSON.stringify({ error: "Access denied: Email does not match order record." }),
+          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      // Ensure order is payable
+      if (orderRow.payment_status === "paid" || orderRow.status === "confirmed" || orderRow.status === "delivered" || orderRow.status === "cancelled" || orderRow.status === "refunded") {
+        return new Response(
+          JSON.stringify({ error: `Order is not payable (Current status: ${orderRow.status}, payment: ${orderRow.payment_status})` }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      // CRITICAL: Always use database total_amount, overriding any client-supplied amount
       serverAmount = Number(orderRow.total_amount);
+    } else if (checkoutDetails && checkoutDetails.items && checkoutDetails.items.length > 0) {
+      // 2. Direct checkout flow without existing order: Verify item prices against authoritative database records
+      const productIds = checkoutDetails.items.map((i) => i.product_id);
+      const { data: dbProducts, error: prodErr } = await adminClient
+        .from("products")
+        .select("id, price, stock, name")
+        .in("id", productIds);
+
+      if (prodErr || !dbProducts) {
+        return new Response(
+          JSON.stringify({ error: "Failed to verify product prices against catalog." }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const productMap = new Map(dbProducts.map((p) => [p.id, p]));
+      let calculatedItemsTotal = 0;
+
+      for (const item of checkoutDetails.items) {
+        const prod = productMap.get(item.product_id);
+        if (!prod) {
+          return new Response(
+            JSON.stringify({ error: `Product ID ${item.product_id} no longer exists in catalog.` }),
+            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+        const authoritativePrice = Number(prod.price);
+        calculatedItemsTotal += authoritativePrice * item.quantity;
+      }
+
+      const deliveryFee = Number(checkoutDetails.delivery_fee) || 0;
+      const discountAmount = Number(checkoutDetails.discount_amount) || 0;
+      const computedTotal = Math.max(0.1, calculatedItemsTotal + deliveryFee - discountAmount);
+
+      serverAmount = computedTotal;
     }
 
     if (!Number.isFinite(serverAmount) || serverAmount <= 0) {
-      return new Response(JSON.stringify({ error: "Invalid order amount" }), {
-        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({ error: "Invalid order amount" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
-    console.log(`Initializing payment, server amount: ${serverAmount}, method: ${paymentMethod || "default"}, orderId: ${orderId || "new_checkout"}`);
+    console.log(`Initializing payment, verified server amount: ${serverAmount}, orderId: ${orderId || "new_checkout"}`);
 
     const amountInPesewas = Math.round(serverAmount * 100);
-
     const channels = ["card", "mobile_money"];
-
     const refCode = orderId ? `ORDER_${orderId}_${Date.now()}` : `PAY_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     const paystackPayload: Record<string, unknown> = {
@@ -119,6 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
         order_id: orderId || null,
         user_id: userId,
         payment_method: paymentMethod || "bank_card",
+        verified_amount_pesewas: amountInPesewas,
         checkout_details: checkoutDetails || null,
         custom_fields: [
           {
@@ -163,27 +210,20 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
     } else {
-      const errMsg = "No valid Paystack Secret Key found. Paystack Secret Keys must start with 'sk_live_' or 'sk_test_'. Please update PAYSTACK_SECRET_KEY in your Supabase Secrets or Admin Settings.";
+      const errMsg = "No valid Paystack Secret Key found. Paystack Secret Keys must start with 'sk_live_' or 'sk_test_'.";
       console.error(errMsg);
       return new Response(
         JSON.stringify({ error: errMsg }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // If Paystack API call failed, return a clear error so the user knows what's wrong
     if (!paystackData || !paystackData.status || !paystackData.data?.authorization_url) {
       const errMsg = lastPaystackError || "Failed to connect to Paystack. Please check your API key in Admin Settings.";
       console.error("Paystack initialization failed:", errMsg);
       return new Response(
         JSON.stringify({ error: errMsg }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -207,7 +247,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error("Error in initialize-payment function:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

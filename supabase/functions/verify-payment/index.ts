@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
-import { authenticate, hasRole } from "../_shared/auth.ts";
+import { authenticate, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
 import { getAllPaystackSecretKeysAsync } from "../_shared/paystack.ts";
 
 const corsHeaders = {
@@ -95,8 +95,6 @@ const handler = async (req: Request): Promise<Response> => {
     const auth = await authenticate(req);
     if (auth) {
       console.log(`verify-payment authenticated user: ${auth.userId}`);
-    } else {
-      console.log("verify-payment called without active auth session — will use metadata.user_id");
     }
 
     const parsed = VerifySchema.safeParse(await req.json());
@@ -109,19 +107,17 @@ const handler = async (req: Request): Promise<Response> => {
     const { reference } = parsed.data;
     console.log(`Verifying payment with reference: ${reference}`);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Idempotency check: if order with this payment_reference already exists, return it!
+    // Idempotency check: if order with this payment_reference is already marked paid, return success
     const { data: existingOrder } = await supabase
       .from("orders")
-      .select("id")
+      .select("id, status, payment_status")
       .eq("payment_reference", reference)
       .maybeSingle();
 
-    if (existingOrder) {
-      console.log(`Order ${existingOrder.id} already exists for reference ${reference}`);
+    if (existingOrder && existingOrder.payment_status === "paid") {
+      console.log(`Order ${existingOrder.id} already paid for reference ${reference}`);
       return new Response(
         JSON.stringify({
           success: true,
@@ -133,73 +129,53 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Contact Paystack API directly
+    const allKeys = await getAllPaystackSecretKeysAsync();
     let paystackData: any = null;
+    let lastError = "";
 
-    // Sandbox / Direct payment verification fallback
-    if (reference.startsWith("DEMO_PAY_") || reference.startsWith("PAY_DIRECT_")) {
-      console.log(`Direct/Demo reference ${reference} detected — synthesizing successful payment response...`);
-      paystackData = {
-        status: true,
-        data: {
-          status: "success",
-          gateway_response: "Approved (Sandbox Test)",
-          amount: 1000,
-          reference,
-          paid_at: new Date().toISOString(),
-          metadata: {
-            user_id: auth?.userId,
-          },
-        },
-      };
-    } else {
-      const allKeys = await getAllPaystackSecretKeysAsync();
-      let lastError = "";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        console.log(`Retrying Paystack verification attempt ${attempt + 1}...`);
+      }
 
-      // Retry up to 3 times with 1.2s delay to allow Paystack backend propagation
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) {
-          await new Promise((resolve) => setTimeout(resolve, 1200));
-          console.log(`Retrying Paystack verification attempt ${attempt + 1}...`);
-        }
-
-        for (const keyConfig of allKeys) {
-          try {
-            console.log(`Trying verify with secret key from ${keyConfig.sourceName}...`);
-            const response = await fetch(
-              `https://api.paystack.co/transaction/verify/${reference}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${keyConfig.secretKey}`,
-                },
-              }
-            );
-            const resData = await response.json();
-            console.log(`Paystack response for key ${keyConfig.sourceName}:`, JSON.stringify(resData));
-            if (resData.status) {
-              paystackData = resData;
-              break;
-            } else {
-              if (resData.message && !resData.message.toLowerCase().includes("invalid key")) {
-                lastError = resData.message;
-              }
+      for (const keyConfig of allKeys) {
+        try {
+          console.log(`Trying verify with secret key from ${keyConfig.sourceName}...`);
+          const response = await fetch(
+            `https://api.paystack.co/transaction/verify/${reference}`,
+            {
+              headers: {
+                Authorization: `Bearer ${keyConfig.secretKey}`,
+              },
             }
-          } catch (e) {
-            console.error(`Error verifying with key ${keyConfig.sourceName}:`, e);
+          );
+          const resData = await response.json();
+          if (resData.status) {
+            paystackData = resData;
+            break;
+          } else {
+            if (resData.message && !resData.message.toLowerCase().includes("invalid key")) {
+              lastError = resData.message;
+            }
           }
+        } catch (e) {
+          console.error(`Error verifying with key ${keyConfig.sourceName}:`, e);
         }
-
-        if (paystackData?.status) break;
       }
 
-      if (!paystackData || !paystackData.status) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            friendlyError: lastError || "Failed to verify payment across configured keys. Please check reference.",
-          }),
-          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
+      if (paystackData?.status) break;
+    }
+
+    if (!paystackData || !paystackData.status) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          friendlyError: lastError || "Failed to verify transaction with payment provider.",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     const transaction = paystackData.data;
@@ -208,6 +184,7 @@ const handler = async (req: Request): Promise<Response> => {
     let orderId = metadata.order_id;
     const checkoutDetails = metadata.checkout_details;
     const userId = metadata.user_id || auth?.userId;
+    const actualPaidAmountPesewas = Number(transaction.amount);
 
     console.log("Transaction details:", JSON.stringify({
       status: transaction.status,
@@ -215,14 +192,12 @@ const handler = async (req: Request): Promise<Response> => {
       amount: transaction.amount,
       reference: transaction.reference,
       orderId,
-      hasCheckoutDetails: !!checkoutDetails,
       userId,
     }));
 
-    let friendlyError: string | null = null;
-
     if (!isSuccessful) {
       const gw = (transaction.gateway_response || "").toLowerCase();
+      let friendlyError = `Payment failed (${transaction.gateway_response || transaction.status}). Please try again.`;
       if (gw.includes("insufficient")) {
         friendlyError = "Insufficient funds. Please top up and try again.";
       } else if (gw.includes("declined") || gw.includes("do not honor")) {
@@ -231,12 +206,8 @@ const handler = async (req: Request): Promise<Response> => {
         friendlyError = "Payment was not completed. Please approve the prompt on your phone and try again.";
       } else if (gw.includes("timeout") || gw.includes("timed out")) {
         friendlyError = "Payment timed out. Please try again and approve the prompt quickly.";
-      } else {
-        friendlyError = `Payment failed (${transaction.gateway_response || transaction.status}). Please try again.`;
       }
-      console.log("Payment not successful:", friendlyError);
 
-      // If existing pending order was attached, cancel it
       if (orderId) {
         await supabase
           .from("orders")
@@ -250,214 +221,229 @@ const handler = async (req: Request): Promise<Response> => {
           status: transaction.status,
           friendlyError,
         }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Payment is SUCCESSFUL!
-    if (isSuccessful) {
-      if (orderId) {
-        // 1. Existing order case: update to paid/confirmed
-        const { error: updateError } = await supabase
+    // 1. Existing order case: Verify exact amount matches DB order total
+    if (orderId) {
+      const { data: dbOrder, error: dbOrderErr } = await supabase
+        .from("orders")
+        .select("id, total_amount, status, payment_status, user_id, shipping_email")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if (dbOrderErr || !dbOrder) {
+        return new Response(
+          JSON.stringify({ success: false, friendlyError: "Order attached to transaction not found." }),
+          { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const expectedPesewas = Math.round(Number(dbOrder.total_amount) * 100);
+
+      // CRITICAL: Amount Validation
+      if (actualPaidAmountPesewas < expectedPesewas) {
+        console.error(`CRITICAL SECURITY ALERT: Paid amount (${actualPaidAmountPesewas} pesewas) is less than required order total (${expectedPesewas} pesewas)!`);
+        await supabase
           .from("orders")
           .update({ 
-            status: "confirmed", 
-            payment_status: "paid", 
-            payment_reference: reference,
+            payment_status: "failed", 
+            notes: `Security Warning: Underpayment detected. Paid ${actualPaidAmountPesewas / 100} GHS vs Required ${expectedPesewas / 100} GHS.`,
             updated_at: new Date().toISOString() 
           })
           .eq("id", orderId);
 
-        if (updateError) {
-          console.error("Error updating order status:", updateError);
-        } else {
-          console.log(`Order ${orderId} confirmed`);
-          // Decrement stock for order items
-          const { data: orderItems } = await supabase
-            .from("order_items")
-            .select("product_id, quantity, selected_color")
-            .eq("order_id", orderId);
-          if (orderItems && orderItems.length > 0) {
-            await decrementStock(supabase, orderItems);
-          }
-
-          // Send order confirmation notification (Receipt + Tracking)
-          try {
-            await supabase.functions.invoke("send-order-notification", {
-              body: { orderId, status: "confirmed" },
-              headers: { Authorization: `Bearer ${supabaseServiceKey}` },
-            });
-          } catch (notifErr) {
-            console.error("Error invoking order notification:", notifErr);
-          }
-        }
-      } else if (checkoutDetails) {
-        // 2. New checkout case: create order ONLY NOW upon successful payment!
-        const paidAmountGhs = transaction.amount / 100;
-        const trackingCode = generateTrackingCode();
-
-        console.log(`Creating NEW confirmed order for user ${userId}, amount ${paidAmountGhs}`);
-
-        const insertPayload: Record<string, any> = {
-          user_id: userId,
-          tracking_code: trackingCode,
-          total_amount: paidAmountGhs,
-          shipping_name: checkoutDetails.shipping_name,
-          shipping_email: checkoutDetails.shipping_email,
-          shipping_phone: checkoutDetails.shipping_phone,
-          shipping_address: checkoutDetails.shipping_address,
-          shipping_city: checkoutDetails.shipping_city,
-          shipping_region: checkoutDetails.shipping_region,
-          shipping_town: checkoutDetails.shipping_town || null,
-          delivery_fee: checkoutDetails.delivery_fee || 0,
-          discount_code: checkoutDetails.discount_code || null,
-          discount_amount: checkoutDetails.discount_amount || null,
-          payment_method: metadata.payment_method || "bank_card",
-          payment_reference: reference,
-          status: "confirmed",
-          payment_status: "paid",
-        };
-
-        let { data: newOrder, error: createErr } = await supabase
-          .from("orders")
-          .insert(insertPayload)
-          .select()
-          .single();
-
-        // Dynamic schema fallback: if any column is missing in schema cache (code 42703), strip it and retry!
-        if (createErr && (createErr.code === "42703" || createErr.message?.includes("column"))) {
-          console.warn("Schema column missing, retrying insert after stripping missing column:", createErr.message);
-          const match = createErr.message?.match(/column\s+(?:orders\.)?['"]?([a-z0-9_]+)['"]?/i);
-          if (match && match[1] && match[1] in insertPayload) {
-            delete insertPayload[match[1]];
-            const retryRes = await supabase
-              .from("orders")
-              .insert(insertPayload)
-              .select()
-              .single();
-            newOrder = retryRes.data;
-            createErr = retryRes.error;
-          }
-        }
-
-        if (createErr || !newOrder) {
-          console.error("Error creating order after payment:", createErr);
-          return new Response(
-            JSON.stringify({
-              success: false,
-              friendlyError: `Failed to record order: ${createErr?.message || "Unknown database error"}`,
-            }),
-            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
-        }
-
-        orderId = newOrder.id;
-
-        // Insert order items
-        if (checkoutDetails.items && Array.isArray(checkoutDetails.items) && checkoutDetails.items.length > 0) {
-          const productIds = checkoutDetails.items.map((i: any) => i.product_id).filter(Boolean);
-          const { data: prods } = await supabase
-            .from("products")
-            .select("id, seller_id")
-            .in("id", productIds);
-
-          const sellerIds = prods ? [...new Set(prods.map((p) => p.seller_id).filter(Boolean))] : [];
-          let sellerHubMap = new Map<string, string>();
-
-          if (sellerIds.length > 0) {
-            const { data: sellerProfs } = await supabase
-              .from("seller_profiles")
-              .select("user_id, fulfillment_model")
-              .in("user_id", sellerIds);
-
-            const hubDropoffSellers = new Set(
-              (sellerProfs || [])
-                .filter((sp) => sp.fulfillment_model === "hub_dropoff")
-                .map((sp) => sp.user_id)
-            );
-
-            if (hubDropoffSellers.size > 0) {
-              const { data: defaultHub } = await supabase
-                .from("hubs")
-                .select("id")
-                .eq("is_active", true)
-                .limit(1)
-                .maybeSingle();
-
-              if (defaultHub?.id) {
-                for (const sId of hubDropoffSellers) {
-                  sellerHubMap.set(sId, defaultHub.id);
-                }
-              }
-            }
-          }
-
-          const prodSellerMap = new Map((prods || []).map((p) => [p.id, p.seller_id]));
-
-          const itemsToInsert = checkoutDetails.items.map((item: any) => {
-            const sId = prodSellerMap.get(item.product_id);
-            const hubId = sId ? sellerHubMap.get(sId) || null : null;
-            return {
-              order_id: newOrder.id,
-              product_id: item.product_id,
-              quantity: item.quantity,
-              price: item.price,
-              selected_color: item.selected_color || null,
-              selected_size: item.selected_size || null,
-              origin_hub_id: hubId,
-            };
-          });
-
-          const { error: itemsErr } = await supabase.from("order_items").insert(itemsToInsert);
-          if (itemsErr) {
-            console.error("Error inserting order items:", itemsErr);
-          } else {
-            // Decrement stock for purchased items
-            await decrementStock(supabase, checkoutDetails.items);
-
-            // Record seller earnings for this order
-            try {
-              await supabase.rpc("record_order_seller_earnings", { _order_id: newOrder.id });
-            } catch (earningsErr) {
-              console.error("Error recording seller earnings:", earningsErr);
-            }
-          }
-        }
-
-        // Clear customer cart
-        if (userId) {
-          await supabase.from("cart_items").delete().eq("user_id", userId);
-        }
-
-        // Send order confirmation notification with service role authorization
-        try {
-          await supabase.functions.invoke("send-order-notification", {
-            body: { orderId: newOrder.id, status: "confirmed" },
-            headers: { Authorization: `Bearer ${supabaseServiceKey}` },
-          });
-        } catch (notifErr) {
-          console.error("Error invoking order confirmation notification:", notifErr);
-        }
+        return new Response(
+          JSON.stringify({
+            success: false,
+            friendlyError: "Payment amount does not match the order total. Please contact support.",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
       }
+
+      // Update order to paid and confirmed
+      const { error: updateError } = await supabase
+        .from("orders")
+        .update({ 
+          status: "confirmed", 
+          payment_status: "paid", 
+          payment_reference: reference,
+          updated_at: new Date().toISOString() 
+        })
+        .eq("id", orderId);
+
+      if (updateError) {
+        console.error("Error updating order status:", updateError);
+        return new Response(
+          JSON.stringify({ success: false, friendlyError: "Database error updating order status." }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      // Decrement stock
+      const { data: orderItems } = await supabase
+        .from("order_items")
+        .select("product_id, quantity, selected_color")
+        .eq("order_id", orderId);
+      if (orderItems && orderItems.length > 0) {
+        await decrementStock(supabase, orderItems);
+      }
+
+      // Record seller earnings via service role
+      try {
+        await supabase.rpc("record_order_seller_earnings", { _order_id: orderId });
+      } catch (earnErr) {
+        console.warn("Seller earnings trigger notice:", earnErr);
+      }
+
+      // Send order notification
+      try {
+        await supabase.functions.invoke("send-order-notification", {
+          body: { orderId, status: "confirmed" },
+          headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}` },
+        });
+      } catch (notifErr) {
+        console.error("Error invoking order notification:", notifErr);
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: "success",
+          orderId,
+          reference,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    } else if (checkoutDetails) {
+      // 2. Direct checkout case: Verify amount against server-authoritative catalog prices
+      const items = checkoutDetails.items || [];
+      const productIds = items.map((i: any) => i.product_id);
+      const { data: dbProducts } = await supabase
+        .from("products")
+        .select("id, price, stock")
+        .in("id", productIds);
+
+      const productMap = new Map((dbProducts || []).map((p: any) => [p.id, p]));
+      let expectedItemsTotal = 0;
+      for (const item of items) {
+        const prod = productMap.get(item.product_id);
+        const authoritativePrice = prod ? Number(prod.price) : Number(item.price);
+        expectedItemsTotal += authoritativePrice * Number(item.quantity);
+      }
+
+      const deliveryFee = Number(checkoutDetails.delivery_fee) || 0;
+      const discountAmount = Number(checkoutDetails.discount_amount) || 0;
+      const expectedTotalGhs = Math.max(0.1, expectedItemsTotal + deliveryFee - discountAmount);
+      const expectedPesewas = Math.round(expectedTotalGhs * 100);
+
+      if (actualPaidAmountPesewas < expectedPesewas) {
+        console.error(`SECURITY ALERT: Checkout payment underpaid (${actualPaidAmountPesewas} < ${expectedPesewas})`);
+        return new Response(
+          JSON.stringify({ success: false, friendlyError: "Payment amount does not match required catalog total." }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const paidAmountGhs = actualPaidAmountPesewas / 100;
+      const trackingCode = generateTrackingCode();
+
+      const insertPayload: Record<string, any> = {
+        user_id: userId,
+        tracking_code: trackingCode,
+        total_amount: paidAmountGhs,
+        shipping_name: checkoutDetails.shipping_name,
+        shipping_email: checkoutDetails.shipping_email,
+        shipping_phone: checkoutDetails.shipping_phone,
+        shipping_address: checkoutDetails.shipping_address,
+        shipping_city: checkoutDetails.shipping_city,
+        shipping_region: checkoutDetails.shipping_region,
+        shipping_town: checkoutDetails.shipping_town || null,
+        delivery_fee: deliveryFee,
+        discount_code: checkoutDetails.discount_code || null,
+        discount_amount: discountAmount,
+        payment_method: metadata.payment_method || "bank_card",
+        payment_reference: reference,
+        status: "confirmed",
+        payment_status: "paid",
+      };
+
+      const { data: newOrder, error: createErr } = await supabase
+        .from("orders")
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (createErr || !newOrder) {
+        console.error("Error creating order after payment:", createErr);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            friendlyError: `Failed to record order: ${createErr?.message || "Unknown database error"}`,
+          }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      // Insert order items
+      if (items.length > 0) {
+        const orderItemsPayload = items.map((item: any) => {
+          const prod = productMap.get(item.product_id);
+          return {
+            order_id: newOrder.id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: prod ? Number(prod.price) : Number(item.price),
+            selected_color: item.selected_color || null,
+            selected_size: item.selected_size || null,
+          };
+        });
+
+        await supabase.from("order_items").insert(orderItemsPayload);
+        await decrementStock(supabase, items);
+      }
+
+      // Record seller earnings
+      try {
+        await supabase.rpc("record_order_seller_earnings", { _order_id: newOrder.id });
+      } catch (earnErr) {
+        console.warn("Seller earnings trigger notice:", earnErr);
+      }
+
+      // Send order confirmation
+      try {
+        await supabase.functions.invoke("send-order-notification", {
+          body: { orderId: newOrder.id, status: "confirmed" },
+          headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}` },
+        });
+      } catch (notifErr) {
+        console.error("Error sending order confirmation notification:", notifErr);
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: "success",
+          orderId: newOrder.id,
+          trackingCode: newOrder.tracking_code,
+          reference,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        status: transaction.status,
-        amount: transaction.amount / 100,
-        orderId,
-        paidAt: transaction.paid_at,
-        reference: transaction.reference,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ success: false, friendlyError: "No matching order or checkout metadata found." }),
+      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     console.error("Error in verify-payment function:", errorMessage);
     return new Response(
-      JSON.stringify({ success: false, friendlyError: errorMessage }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

@@ -7,8 +7,29 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MAX_MESSAGES = 20;
-const MAX_CONTENT_LENGTH = 2000;
+const MAX_MESSAGES = 15;
+const MAX_CONTENT_LENGTH = 1000;
+
+// Rate limiting: 30 requests per hour per user / IP to protect API quotas
+const rateLimitMap = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const MAX_REQUESTS_PER_WINDOW = 30;
+
+function checkRateLimit(key: string): { allowed: boolean; remaining: number; resetInSec: number } {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const timestamps = (rateLimitMap.get(key) || []).filter((t) => t > windowStart);
+
+  if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    const oldest = timestamps[0];
+    const resetInSec = Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - now) / 1000);
+    return { allowed: false, remaining: 0, resetInSec };
+  }
+
+  timestamps.push(now);
+  rateLimitMap.set(key, timestamps);
+  return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - timestamps.length, resetInSec: 0 };
+}
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -38,6 +59,28 @@ serve(async (req: Request) => {
 
   try {
     const auth = await authenticate(req);
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anonymous";
+    const rateLimitKey = auth?.userId || `ip_${clientIp}`;
+
+    // Enforce Rate Limiting to prevent API quota drain
+    const rateCheck = checkRateLimit(rateLimitKey);
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please wait a few minutes before sending more messages.",
+          resetInSec: rateCheck.resetInSec,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateCheck.resetInSec),
+          },
+        }
+      );
+    }
+
     let userOrdersContext = "";
 
     if (auth) {
@@ -50,7 +93,7 @@ serve(async (req: Request) => {
 
         if (userOrders && userOrders.length > 0) {
           userOrdersContext = `\nCustomer's Recent Orders:\n` + 
-            userOrders.map((o: any) => `- Order ID: ${o.id} (Status: ${o.status}, Total: $${o.total_amount}, Date: ${new Date(o.created_at).toLocaleDateString()})`).join("\n");
+            userOrders.map((o: any) => `- Order ID: ${o.id} (Status: ${o.status}, Total: GH₵${o.total_amount}, Date: ${new Date(o.created_at).toLocaleDateString()})`).join("\n");
         } else {
           userOrdersContext = `\nCustomer is logged in but has no recent orders.`;
         }
@@ -103,10 +146,8 @@ serve(async (req: Request) => {
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const apiKey = GEMINI_API_KEY || OPENAI_API_KEY || LOVABLE_API_KEY;
 
-    // 2. If Gemini API Key is available, use Gemini 1.5 Flash directly
+    // 2. If Gemini API Key is available, use Gemini 1.5 Flash
     if (GEMINI_API_KEY) {
       try {
         const storeInfo = productsListText ? `Available Store Products:\n${productsListText}` : "";
@@ -116,8 +157,8 @@ ${userOrdersContext}
 
 Guidelines:
 - Talk naturally like a real friendly human customer service representative.
-- Answer greeting messages ("sup", "how are you", "hello") with a friendly personal reply.
-- Answer store catalog questions ("what do you sell", "what items do you have") by describing clothing, footwear, accessories, and listing items.
+- Answer greeting messages with a friendly personal reply.
+- Answer store catalog questions by describing items.
 - Keep responses concise, clear, and helpful.`;
 
         const contentsPayload = messages.map((m) => ({
@@ -153,24 +194,19 @@ Guidelines:
       }
     }
 
-    // 3. Smart Conversational Fallback Engine (when API keys are not set)
+    // 3. Conversational Fallback Engine
     let fallbackMessage = "";
 
-    // A. Casual Greetings / Pleasantries
     if (/^(hi|hello|hey|sup|howdy|good morning|good afternoon|good evening|how are you|how far|xup|yo)\b/i.test(lastUserMsg) || lastUserMsg.includes("how are you")) {
       const greetingReplies = [
-        "Hey there! 👋 I'm doing great, thanks for asking! How's your day going? How can I help you on Trades Point today?",
+        "Hey there! 👋 I'm doing great, thanks for asking! How can I help you on Trades Point today?",
         "Hello! I'm doing awesome! 😊 Welcome to Trades Point. Are you looking for anything specific today?",
         "Hi! Doing great! 👋 How can I assist you with your shopping or order today?",
       ];
       fallbackMessage = greetingReplies[Math.floor(Math.random() * greetingReplies.length)];
-    } 
-    // B. What do you sell / Product Catalog Questions
-    else if (lastUserMsg.includes("sell") || lastUserMsg.includes("what do you") || lastUserMsg.includes("offer") || lastUserMsg.includes("catalog") || lastUserMsg.includes("items") || lastUserMsg.includes("website") || lastUserMsg.includes("product")) {
+    } else if (lastUserMsg.includes("sell") || lastUserMsg.includes("what do you") || lastUserMsg.includes("offer") || lastUserMsg.includes("catalog") || lastUserMsg.includes("items") || lastUserMsg.includes("website") || lastUserMsg.includes("product")) {
       fallbackMessage = `We sell high quality fashion apparel, footwear, stylish accessories, and art collections! 🛍️\n\nHere are some items currently in store:\n${productsListText || "• Quality Shirts & Dresses\n• Sneakers & Shoes\n• Fashion Accessories"}\n\nYou can browse all items on our home page!`;
-    }
-    // C. Order Tracking Questions
-    else if (lastUserMsg.includes("track") || lastUserMsg.includes("order") || lastUserMsg.includes("package") || lastUserMsg.includes("delivery status")) {
+    } else if (lastUserMsg.includes("track") || lastUserMsg.includes("order") || lastUserMsg.includes("package") || lastUserMsg.includes("delivery status")) {
       if (auth && userOrdersContext.includes("Order ID:")) {
         fallbackMessage = `Here are your recent orders:\n${userOrdersContext.replace("\nCustomer's Recent Orders:\n", "")}\n\nYou can track live updates on your Profile > Orders page!`;
       } else if (auth) {
@@ -178,18 +214,12 @@ Guidelines:
       } else {
         fallbackMessage = "To track your order status, please sign in to your account or visit our Track Order page with your tracking code!";
       }
-    }
-    // D. Shipping / Delivery Fees
-    else if (lastUserMsg.includes("delivery") || lastUserMsg.includes("shipping") || lastUserMsg.includes("fee") || lastUserMsg.includes("cost") || lastUserMsg.includes("location")) {
+    } else if (lastUserMsg.includes("delivery") || lastUserMsg.includes("shipping") || lastUserMsg.includes("fee") || lastUserMsg.includes("cost") || lastUserMsg.includes("location")) {
       fallbackMessage = "We deliver across all regions and major towns in Ghana! 🚚 Delivery fees are calculated dynamically based on your region during checkout.";
-    }
-    // E. Returns / Refunds
-    else if (lastUserMsg.includes("return") || lastUserMsg.includes("refund") || lastUserMsg.includes("policy") || lastUserMsg.includes("exchange")) {
+    } else if (lastUserMsg.includes("return") || lastUserMsg.includes("refund") || lastUserMsg.includes("policy") || lastUserMsg.includes("exchange")) {
       fallbackMessage = "We have a 7-day return policy for unused items in original packaging. If you need help returning an item, our support team will guide you!";
-    }
-    // F. General / Default Fallback
-    else {
-      fallbackMessage = "I'm here to help! You can ask me about our fashion catalog, delivery fees, order tracking, or request to speak directly with a human admin agent anytime!";
+    } else {
+      fallbackMessage = "I'm here to help! You can ask me about our catalog, delivery fees, order tracking, or request to speak directly with a human admin agent anytime!";
     }
 
     return new Response(

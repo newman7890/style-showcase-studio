@@ -16,6 +16,9 @@ interface PaystackEvent {
     amount: number;
     metadata?: {
       order_id?: string;
+      user_id?: string;
+      checkout_details?: any;
+      payment_method?: string;
     };
     customer?: {
       email?: string;
@@ -25,8 +28,6 @@ interface PaystackEvent {
 
 /**
  * Decrement product stock for each purchased item.
- * Reduces both the top-level `stock` integer and the per-color stock
- * inside the `colors` JSONB array (if the customer selected a color).
  */
 async function decrementStock(
   supabase: any,
@@ -37,7 +38,6 @@ async function decrementStock(
     const productId = item.product_id;
     if (!productId) continue;
 
-    // 1. Decrement main product stock (never below 0)
     const { data: product, error: fetchErr } = await supabase
       .from("products")
       .select("stock, colors")
@@ -52,7 +52,6 @@ async function decrementStock(
     const newStock = Math.max(0, (Number(product.stock) || 0) - qty);
     const updatePayload: Record<string, any> = { stock: newStock };
 
-    // 2. If customer selected a color, decrement that color's stock in the JSONB array
     if (item.selected_color && Array.isArray(product.colors)) {
       const colorName =
         typeof item.selected_color === "string"
@@ -84,18 +83,15 @@ async function decrementStock(
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const paystackSecretKey = getPaystackSecretKey();
-
-    // Get the request body
     const body = await req.text();
     
-    // Verify Paystack signature using Web Crypto API — REQUIRED
+    // Verify Paystack signature using HMAC SHA-512
     const signature = req.headers.get("x-paystack-signature");
     if (!signature) {
       console.log("Missing x-paystack-signature header");
@@ -129,36 +125,62 @@ const handler = async (req: Request): Promise<Response> => {
 
     const event: PaystackEvent = JSON.parse(body);
     console.log("Paystack webhook event received:", event.event);
-    console.log("Event data:", JSON.stringify(event.data));
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const orderId = (event.data.metadata as any)?.order_id;
-    const checkoutDetails = (event.data.metadata as any)?.checkout_details;
-    const userId = (event.data.metadata as any)?.user_id;
+    const orderId = event.data.metadata?.order_id;
+    const checkoutDetails = event.data.metadata?.checkout_details;
+    const userId = event.data.metadata?.user_id;
     const reference = event.data.reference;
+    const eventAmountPesewas = Number(event.data.amount);
 
     switch (event.event) {
       case "charge.success": {
-        // Idempotency check: if order with this reference already exists, do nothing
+        // Idempotency check: if order is already marked paid with this reference, do nothing
         if (reference) {
           const { data: existing } = await supabase
             .from("orders")
-            .select("id")
+            .select("id, payment_status")
             .eq("payment_reference", reference)
             .maybeSingle();
 
-          if (existing) {
-            console.log(`Webhook: Order ${existing.id} already exists for reference ${reference}`);
+          if (existing && existing.payment_status === "paid") {
+            console.log(`Webhook: Order ${existing.id} already paid for reference ${reference}`);
             break;
           }
         }
 
-        // Payment confirmed - mark existing order as confirmed OR create new order from checkoutDetails
+        // 1. Existing order case
         if (orderId) {
+          const { data: dbOrder } = await supabase
+            .from("orders")
+            .select("id, total_amount, payment_status")
+            .eq("id", orderId)
+            .maybeSingle();
+
+          if (!dbOrder) {
+            console.error(`Webhook: Order ${orderId} not found in database.`);
+            break;
+          }
+
+          const expectedPesewas = Math.round(Number(dbOrder.total_amount) * 100);
+
+          // CRITICAL: Amount Validation
+          if (eventAmountPesewas < expectedPesewas) {
+            console.error(`CRITICAL SECURITY ALERT in Webhook: Paid ${eventAmountPesewas} pesewas < required ${expectedPesewas} pesewas for order ${orderId}`);
+            await supabase
+              .from("orders")
+              .update({
+                payment_status: "failed",
+                notes: `Security Warning: Underpayment detected via Webhook. Paid ${eventAmountPesewas / 100} GHS vs Required ${expectedPesewas / 100} GHS.`,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", orderId);
+            break;
+          }
+
           const { error } = await supabase
             .from("orders")
             .update({ 
@@ -170,17 +192,24 @@ const handler = async (req: Request): Promise<Response> => {
             .eq("id", orderId);
 
           if (error) {
-            console.error("Error updating order status:", error);
+            console.error("Error updating order status in webhook:", error);
           } else {
-            console.log(`Order ${orderId} payment confirmed`);
+            console.log(`Order ${orderId} payment confirmed by webhook`);
 
-            // Decrement stock for each item in this order
+            // Decrement stock
             const { data: orderItems } = await supabase
               .from("order_items")
               .select("product_id, quantity, selected_color")
               .eq("order_id", orderId);
             if (orderItems && orderItems.length > 0) {
               await decrementStock(supabase, orderItems);
+            }
+
+            // Record seller earnings
+            try {
+              await supabase.rpc("record_order_seller_earnings", { _order_id: orderId });
+            } catch (earnErr) {
+              console.warn("Seller earnings trigger notice:", earnErr);
             }
 
             try {
@@ -193,7 +222,33 @@ const handler = async (req: Request): Promise<Response> => {
             }
           }
         } else if (checkoutDetails && userId) {
-          const paidAmountGhs = event.data.amount / 100;
+          // 2. Direct checkout case: Verify amount against server-authoritative catalog prices
+          const items = checkoutDetails.items || [];
+          const productIds = items.map((i: any) => i.product_id);
+          const { data: dbProducts } = await supabase
+            .from("products")
+            .select("id, price, stock")
+            .in("id", productIds);
+
+          const productMap = new Map((dbProducts || []).map((p: any) => [p.id, p]));
+          let expectedItemsTotal = 0;
+          for (const item of items) {
+            const prod = productMap.get(item.product_id);
+            const authoritativePrice = prod ? Number(prod.price) : Number(item.price);
+            expectedItemsTotal += authoritativePrice * Number(item.quantity);
+          }
+
+          const deliveryFee = Number(checkoutDetails.delivery_fee) || 0;
+          const discountAmount = Number(checkoutDetails.discount_amount) || 0;
+          const expectedTotalGhs = Math.max(0.1, expectedItemsTotal + deliveryFee - discountAmount);
+          const expectedPesewas = Math.round(expectedTotalGhs * 100);
+
+          if (eventAmountPesewas < expectedPesewas) {
+            console.error(`SECURITY ALERT in Webhook: Underpayment (${eventAmountPesewas} < ${expectedPesewas})`);
+            break;
+          }
+
+          const paidAmountGhs = eventAmountPesewas / 100;
           const trackingCode = "TRK" + Array.from({ length: 8 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 30)]).join("");
           const { data: newOrder, error: createErr } = await supabase
             .from("orders")
@@ -208,10 +263,10 @@ const handler = async (req: Request): Promise<Response> => {
               shipping_city: checkoutDetails.shipping_city,
               shipping_region: checkoutDetails.shipping_region,
               shipping_town: checkoutDetails.shipping_town || null,
-              delivery_fee: checkoutDetails.delivery_fee || 0,
+              delivery_fee: deliveryFee,
               discount_code: checkoutDetails.discount_code || null,
-              discount_amount: checkoutDetails.discount_amount || null,
-              payment_method: (event.data.metadata as any)?.payment_method || "bank_card",
+              discount_amount: discountAmount,
+              payment_method: event.data.metadata?.payment_method || "bank_card",
               payment_reference: reference,
               status: "confirmed",
               payment_status: "paid",
@@ -220,21 +275,26 @@ const handler = async (req: Request): Promise<Response> => {
             .single();
 
           if (!createErr && newOrder && checkoutDetails.items && Array.isArray(checkoutDetails.items)) {
-            const itemsToInsert = checkoutDetails.items.map((item: any) => ({
-              order_id: newOrder.id,
-              product_id: item.product_id,
-              quantity: item.quantity,
-              price: item.price,
-              selected_color: item.selected_color || null,
-              selected_size: item.selected_size || null,
-            }));
+            const itemsToInsert = checkoutDetails.items.map((item: any) => {
+              const prod = productMap.get(item.product_id);
+              return {
+                order_id: newOrder.id,
+                product_id: item.product_id,
+                quantity: item.quantity,
+                price: prod ? Number(prod.price) : Number(item.price),
+                selected_color: item.selected_color || null,
+                selected_size: item.selected_size || null,
+              };
+            });
             await supabase.from("order_items").insert(itemsToInsert);
             await supabase.from("cart_items").delete().eq("user_id", userId);
-
-            // Decrement stock for each purchased item
             await decrementStock(supabase, checkoutDetails.items);
 
-            console.log(`Webhook created confirmed order ${newOrder.id} for user ${userId}`);
+            try {
+              await supabase.rpc("record_order_seller_earnings", { _order_id: newOrder.id });
+            } catch (earnErr) {
+              console.warn("Seller earnings trigger notice:", earnErr);
+            }
 
             try {
               await supabase.functions.invoke("send-order-notification", {
@@ -250,86 +310,30 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       case "charge.failed": {
-        // Payment failed - cancel/reverse the order
         if (orderId) {
-          const { error } = await supabase
+          await supabase
             .from("orders")
             .update({ 
               status: "cancelled",
+              payment_status: "failed",
               updated_at: new Date().toISOString()
             })
             .eq("id", orderId);
-
-          if (error) {
-            console.error("Error cancelling order:", error);
-          } else {
-            console.log(`Order ${orderId} cancelled due to failed payment`);
-          }
         }
         break;
       }
-
-      case "refund.processed":
-      case "refund.pending": {
-        // Refund was processed or is pending
-        if (orderId) {
-          const refundStatus = event.event === "refund.processed" ? "refunded" : "refund_pending";
-          const { error } = await supabase
-            .from("orders")
-            .update({ 
-              status: refundStatus,
-              updated_at: new Date().toISOString()
-            })
-            .eq("id", orderId);
-
-          if (error) {
-            console.error("Error updating order status:", error);
-          } else {
-            console.log(`Order ${orderId} marked as ${refundStatus}`);
-            
-            // Trigger notification
-            try {
-              await supabase.functions.invoke("send-order-notification", {
-                body: { orderId, status: refundStatus },
-              });
-            } catch (notifError) {
-              console.error("Error sending notification:", notifError);
-            }
-          }
-        }
-        break;
-      }
-
-      case "refund.failed": {
-        // Refund failed
-        console.log(`Refund failed for order ${orderId}`);
-        break;
-      }
-
-      case "transfer.success":
-      case "transfer.failed":
-      case "transfer.reversed": {
-        // Handle transfer events (for payouts)
-        console.log(`Transfer event: ${event.event}`, event.data);
-        break;
-      }
-
-      default:
-        console.log(`Unhandled event type: ${event.event}`);
     }
 
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error("Error processing webhook:", error);
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  } catch (error: any) {
+    console.error("Error processing Paystack webhook:", error);
+    return new Response(
+      JSON.stringify({ error: error.message || "Webhook handling error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 };
 
