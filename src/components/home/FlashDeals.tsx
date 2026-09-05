@@ -1,10 +1,20 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Zap, Flame, Clock, ChevronRight, ChevronLeft, ShoppingBag, Store } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useCart } from "@/hooks/useCart";
 import { useToast } from "@/hooks/use-toast";
-import { getFlashDealSettings, FlashDealSettings, LinkedFlashDeal } from "@/components/admin/FlashDealsManagement";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchFlashDealSettings,
+  getFlashDealSettingsFromStorage,
+  FlashDealSettings,
+  LinkedFlashDeal,
+  DEFAULT_FLASH_DEALS_SETTINGS,
+} from "@/services/siteSettingsService";
+
+export type { FlashDealSettings, LinkedFlashDeal };
 
 export interface FlashDealProduct {
   id: string;
@@ -37,22 +47,48 @@ const getClaimedPercent = (id: string, customClaimed?: number): number => {
 export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
   const { addToCart } = useCart();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Admin Flash Deals Settings (localStorage + custom event broadcast)
-  const [adminSettings, setAdminSettings] = useState<FlashDealSettings>(getFlashDealSettings);
+  // Load settings from Supabase Database (with local storage as fallback)
+  const { data: adminSettings = getFlashDealSettingsFromStorage() } = useQuery<FlashDealSettings>({
+    queryKey: ["site-settings-flash-deals"],
+    queryFn: async () => {
+      const { settings } = await fetchFlashDealSettings();
+      return settings;
+    },
+    initialData: getFlashDealSettingsFromStorage(),
+    staleTime: 1000 * 30, // 30 seconds
+    refetchOnWindowFocus: true,
+  });
 
+  // Subscribe to realtime database changes & custom window events
   useEffect(() => {
+    // 1. Invalidate query when window receives custom event
     const handleSettingsChange = () => {
-      setAdminSettings(getFlashDealSettings());
+      queryClient.invalidateQueries({ queryKey: ["site-settings-flash-deals"] });
     };
     window.addEventListener("flash-deals-settings-changed", handleSettingsChange);
     window.addEventListener("storage", handleSettingsChange);
+
+    // 2. Realtime listener for cross-device updates (phone, PC, other tabs)
+    const channel = supabase
+      .channel("public:site_settings_flash_deals")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "site_settings" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["site-settings-flash-deals"] });
+        }
+      )
+      .subscribe();
+
     return () => {
+      supabase.removeChannel(channel);
       window.removeEventListener("flash-deals-settings-changed", handleSettingsChange);
       window.removeEventListener("storage", handleSettingsChange);
     };
-  }, []);
+  }, [queryClient]);
 
   // Countdown timer with auto-renew so it never disappears into 00:00:00
   const countdownTarget = adminSettings.endsAt;

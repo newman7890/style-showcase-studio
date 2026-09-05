@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Eye, EyeOff, Clapperboard, Search, X, GripVertical,
   Gauge, Type, Save, RotateCcw, Sparkles, Loader2, Check,
-  ChevronRight, ShoppingBag,
+  ChevronRight, ShoppingBag, Database, Copy, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,15 +12,16 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  SpotlightSettings,
+  DEFAULT_SPOTLIGHT_SETTINGS,
+  getSpotlightSettingsFromStorage,
+  fetchSpotlightSettings,
+  saveSpotlightSettings,
+} from "@/services/siteSettingsService";
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-export interface SpotlightSettings {
-  enabled: boolean;
-  title: string;
-  subtitle: string;
-  speed: number; // 1 = slow, 2 = normal, 3 = fast
-  pinnedProductIds: string[];
-}
+export type { SpotlightSettings };
+export const getSpotlightSettings = getSpotlightSettingsFromStorage;
 
 interface ProductOption {
   id: string;
@@ -31,57 +32,59 @@ interface ProductOption {
   department?: string | null;
 }
 
-const STORAGE_KEY = "admin_spotlight_settings";
-
-const DEFAULT_SETTINGS: SpotlightSettings = {
-  enabled: true,
-  title: "Live Marketplace Spotlight",
-  subtitle: "Continuous moving showcase of trending products & hot drops",
-  speed: 2,
-  pinnedProductIds: [],
-};
-
 const SPEED_LABELS: Record<number, { label: string; desc: string; color: string }> = {
   1: { label: "Slow", desc: "Relaxed browsing pace", color: "text-blue-600" },
   2: { label: "Normal", desc: "Default balanced speed", color: "text-emerald-600" },
   3: { label: "Fast", desc: "High-energy showcase", color: "text-orange-600" },
 };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-export const getSpotlightSettings = (): SpotlightSettings => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...DEFAULT_SETTINGS, ...parsed };
-    }
-  } catch {
-    // ignore
-  }
-  return { ...DEFAULT_SETTINGS };
-};
+const SQL_SETUP_SCRIPT = `-- Run this in your Supabase Dashboard SQL Editor:
+CREATE TABLE IF NOT EXISTS public.site_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-const saveSettings = (settings: SpotlightSettings) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  // Dispatch a custom event so Home.tsx can react in real-time
-  window.dispatchEvent(new Event("spotlight-settings-changed"));
-};
+ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view site settings" ON public.site_settings;
+CREATE POLICY "Anyone can view site settings"
+  ON public.site_settings FOR SELECT
+  USING (true);
+
+DROP POLICY IF EXISTS "Admins can manage site settings" ON public.site_settings;
+CREATE POLICY "Admins can manage site settings"
+  ON public.site_settings FOR ALL
+  USING (true)
+  WITH CHECK (true);`;
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 export const SpotlightManagement = () => {
   const { toast } = useToast();
-  const [settings, setSettings] = useState<SpotlightSettings>(getSpotlightSettings);
+  const [settings, setSettings] = useState<SpotlightSettings>(getSpotlightSettingsFromStorage);
   const [allProducts, setAllProducts] = useState<ProductOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [tableMissing, setTableMissing] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
-  // Load products from Supabase
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
+  // Load database settings & products
+  const loadInitialData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch remote settings
+      const { settings: remoteSettings, isTableMissing } = await fetchSpotlightSettings();
+      if (isTableMissing) {
+        setTableMissing(true);
+      } else {
+        setTableMissing(false);
+        setSettings(remoteSettings);
+      }
+
+      // 2. Fetch products
       const { data, error } = await supabase
         .from("products")
         .select("id, name, image, price, category, department")
@@ -91,9 +94,15 @@ export const SpotlightManagement = () => {
       if (!error && data) {
         setAllProducts(data as ProductOption[]);
       }
+    } catch (err) {
+      console.error("Error loading spotlight settings:", err);
+    } finally {
       setLoading(false);
-    };
-    fetchProducts();
+    }
+  };
+
+  useEffect(() => {
+    loadInitialData();
   }, []);
 
   // Pinned products resolved to full objects
@@ -117,13 +126,9 @@ export const SpotlightManagement = () => {
       .slice(0, 8);
   }, [searchQuery, allProducts, settings.pinnedProductIds]);
 
-  // Track changes & auto-save immediately
+  // Track changes & update state
   const updateSettings = (patch: Partial<SpotlightSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      saveSettings(next);
-      return next;
-    });
+    setSettings((prev) => ({ ...prev, ...patch }));
     setHasChanges(true);
   };
 
@@ -154,23 +159,65 @@ export const SpotlightManagement = () => {
   };
   const handleDragEnd = () => setDragIndex(null);
 
-  // Save
-  const handleSave = () => {
+  const copySqlToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(SQL_SETUP_SCRIPT);
+      setCopiedSql(true);
+      toast({
+        title: "SQL Copied to Clipboard! 📋",
+        description: "Open Supabase Dashboard -> SQL Editor, paste, and run this script.",
+      });
+      setTimeout(() => setCopiedSql(false), 3000);
+    } catch {
+      toast({
+        title: "Could not copy automatically",
+        description: "Please copy the SQL script manually.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Save to database
+  const handleSave = async () => {
     setSaving(true);
-    saveSettings(settings);
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      const { error: saveError, isTableMissing } = await saveSpotlightSettings(settings);
+
+      if (isTableMissing) {
+        setTableMissing(true);
+        toast({
+          title: "Database Table Required ⚠️",
+          description: "Please run the SQL script in your Supabase Dashboard SQL Editor.",
+          variant: "destructive",
+        });
+      } else if (saveError) {
+        toast({
+          title: "Saved Locally Only",
+          description: saveError.message || "Could not sync with Supabase database.",
+          variant: "destructive",
+        });
+      } else {
+        setTableMissing(false);
+      }
+
       setHasChanges(false);
       toast({
         title: "Spotlight settings saved ✨",
-        description: "Changes are now live on the homepage.",
+        description: "Marquee showcase is now synced live across all devices.",
       });
-    }, 400);
+    } catch (err: any) {
+      toast({
+        title: "Saved Locally",
+        description: "Spotlight updated on this browser.",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Reset
   const handleReset = () => {
-    setSettings({ ...DEFAULT_SETTINGS });
+    setSettings({ ...DEFAULT_SPOTLIGHT_SETTINGS });
     setHasChanges(true);
   };
 
@@ -218,10 +265,62 @@ export const SpotlightManagement = () => {
         </div>
       </div>
 
+      {/* Database Table Required Alert Box */}
+      {tableMissing && (
+        <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900/60 shadow-sm">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 shrink-0">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                    Database Table Setup Required for Cross-Device Sync
+                    <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-amber-200/80 dark:bg-amber-800 text-amber-900 dark:text-amber-100">
+                      1-Time Setup
+                    </span>
+                  </h3>
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
+                    To sync your Spotlight Marquee across mobile phones and desktop computers, run this SQL script in your Supabase Dashboard.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={copySqlToClipboard}
+                  className="gap-1.5 bg-white dark:bg-card border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 hover:bg-amber-100 cursor-pointer"
+                >
+                  {copiedSql ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                  {copiedSql ? "SQL Copied!" : "Copy SQL"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={loadInitialData}
+                  disabled={loading}
+                  className="gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                  Check Connection
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-gray-900 dark:bg-black text-gray-100 p-4 rounded-xl text-xs font-mono overflow-x-auto space-y-1 border border-gray-800 shadow-inner">
+              <p className="text-gray-400">-- Supabase Dashboard &gt; SQL Editor &gt; New Query &gt; Run</p>
+              <pre>{SQL_SETUP_SCRIPT}</pre>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {hasChanges && (
         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-2 text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
           <Sparkles className="w-4 h-4" />
-          You have unsaved changes. Click <strong>Save Changes</strong> to apply.
+          You have unsaved changes. Click <strong>Save Changes</strong> to apply across all devices.
         </div>
       )}
 

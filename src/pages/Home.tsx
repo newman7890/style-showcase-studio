@@ -9,12 +9,16 @@ import { ProductCard } from "@/components/ProductCard";
 import { Testimonials } from "@/components/home/Testimonials";
 import { ProductMarquee } from "@/components/home/ProductMarquee";
 import { FlashDeals } from "@/components/home/FlashDeals";
-import { getSpotlightSettings } from "@/components/admin/SpotlightManagement";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCart } from "@/hooks/useCart";
+import {
+  fetchSpotlightSettings,
+  getSpotlightSettingsFromStorage,
+  SpotlightSettings,
+} from "@/services/siteSettingsService";
 import {
   Search,
   Camera,
@@ -164,20 +168,44 @@ const Home = () => {
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  // ── Spotlight Marquee Settings ───────────────────────────────────────────
-  const [spotlightSettings, setSpotlightSettings] = useState(getSpotlightSettings);
+  const queryClient = useQueryClient();
+
+  // ── Spotlight Marquee Settings (Database + Local fallback + Realtime) ──────
+  const { data: spotlightSettings = getSpotlightSettingsFromStorage() } = useQuery<SpotlightSettings>({
+    queryKey: ["site-settings-spotlight"],
+    queryFn: async () => {
+      const { settings } = await fetchSpotlightSettings();
+      return settings;
+    },
+    initialData: getSpotlightSettingsFromStorage(),
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: true,
+  });
 
   useEffect(() => {
     const handleSettingsChange = () => {
-      setSpotlightSettings(getSpotlightSettings());
+      queryClient.invalidateQueries({ queryKey: ["site-settings-spotlight"] });
     };
     window.addEventListener("spotlight-settings-changed", handleSettingsChange);
     window.addEventListener("storage", handleSettingsChange);
+
+    const channel = supabase
+      .channel("public:site_settings_spotlight")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "site_settings" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["site-settings-spotlight"] });
+        }
+      )
+      .subscribe();
+
     return () => {
+      supabase.removeChannel(channel);
       window.removeEventListener("spotlight-settings-changed", handleSettingsChange);
       window.removeEventListener("storage", handleSettingsChange);
     };
-  }, []);
+  }, [queryClient]);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const { data: featuredProducts = [] } = useQuery<Product[]>({

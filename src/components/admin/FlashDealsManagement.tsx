@@ -4,7 +4,7 @@ import {
   Clock, Type, Save, RotateCcw, Sparkles, Loader2,
   Check, ChevronRight, ShoppingBag, Store, Flame,
   Percent, ArrowUp, ArrowDown, Calendar, Tag, Filter,
-  CheckCircle2, AlertCircle
+  CheckCircle2, AlertCircle, Copy, Database, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,28 +15,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCountdown } from "@/hooks/useCountdown";
+import {
+  LinkedFlashDeal,
+  FlashDealSettings,
+  DEFAULT_FLASH_DEALS_SETTINGS,
+  getDefaultFlashEndTime,
+  getFlashDealSettingsFromStorage,
+  fetchFlashDealSettings,
+  saveFlashDealSettings,
+} from "@/services/siteSettingsService";
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-export interface LinkedFlashDeal {
-  productId: string;
-  productName: string;
-  productImage: string;
-  originalPrice: number;
-  flashPrice: number;
-  discountPercent: number;
-  claimedPercent: number;
-  sellerName: string;
-  category?: string;
-  department?: string | null;
-}
-
-export interface FlashDealSettings {
-  enabled: boolean;
-  title: string;
-  subtitle: string;
-  endsAt: string; // ISO string
-  deals: LinkedFlashDeal[];
-}
+export type { LinkedFlashDeal, FlashDealSettings };
+export const getFlashDealSettings = getFlashDealSettingsFromStorage;
 
 interface ProductWithSeller {
   id: string;
@@ -50,46 +40,29 @@ interface ProductWithSeller {
   sellerName?: string;
 }
 
-const STORAGE_KEY = "admin_flash_deals_settings";
+const SQL_SETUP_SCRIPT = `-- Run this in your Supabase Dashboard SQL Editor:
+CREATE TABLE IF NOT EXISTS public.site_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-const getDefaultEndTime = () => {
-  const d = new Date();
-  d.setHours(d.getHours() + 8);
-  d.setMinutes(0);
-  d.setSeconds(0);
-  return d.toISOString();
-};
+ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 
-const DEFAULT_SETTINGS: FlashDealSettings = {
-  enabled: true,
-  title: "Lightning Flash Deals",
-  subtitle: "Limited quantities at special discount prices",
-  endsAt: getDefaultEndTime(),
-  deals: [],
-};
+DROP POLICY IF EXISTS "Anyone can view site settings" ON public.site_settings;
+CREATE POLICY "Anyone can view site settings"
+  ON public.site_settings FOR SELECT
+  USING (true);
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-export const getFlashDealSettings = (): FlashDealSettings => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...DEFAULT_SETTINGS, ...parsed };
-    }
-  } catch {
-    // ignore
-  }
-  return { ...DEFAULT_SETTINGS };
-};
-
-const saveSettings = (settings: FlashDealSettings) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  window.dispatchEvent(new Event("flash-deals-settings-changed"));
-};
+DROP POLICY IF EXISTS "Admins can manage site settings" ON public.site_settings;
+CREATE POLICY "Admins can manage site settings"
+  ON public.site_settings FOR ALL
+  USING (true)
+  WITH CHECK (true);`;
 
 export const FlashDealsManagement = () => {
   const { toast } = useToast();
-  const [settings, setSettings] = useState<FlashDealSettings>(getFlashDealSettings);
+  const [settings, setSettings] = useState<FlashDealSettings>(getFlashDealSettingsFromStorage);
   const [allProducts, setAllProducts] = useState<ProductWithSeller[]>([]);
   const [sellersList, setSellersList] = useState<{ id: string; name: string }[]>([]);
   const [selectedSellerFilter, setSelectedSellerFilter] = useState<string>("all");
@@ -99,65 +72,76 @@ export const FlashDealsManagement = () => {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [tableMissing, setTableMissing] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
   // Live countdown for admin preview
   const { formattedHours, formattedMinutes, formattedSeconds, isExpired } = useCountdown(settings.endsAt);
 
-  // Fetch all products and sellers safely
-  useEffect(() => {
-    const fetchProductsAndSellers = async () => {
-      setLoading(true);
-      try {
-        // 1. Fetch raw products
-        const { data: rawProducts, error: prodError } = await supabase
-          .from("products")
-          .select("id, name, image, price, category, department, sale_price, seller_id")
-          .order("created_at", { ascending: false })
-          .limit(400);
-
-        if (prodError) throw prodError;
-
-        // 2. Fetch seller profiles
-        const { data: sellerData } = await supabase
-          .from("seller_profiles")
-          .select("user_id, business_name");
-
-        const sellerMap = new Map<string, string>();
-        const uniqueSellersMap = new Map<string, string>();
-
-        (sellerData || []).forEach((s: any) => {
-          if (s.user_id && s.business_name) {
-            sellerMap.set(s.user_id, s.business_name);
-            uniqueSellersMap.set(s.user_id, s.business_name);
-          }
-        });
-
-        // 3. Combine products with seller names
-        const enriched: ProductWithSeller[] = (rawProducts || []).map((p: any) => {
-          const sName = p.seller_id ? sellerMap.get(p.seller_id) || "Independent Seller" : "Official Store";
-          return {
-            ...p,
-            sellerName: sName,
-          };
-        });
-
-        setAllProducts(enriched);
-
-        const sellersArr = Array.from(uniqueSellersMap.entries()).map(([id, name]) => ({ id, name }));
-        setSellersList(sellersArr);
-      } catch (err) {
-        console.error("Error loading products and sellers:", err);
-        toast({
-          title: "Notice",
-          description: "Could not fetch remote products list. Using active local cache.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+  // Load database settings & products
+  const loadInitialData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch remote settings from Supabase database
+      const { settings: remoteSettings, isTableMissing } = await fetchFlashDealSettings();
+      if (isTableMissing) {
+        setTableMissing(true);
+      } else {
+        setTableMissing(false);
+        setSettings(remoteSettings);
       }
-    };
 
-    fetchProductsAndSellers();
+      // 2. Fetch raw products
+      const { data: rawProducts, error: prodError } = await supabase
+        .from("products")
+        .select("id, name, image, price, category, department, sale_price, seller_id")
+        .order("created_at", { ascending: false })
+        .limit(400);
+
+      if (prodError) throw prodError;
+
+      // 3. Fetch seller profiles
+      const { data: sellerData } = await supabase
+        .from("seller_profiles")
+        .select("user_id, business_name");
+
+      const sellerMap = new Map<string, string>();
+      const uniqueSellersMap = new Map<string, string>();
+
+      (sellerData || []).forEach((s: any) => {
+        if (s.user_id && s.business_name) {
+          sellerMap.set(s.user_id, s.business_name);
+          uniqueSellersMap.set(s.user_id, s.business_name);
+        }
+      });
+
+      // 4. Combine products with seller names
+      const enriched: ProductWithSeller[] = (rawProducts || []).map((p: any) => {
+        const sName = p.seller_id ? sellerMap.get(p.seller_id) || "Independent Seller" : "Official Store";
+        return {
+          ...p,
+          sellerName: sName,
+        };
+      });
+
+      setAllProducts(enriched);
+
+      const sellersArr = Array.from(uniqueSellersMap.entries()).map(([id, name]) => ({ id, name }));
+      setSellersList(sellersArr);
+    } catch (err) {
+      console.error("Error loading products and sellers:", err);
+      toast({
+        title: "Notice",
+        description: "Could not fetch remote products list. Using active local cache.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInitialData();
   }, []);
 
   const updateSettings = (patch: Partial<FlashDealSettings>) => {
@@ -362,12 +346,47 @@ export const FlashDealsManagement = () => {
   };
   const handleDragEnd = () => setDragIndex(null);
 
-  // Save changes to localStorage AND sync to Supabase products table
+  const copySqlToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(SQL_SETUP_SCRIPT);
+      setCopiedSql(true);
+      toast({
+        title: "SQL Copied to Clipboard! 📋",
+        description: "Open Supabase Dashboard -> SQL Editor, paste, and run this script.",
+      });
+      setTimeout(() => setCopiedSql(false), 3000);
+    } catch {
+      toast({
+        title: "Could not copy automatically",
+        description: "Please select the SQL code below manually and copy it.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Save changes to Supabase Database (site_settings) AND sync to products table
   const handleSave = async () => {
     setSaving(true);
     try {
-      // 1. Save to local settings
-      saveSettings(settings);
+      // 1. Save to Supabase site_settings (and local fallback cache)
+      const { error: saveError, isTableMissing } = await saveFlashDealSettings(settings);
+
+      if (isTableMissing) {
+        setTableMissing(true);
+        toast({
+          title: "Database Table Required ⚠️",
+          description: "Please run the SQL script below in your Supabase SQL Editor so all devices share the same Flash Deals.",
+          variant: "destructive",
+        });
+      } else if (saveError) {
+        toast({
+          title: "Saved Locally Only",
+          description: saveError.message || "Could not sync with Supabase database.",
+          variant: "destructive",
+        });
+      } else {
+        setTableMissing(false);
+      }
 
       // 2. Sync to Supabase products table for linked deals
       if (settings.deals.length > 0) {
@@ -384,10 +403,10 @@ export const FlashDealsManagement = () => {
 
       setHasChanges(false);
       toast({
-        title: "Flash Deals Saved & Live! ⚡",
-        description: `Homepage is now displaying ${settings.deals.length} linked flash deals.`,
+        title: "Flash Deals Saved & Live Everywhere! ⚡",
+        description: `Saved to database! Mobile phones, tablets, and computers now display ${settings.deals.length} active deals.`,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error saving flash deals:", err);
       toast({
         title: "Saved Locally",
@@ -400,7 +419,7 @@ export const FlashDealsManagement = () => {
 
   // Reset to default
   const handleReset = () => {
-    setSettings({ ...DEFAULT_SETTINGS, endsAt: getDefaultEndTime() });
+    setSettings({ ...DEFAULT_FLASH_DEALS_SETTINGS, endsAt: getDefaultFlashEndTime() });
     setHasChanges(true);
   };
 
@@ -439,7 +458,7 @@ export const FlashDealsManagement = () => {
               </span>
             </h2>
             <p className="text-sm text-muted-foreground">
-              Link seller products, set promotional discount prices, and control the live countdown timer
+              Link seller products, set promotional discount prices, and sync across all mobile and desktop devices
             </p>
           </div>
         </div>
@@ -461,10 +480,62 @@ export const FlashDealsManagement = () => {
         </div>
       </div>
 
+      {/* Database Table Required Alert Box */}
+      {tableMissing && (
+        <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900/60 shadow-sm">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 shrink-0">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                    Database Table Setup Required for Cross-Device Sync
+                    <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-amber-200/80 dark:bg-amber-800 text-amber-900 dark:text-amber-100">
+                      1-Time Setup
+                    </span>
+                  </h3>
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
+                    To make sure your Flash Deals display identically on mobile phones, tablets, and computers, run this SQL script once in your Supabase Dashboard.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={copySqlToClipboard}
+                  className="gap-1.5 bg-white dark:bg-card border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 hover:bg-amber-100 cursor-pointer"
+                >
+                  {copiedSql ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                  {copiedSql ? "SQL Copied!" : "Copy SQL"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={loadInitialData}
+                  disabled={loading}
+                  className="gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                  Check Connection
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-gray-900 dark:bg-black text-gray-100 p-4 rounded-xl text-xs font-mono overflow-x-auto space-y-1 border border-gray-800 shadow-inner">
+              <p className="text-gray-400">-- Supabase Dashboard &gt; SQL Editor &gt; New Query &gt; Run</p>
+              <pre>{SQL_SETUP_SCRIPT}</pre>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {hasChanges && (
         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-2 text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
           <Sparkles className="w-4 h-4" />
-          You have unsaved changes. Click <strong>Save Changes</strong> in the top right to apply them live.
+          You have unsaved changes. Click <strong>Save Changes</strong> in the top right to apply them live across all devices.
         </div>
       )}
 
