@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon, MapPin, ExternalLink, Mail, Phone, Building2, Info, Truck, Navigation, KeyRound, ShieldCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon, MapPin, ExternalLink, Mail, Phone, Building2, Info, Truck, Navigation, KeyRound, ShieldCheck, Camera } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -872,6 +872,68 @@ const SellerDashboard = () => {
                             onChange={handleMultipleImages}
                             className="hidden"
                           />
+                        </div>
+
+                        {/* Recommendation Callout & Status */}
+                        <div className={`p-3 rounded-lg border text-xs space-y-2 transition-all ${
+                          galleryImages.length >= 3
+                            ? "bg-emerald-50/80 border-emerald-200 text-emerald-950 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-200"
+                            : galleryImages.length > 0
+                            ? "bg-amber-50/80 border-amber-200 text-amber-950 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200"
+                            : "bg-purple-50/80 border-purple-200 text-purple-950 dark:bg-purple-950/30 dark:border-purple-800 dark:text-purple-200"
+                        }`}>
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5 font-semibold">
+                              {galleryImages.length >= 3 ? (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  <span>Great visual coverage! ({galleryImages.length} photos added)</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Camera className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                                  <span>Recommendation: Upload at least 3 to 4 photos</span>
+                                </>
+                              )}
+                            </div>
+                            <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
+                              galleryImages.length >= 3
+                                ? "bg-emerald-100 dark:bg-emerald-900/60 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200"
+                                : galleryImages.length > 0
+                                ? "bg-amber-100 dark:bg-amber-900/60 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200"
+                                : "bg-purple-100 dark:bg-purple-900/60 border-purple-300 dark:border-purple-700 text-purple-800 dark:text-purple-200"
+                            }`}>
+                              {galleryImages.length} of 4 recommended photos
+                            </span>
+                          </div>
+                          
+                          <p className="text-[11px] opacity-90 leading-relaxed">
+                            {galleryImages.length === 0 && (
+                              "Products with 3–4 photos sell 2x faster and reduce returns. We recommend capturing your product from multiple angles."
+                            )}
+                            {galleryImages.length > 0 && galleryImages.length < 3 && (
+                              `You've added ${galleryImages.length} photo${galleryImages.length > 1 ? "s" : ""}. Adding ${3 - galleryImages.length} more (such as back view, detail zoom, or packaging) builds maximum buyer confidence!`
+                            )}
+                            {galleryImages.length >= 3 && (
+                              "Looks complete! Your product displays multiple perspectives. The first photo with the 'Main Cover' badge is what customers see in the catalog."
+                            )}
+                          </p>
+
+                          {/* Recommended Photo Types */}
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/80 dark:bg-black/30 border border-current/20 font-medium">
+                              1. Front Angle 📸
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/80 dark:bg-black/30 border border-current/20 font-medium">
+                              2. Back / Side 🔄
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/80 dark:bg-black/30 border border-current/20 font-medium">
+                              3. Close-up Details 🔍
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/80 dark:bg-black/30 border border-current/20 font-medium">
+                              4. Packaging / Lifestyle 📦
+                            </span>
+                          </div>
                         </div>
 
                         {galleryImages.length > 0 && (
