@@ -157,6 +157,12 @@ export const CategoryManagement = () => {
       const { error } = await supabase.from("categories").upsert(rows, { onConflict: "slug" });
       if (error) throw error;
 
+      // Update local storage cache and notify other components
+      try {
+        localStorage.setItem("local_custom_categories", JSON.stringify(rows));
+        window.dispatchEvent(new CustomEvent("categories_updated"));
+      } catch {}
+
       toast({
         title: "All Preset Categories Synced! 🎉",
         description: `Successfully stored ${rows.length} categories to the database.`,
@@ -205,8 +211,8 @@ export const CategoryManagement = () => {
     setSaving(true);
     try {
       const payload = {
-        name: formName,
-        slug: formSlug,
+        name: formName.trim(),
+        slug: formSlug.trim(),
         image: formImage || null,
         is_active: formActive,
         department: formDepartment,
@@ -220,6 +226,17 @@ export const CategoryManagement = () => {
         );
 
       if (error) throw error;
+
+      // Update local storage cache and broadcast event immediately
+      try {
+        const stored = localStorage.getItem("local_custom_categories");
+        const list = stored ? JSON.parse(stored) : [];
+        const filtered = list.filter((c: any) => c.slug !== formSlug.trim());
+        filtered.push(payload);
+        localStorage.setItem("local_custom_categories", JSON.stringify(filtered));
+        window.dispatchEvent(new CustomEvent("categories_updated"));
+      } catch {}
+
       toast({ title: editingCategory ? "Category updated" : "Category created" });
       setDialogOpen(false);
       fetchData();
@@ -236,6 +253,16 @@ export const CategoryManagement = () => {
     if (error) {
       toast({ title: "Error deleting category", variant: "destructive" });
     } else {
+      try {
+        const stored = localStorage.getItem("local_custom_categories");
+        if (stored) {
+          const list = JSON.parse(stored);
+          const filtered = list.filter((c: any) => c.id !== id && c.slug !== id);
+          localStorage.setItem("local_custom_categories", JSON.stringify(filtered));
+          window.dispatchEvent(new CustomEvent("categories_updated"));
+        }
+      } catch {}
+
       toast({ title: "Category deleted" });
       fetchData();
     }
@@ -245,7 +272,12 @@ export const CategoryManagement = () => {
     const { error } = await supabase
       .from("categories")
       .upsert({ slug: cat.slug, name: cat.name, department: cat.department || "fashion", is_active: !cat.is_active }, { onConflict: "slug" });
-    if (!error) fetchData();
+    if (!error) {
+      try {
+        window.dispatchEvent(new CustomEvent("categories_updated"));
+      } catch {}
+      fetchData();
+    }
   };
 
   const moveCategory = async (cat: Category, direction: "up" | "down") => {

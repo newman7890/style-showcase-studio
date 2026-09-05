@@ -63,15 +63,47 @@ const Products = () => {
         supabase.from("categories").select("name, slug").eq("is_active", true).order("display_order", { ascending: true }),
       ]);
 
+      let loadedCats = catRes.data || [];
+
+      // Also merge from localStorage cache if available
+      try {
+        const localCached = localStorage.getItem("local_custom_categories");
+        if (localCached) {
+          const parsed = JSON.parse(localCached);
+          if (Array.isArray(parsed)) {
+            const seenSlugs = new Set(loadedCats.map((c) => c.slug));
+            parsed.forEach((item: any) => {
+              if (item.slug && item.name && !seenSlugs.has(item.slug)) {
+                seenSlugs.add(item.slug);
+                loadedCats.push({ name: item.name, slug: item.slug });
+              }
+            });
+          }
+        }
+      } catch {}
+
       if (!prodRes.error && prodRes.data) {
         setProducts(prodRes.data);
         const max = Math.max(...prodRes.data.map((p: any) => p.price), 100);
         setMaxPrice(Math.ceil(max));
         setPriceRange([0, Math.ceil(max)]);
+
+        // Extract distinct categories present on live products so they appear in category filter pills
+        const existingNames = new Set(loadedCats.map((c) => c.name.toLowerCase().trim()));
+        const existingSlugs = new Set(loadedCats.map((c) => c.slug.toLowerCase().trim()));
+        prodRes.data.forEach((p: any) => {
+          if (p.category && !existingNames.has(p.category.toLowerCase().trim())) {
+            const autoSlug = p.category.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
+            if (!existingSlugs.has(autoSlug)) {
+              existingNames.add(p.category.toLowerCase().trim());
+              existingSlugs.add(autoSlug);
+              loadedCats.push({ name: p.category, slug: autoSlug });
+            }
+          }
+        });
       }
-      if (!catRes.error && catRes.data) {
-        setCategories(catRes.data);
-      }
+      
+      setCategories(loadedCats);
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {
@@ -97,8 +129,14 @@ const Products = () => {
     if (activeCategory === "new") {
       const isNewArrival = newArrivals.some(n => n.id === p.id);
       if (!isNewArrival) return false;
-    } else {
-      const matchesCategory = activeCategory === "all" || p.category === activeCategory;
+    } else if (activeCategory !== "all") {
+      const pCatLower = (p.category || "").toLowerCase().trim();
+      const activeCatLower = activeCategory.toLowerCase().trim();
+      const pCatSlug = pCatLower.replace(/[^a-z0-9]+/g, "-");
+      const matchesCategory =
+        pCatLower === activeCatLower ||
+        pCatSlug === activeCatLower ||
+        (categories.find(c => c.slug === activeCatLower)?.name.toLowerCase() === pCatLower);
       if (!matchesCategory) return false;
     }
     const matchesSearch =

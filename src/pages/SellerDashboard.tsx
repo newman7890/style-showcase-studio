@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PRESET_CATEGORIES_BY_DEPARTMENT } from "@/constants/categories";
 import { processAiBackgroundRemoval } from "@/utils/imageStudio";
+import { CategoryCombobox } from "@/components/common/CategoryCombobox";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Name required").max(100),
@@ -966,11 +967,9 @@ const SellerDashboard = () => {
                           <Select 
                             value={form.department || "fashion"} 
                             onValueChange={(v) => {
-                              const availCats = CATEGORIES_BY_DEPARTMENT[v] || [];
                               setForm({ 
                                 ...form, 
                                 department: v,
-                                category: availCats[0]?.value || ""
                               });
                             }}
                           >
@@ -984,21 +983,25 @@ const SellerDashboard = () => {
                         </div>
                         <div>
                           <Label htmlFor="category">Category</Label>
-                          <Select 
-                            value={form.category} 
-                            onValueChange={(v) => setForm({ ...form, category: v })}
-                          >
-                            <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                            <SelectContent>
-                              {(CATEGORIES_BY_DEPARTMENT[form.department || "fashion"] || []).map((c) => (
-                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                              ))}
-                              {form.category && !(CATEGORIES_BY_DEPARTMENT[form.department || "fashion"] || []).some(c => c.value === form.category) && (
-                                <SelectItem value={form.category}>{form.category}</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                          {errors.category && <p className="text-sm text-destructive">{errors.category}</p>}
+                          <CategoryCombobox
+                            department={form.department || "fashion"}
+                            value={form.category}
+                            onChange={(catName, detectedDept) => {
+                              setForm((prev) => ({
+                                ...prev,
+                                category: catName,
+                                department: detectedDept || prev.department || "fashion",
+                              }));
+                              if (errors.category) {
+                                setErrors((prev) => {
+                                  const next = { ...prev };
+                                  delete next.category;
+                                  return next;
+                                });
+                              }
+                            }}
+                            error={errors.category}
+                          />
                         </div>
                       </div>
                       <div>
