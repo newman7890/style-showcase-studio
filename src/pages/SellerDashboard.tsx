@@ -356,15 +356,15 @@ const SellerDashboard = () => {
 
       setForm((prev) => ({
         ...prev,
-        name: aiResult.name || prev.name,
-        category: aiResult.category || prev.category,
+        name: prev.name && prev.name.trim().length > 0 ? prev.name : (aiResult.name || prev.name),
+        category: prev.category && prev.category.trim().length > 0 ? prev.category : (aiResult.category || prev.category),
         department: prev.department && prev.department !== "fashion" ? prev.department : (aiResult.department || prev.department || "fashion"),
-        price: aiResult.price ? String(aiResult.price) : (prev.price || "150"),
-        description: aiResult.description || "",
-        sizes: aiResult.sizes || "",
-        features: aiResult.features || "",
-        materials_info: aiResult.materials_info || "",
-        size_fit_info: aiResult.size_fit_info || "",
+        price: prev.price && parseFloat(prev.price) > 0 ? prev.price : (aiResult.price ? String(aiResult.price) : "150"),
+        description: aiResult.description || prev.description || "",
+        sizes: prev.sizes && prev.sizes.trim().length > 0 ? prev.sizes : (aiResult.sizes || ""),
+        features: aiResult.features || prev.features || "",
+        materials_info: aiResult.materials_info || prev.materials_info || "",
+        size_fit_info: aiResult.size_fit_info || prev.size_fit_info || "",
       }));
 
       toast({ 
