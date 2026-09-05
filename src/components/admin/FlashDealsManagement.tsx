@@ -161,11 +161,7 @@ export const FlashDealsManagement = () => {
   }, []);
 
   const updateSettings = (patch: Partial<FlashDealSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      saveSettings(next);
-      return next;
-    });
+    setSettings((prev) => ({ ...prev, ...patch }));
     setHasChanges(true);
   };
 

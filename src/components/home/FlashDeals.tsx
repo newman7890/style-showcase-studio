@@ -21,72 +21,8 @@ export interface FlashDealProduct {
 }
 
 interface FlashDealsProps {
-  products?: FlashDealProduct[];
+  products?: any[];
 }
-
-// Fallback high-energy deals if database has few live sale items
-const DEFAULT_FLASH_ITEMS: FlashDealProduct[] = [
-  {
-    id: "fd1",
-    name: "Noise-Cancelling Wireless Pro Earbuds",
-    price: 340,
-    sale_price: 199,
-    image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&q=80",
-    category: "Gadgets",
-    department: "gadgets",
-    stock: 8,
-    sellerName: "SoundCore Hub",
-    claimedPercent: 88,
-  },
-  {
-    id: "fd2",
-    name: "Minimalist Oversized Vintage Denim Jacket",
-    price: 280,
-    sale_price: 175,
-    image: "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=600&q=80",
-    category: "Fashion",
-    department: "fashion",
-    stock: 5,
-    sellerName: "Urban Streetwear",
-    claimedPercent: 72,
-  },
-  {
-    id: "fd3",
-    name: "Nordic Ceramic Ambient Glow Table Lamp",
-    price: 210,
-    sale_price: 135,
-    image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&q=80",
-    category: "Home Decor",
-    department: "home",
-    stock: 12,
-    sellerName: "Nordic Living",
-    claimedPercent: 64,
-  },
-  {
-    id: "fd4",
-    name: "Ultra-Fast Smartwatch Series 9 Titan",
-    price: 490,
-    sale_price: 310,
-    image: "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=600&q=80",
-    category: "Gadgets",
-    department: "gadgets",
-    stock: 4,
-    sellerName: "Apex Tech",
-    claimedPercent: 93,
-  },
-  {
-    id: "fd5",
-    name: "Handcrafted Luxury Leather Crossbody Bag",
-    price: 380,
-    sale_price: 245,
-    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&q=80",
-    category: "Fashion",
-    department: "fashion",
-    stock: 6,
-    sellerName: "AfroChic Crafts",
-    claimedPercent: 81,
-  },
-];
 
 const getClaimedPercent = (id: string, customClaimed?: number): number => {
   if (customClaimed && customClaimed > 0) return customClaimed;
@@ -103,7 +39,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Admin Flash Deals Settings
+  // Admin Flash Deals Settings (localStorage + custom event broadcast)
   const [adminSettings, setAdminSettings] = useState<FlashDealSettings>(getFlashDealSettings);
 
   useEffect(() => {
@@ -118,37 +54,38 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
     };
   }, []);
 
+  // Countdown timer with auto-renew so it never disappears into 00:00:00
   const countdownTarget = adminSettings.endsAt;
-  const { formattedHours, formattedMinutes, formattedSeconds, isExpired } = useCountdown(countdownTarget);
+  const { formattedHours, formattedMinutes, formattedSeconds } = useCountdown(countdownTarget, true);
 
   // If disabled by admin, hide section
   if (!adminSettings.enabled) {
     return null;
   }
 
-  // Display items: Prioritize admin-linked deals (which can come from any seller)
+  // ONLY show deals explicitly linked by admin — no random Supabase merging
   const displayDeals: FlashDealProduct[] = useMemo(() => {
-    if (adminSettings.deals && adminSettings.deals.length > 0) {
-      return adminSettings.deals.map((deal) => ({
-        id: deal.productId,
-        name: deal.productName,
-        image: deal.productImage,
-        price: deal.originalPrice,
-        sale_price: deal.flashPrice,
-        sellerName: deal.sellerName,
-        category: deal.category,
-        department: deal.department,
-        claimedPercent: deal.claimedPercent,
-      }));
+    if (!adminSettings.deals || adminSettings.deals.length === 0) {
+      return [];
     }
 
-    // Otherwise fallback to live products on sale
-    const saleItems = (products || []).filter(
-      (p) => p && p.sale_price && p.sale_price < p.price && p.image
-    );
-    if (saleItems.length >= 4) return saleItems;
-    return [...saleItems, ...DEFAULT_FLASH_ITEMS.filter((f) => !saleItems.some((s) => s.id === f.id))];
-  }, [adminSettings.deals, products]);
+    return adminSettings.deals.map((deal) => ({
+      id: deal.productId,
+      name: deal.productName,
+      image: deal.productImage || "/placeholder.svg",
+      price: Number(deal.originalPrice),
+      sale_price: Number(deal.flashPrice),
+      sellerName: deal.sellerName,
+      category: deal.category,
+      department: deal.department,
+      claimedPercent: deal.claimedPercent,
+    }));
+  }, [adminSettings.deals]);
+
+  // If there are no flash deals to show, don't show an empty or random section
+  if (displayDeals.length === 0) {
+    return null;
+  }
 
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
@@ -215,22 +152,24 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
             </div>
 
             {/* Scroll navigation buttons for desktop */}
-            <div className="hidden sm:flex items-center gap-1">
-              <button
-                onClick={() => scroll("left")}
-                aria-label="Previous Deals"
-                className="w-8 h-8 rounded-full border border-border/80 bg-background hover:bg-secondary flex items-center justify-center text-foreground transition-colors shadow-2xs cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => scroll("right")}
-                aria-label="Next Deals"
-                className="w-8 h-8 rounded-full border border-border/80 bg-background hover:bg-secondary flex items-center justify-center text-foreground transition-colors shadow-2xs cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            {displayDeals.length > 3 && (
+              <div className="hidden sm:flex items-center gap-1">
+                <button
+                  onClick={() => scroll("left")}
+                  aria-label="Previous Deals"
+                  className="w-8 h-8 rounded-full border border-border/80 bg-background hover:bg-secondary flex items-center justify-center text-foreground transition-colors shadow-2xs cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => scroll("right")}
+                  aria-label="Next Deals"
+                  className="w-8 h-8 rounded-full border border-border/80 bg-background hover:bg-secondary flex items-center justify-center text-foreground transition-colors shadow-2xs cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -282,7 +221,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
                   <div>
                     <div className="flex items-center justify-between gap-1 mb-1">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 block truncate">
-                        {product.category || "Hot Deal"}
+                        {product.category || "Flash Deal"}
                       </span>
                       {product.sellerName && (
                         <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-0.5 truncate max-w-[110px]">

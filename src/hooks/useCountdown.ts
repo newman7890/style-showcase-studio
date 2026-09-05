@@ -12,30 +12,30 @@ interface TimeLeft {
   totalSeconds: number;
 }
 
-export const useCountdown = (targetDate: string | Date | number | null | undefined): TimeLeft => {
+export const useCountdown = (
+  targetDate: string | Date | number | null | undefined,
+  autoRenew: boolean = true
+): TimeLeft => {
   const calculateTimeLeft = (): TimeLeft => {
-    if (!targetDate) {
-      return {
-        days: 0,
-        hours: 0,
-        minutes: 0,
-        seconds: 0,
-        formattedHours: "00",
-        formattedMinutes: "00",
-        formattedSeconds: "00",
-        isExpired: true,
-        totalSeconds: 0,
-      };
-    }
-
-    const target = typeof targetDate === "string" || typeof targetDate === "number"
-      ? new Date(targetDate).getTime()
-      : targetDate.getTime();
-
     const now = new Date().getTime();
-    const difference = target - now;
+    let target = targetDate
+      ? typeof targetDate === "string" || typeof targetDate === "number"
+        ? new Date(targetDate).getTime()
+        : targetDate.getTime()
+      : 0;
 
-    if (difference <= 0 || isNaN(difference)) {
+    let difference = target - now;
+
+    // If target is in the past, missing, or invalid and autoRenew is enabled:
+    // Auto-roll over to the end of the day (midnight tonight) or 8-hour rolling window
+    if ((difference <= 0 || isNaN(difference)) && autoRenew) {
+      const midnight = new Date();
+      midnight.setHours(23, 59, 59, 999);
+      difference = midnight.getTime() - now;
+      if (difference <= 0) {
+        difference = 8 * 60 * 60 * 1000; // 8 hours fallback
+      }
+    } else if (difference <= 0 || isNaN(difference)) {
       return {
         days: 0,
         hours: 0,
@@ -50,7 +50,7 @@ export const useCountdown = (targetDate: string | Date | number | null | undefin
     }
 
     const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((difference / (1000 * 60 * 60)) % 24) + days * 24; // Combine days into total hours if desired
+    const hours = Math.floor((difference / (1000 * 60 * 60)) % 24) + days * 24;
     const minutes = Math.floor((difference / 1000 / 60) % 60);
     const seconds = Math.floor((difference / 1000) % 60);
 
@@ -77,7 +77,7 @@ export const useCountdown = (targetDate: string | Date | number | null | undefin
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [targetDate]);
+  }, [targetDate, autoRenew]);
 
   return timeLeft;
 };
