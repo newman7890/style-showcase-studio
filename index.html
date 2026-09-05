@@ -30,6 +30,18 @@
 </head>
 
   <body>
+    <script>
+      window.addEventListener('error', function(event) {
+        console.error('Captured window error:', event.error || event.message);
+        var root = document.getElementById('root');
+        if (root && (!root.childNodes || root.childNodes.length === 0)) {
+          var div = document.createElement('div');
+          div.style = 'padding: 24px; font-family: sans-serif; color: #dc2626; background: #fef2f2; border: 1px solid #f87171; border-radius: 12px; margin: 24px; max-width: 600px;';
+          div.innerHTML = '<h2 style="margin-top: 0;">Error Loading App</h2><p>' + (event.message || 'Unknown error') + '</p><pre style="white-space: pre-wrap; font-size: 13px; background: white; padding: 12px; border-radius: 8px;">' + (event.error && event.error.stack ? event.error.stack : (event.filename + ':' + event.lineno)) + '</pre>';
+          root.appendChild(div);
+        }
+      });
+    </script>
     <div id="root"></div>
     <script src="https://js.paystack.co/v1/inline.js"></script>
     <script type="module" src="/src/main.tsx"></script>
