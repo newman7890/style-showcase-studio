@@ -30,60 +30,6 @@ const DEPT_BADGES: Record<string, { label: string; color: string }> = {
   other: { label: "General 📦", color: "bg-purple-500/10 text-purple-700 border-purple-200 dark:text-purple-300 dark:border-purple-800" },
 };
 
-const FALLBACK_MARQUEE_ITEMS: MarqueeProduct[] = [
-  {
-    id: "f1",
-    name: "Oversized Streetwear Hoodie",
-    price: 180,
-    image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&q=80",
-    category: "Clothing",
-    department: "fashion",
-    sale_price: 150,
-  },
-  {
-    id: "f2",
-    name: "Wireless ANC Pro Headphones",
-    price: 320,
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80",
-    category: "Audio",
-    department: "gadgets",
-    sale_price: 280,
-  },
-  {
-    id: "f3",
-    name: "Ceramic Modern Vase & Plant Accent",
-    price: 120,
-    image: "https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&q=80",
-    category: "Home Decor",
-    department: "home",
-  },
-  {
-    id: "f4",
-    name: "Handmade African Heritage Canvas",
-    price: 450,
-    image: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=600&q=80",
-    category: "Paintings",
-    department: "art",
-  },
-  {
-    id: "f5",
-    name: "Smart Watch Ultra Pro Fitness Tracker",
-    price: 250,
-    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&q=80",
-    category: "Wearables",
-    department: "gadgets",
-    sale_price: 210,
-  },
-  {
-    id: "f6",
-    name: "Classic Minimalist Leather Sneakers",
-    price: 260,
-    image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600&q=80",
-    category: "Shoes",
-    department: "fashion",
-  },
-];
-
 export const ProductMarquee: React.FC<ProductMarqueeProps> = ({
   products,
   title = "Live Marketplace Spotlight",
@@ -99,10 +45,12 @@ export const ProductMarquee: React.FC<ProductMarqueeProps> = ({
 
   const displayItems = useMemo(() => {
     const valid = (products || []).filter((p) => p && p.image);
-    const source = valid.length >= 4 ? valid : [...valid, ...FALLBACK_MARQUEE_ITEMS];
-    // Ensure we have enough cards to form a smooth seamless loop (duplicate 3x)
-    return [...source, ...source, ...source];
+    if (valid.length === 0) return [];
+    // Ensure we have enough cards to form a smooth seamless loop (duplicate as needed)
+    return [...valid, ...valid, ...valid, ...valid];
   }, [products]);
+
+  if (displayItems.length === 0) return null;
 
   return (
     <section className="relative w-full py-6 overflow-hidden select-none">

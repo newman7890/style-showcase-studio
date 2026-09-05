@@ -108,34 +108,6 @@ const DEFAULT_CATEGORY_IMAGES: Record<string, string> = {
   home: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&q=80",
 };
 
-// ─── Static deal data ──────────────────────────────────────────────────────────
-const DEALS = [
-  {
-    id: "d1",
-    badge: "Up to 40% off",
-    label: "Prime Deal",
-    title: "Pro Audio Noise-Canceling Headphones",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAGe2obWm7B8tF06EoEkZGoG9dgS9f8-WMZm58vPj5G9o9Gx0Y11s7SZ3iYyEg9a2R0DCwEOCwnNyrIBYhJh9WhKlORgeYl3cKvQ9I6XA1wggzqro8gOZAA5yV1qwkBk6Gnq1C246Civ5eYP8Jn6Nno-uNANLidtv5eCM4WJF0K2RN7Mki-PpHmifaCqrY1IDlR768uUMsjcxITNKSef5gwBCTY897ygYYDdkyBHAitj-1je4T3uTNQhA",
-  },
-  {
-    id: "d2",
-    badge: "35% off",
-    label: "Deal of the Day",
-    title: "Smart Echo Generation 5",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBU_L-WcJaL-7RbKpz7UhosdyqOYav71FFuyvZcXLXGqQXXgYwql-DF7nfOs44H8DpxGe4oojj3BCg1vApY9Q7o3XJXvQvYHJy6EpHISL0FNtZY7LSNkmvtT74Os7d9N0_ia4a3iEO-3qCFPKj4zByTGqo2JzFbh4b49aBm6ih-LiEXOk644OItEDnpvHY8QT41YWViQNpxphyWBkiQ1Amqqn7F7wEurmpxIYrmrKq0NRjWkA8_DcUDZg",
-  },
-  {
-    id: "d3",
-    badge: "20% off",
-    label: "Flash Sale",
-    title: "4K Ultra HD Smart TV 55\"",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuA9K9LiiN9GYBhU2kkcQpLFJ_REWUqXr1atjGN7i2aHvMvHv1pl_KU7t1SZy9A6tI4ebjSpMIZEdAKtvk_tZ0WqsAhpb-winpiNFBj19STePXr7mo5VJiKFUj_1oUQTQeAC2-GP8BzMpOe2JuoGOG_KiXwul9-j7rv07bucxcADPeypUEhuwmAt4zMs4DtoUdI64M5eyBK08G21c-2wtZD9N2CfzPdWrsyHVkFSi6HfL4YZyvhQY67Dww",
-  },
-];
-
 // ─── Star Rating helper ────────────────────────────────────────────────────────
 const StarRating = ({ rating, count }: { rating: number; count: number }) => {
   const full = Math.floor(rating);
@@ -269,8 +241,7 @@ const Home = () => {
   });
 
   const dealBanners = useMemo(() => {
-    const deals = marketingBanners.filter((b) => !b.placement || b.placement === "deal_cards");
-    return deals.length > 0 ? deals : DEALS.map((d) => ({ ...d, link_url: "/department/home", placement: "deal_cards", image_url: d.image }));
+    return marketingBanners.filter((b) => !b.placement || b.placement === "deal_cards");
   }, [marketingBanners]);
 
   const promoBanners = useMemo(() => {
@@ -482,81 +453,82 @@ const Home = () => {
 
         {/* ── Lightning Flash Deals with Live Countdown ── */}
         <FlashDeals products={featuredProducts} />
-        <section className="flex flex-col gap-3">
-          <div className="flex items-center justify-between px-4">
-            <div className="flex items-center gap-2">
-              <Flame className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground font-plus-jakarta">
-                Deal of the Day
-              </h2>
-            </div>
-            <Link
-              to="/department/home"
-              className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
-            >
-              See all <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
 
-          <div className="overflow-x-auto hide-scrollbar">
-            <div className="flex gap-4 px-4 min-w-max">
-              {(marketingBanners.length > 0
-                ? marketingBanners.map((b) => ({ id: b.id, badge: b.badge, label: b.label, title: b.title, image: b.image_url, link: b.link_url }))
-                : DEALS.map((d) => ({ ...d, link: "/department/home" }))
-              ).map((deal, i) => (
-                <motion.div
-                  key={deal.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.08 }}
-                  className="w-[260px] bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0 cursor-pointer"
-                  onClick={() => handleDealClick(deal.link)}
-                >
-                  <div className="h-36 bg-secondary/50 overflow-hidden">
-                    <img
-                      src={deal.image}
-                      alt={deal.title}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-3 flex flex-col gap-1.5">
-                    <div className="flex gap-2 items-center">
-                      {deal.badge && (
-                        <span className="bg-primary text-primary-foreground text-[11px] font-semibold px-2 py-0.5 rounded">
-                          {deal.badge}
-                        </span>
-                      )}
-                      {deal.label && (
-                        <span className="text-primary font-bold text-[11px] uppercase tracking-wide">
-                          {deal.label}
-                        </span>
-                      )}
+        {/* Deal of the Day (Only displayed when real marketing banners exist) */}
+        {dealBanners.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between px-4">
+              <div className="flex items-center gap-2">
+                <Flame className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground font-plus-jakarta">
+                  Deal of the Day
+                </h2>
+              </div>
+              <Link
+                to="/department/home"
+                className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
+              >
+                See all <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="overflow-x-auto hide-scrollbar">
+              <div className="flex gap-4 px-4 min-w-max">
+                {dealBanners.map((deal, i) => (
+                  <motion.div
+                    key={deal.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.08 }}
+                    className="w-[260px] bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0 cursor-pointer"
+                    onClick={() => handleDealClick(deal.link_url)}
+                  >
+                    <div className="h-36 bg-secondary/50 overflow-hidden">
+                      <img
+                        src={deal.image_url}
+                        alt={deal.title}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
                     </div>
-                    <p className="text-sm text-foreground font-medium line-clamp-1">{deal.title}</p>
-                  </div>
-                </motion.div>
-              ))}
+                    <div className="p-3 flex flex-col gap-1.5">
+                      <div className="flex gap-2 items-center">
+                        {deal.badge && (
+                          <span className="bg-primary text-primary-foreground text-[11px] font-semibold px-2 py-0.5 rounded">
+                            {deal.badge}
+                          </span>
+                        )}
+                        {deal.label && (
+                          <span className="text-primary font-bold text-[11px] uppercase tracking-wide">
+                            {deal.label}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-foreground font-medium line-clamp-1">{deal.title}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
-        {/* Recommended For You */}
-        <section className="flex flex-col gap-3 px-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground font-plus-jakarta">
-              Recommended for you
-            </h2>
-            <Link
-              to="/department/home"
-              className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
-            >
-              View all <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
+        {/* Recommended For You (Only real database products) */}
+        {featuredProducts.length > 0 && (
+          <section className="flex flex-col gap-3 px-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground font-plus-jakarta">
+                Recommended for you
+              </h2>
+              <Link
+                to="/department/home"
+                className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
+              >
+                View all <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-            {(featuredProducts.length > 0 ? featuredProducts : FALLBACK_PRODUCTS).slice(0, 4).map(
-              (product, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {featuredProducts.slice(0, 8).map((product, i) => (
                 <motion.div
                   key={product.id}
                   initial={{ opacity: 0, y: 15 }}
@@ -565,10 +537,10 @@ const Home = () => {
                 >
                   <ProductCard {...product} />
                 </motion.div>
-              )
-            )}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Promotional Banner – Gift Cards */}
         <section className="px-4">
@@ -669,37 +641,5 @@ const Home = () => {
     </div>
   );
 };
-
-// ─── Fallback products (shown if DB returns empty) ─────────────────────────────
-const FALLBACK_PRODUCTS: Product[] = [
-  {
-    id: "f1",
-    name: "Gooseneck Electric Tea Kettle, 1.0L Stainless Steel",
-    price: 49.99,
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDa6taF4pfGfDeEbj6gI0UqVcW13-hfSuj-yzfbS97e7CpvvEj2MpdusoV1GK4I4aXp3GMePAyUcYRMn6UEoXG-4NpzDFyl0hAcsVr78Mgvi0AWBJMhKBrIQqMoGUhS_6YnLsVMSByCF3DOqtKnsvOKXdBzwhf4ZmR79ln7FZZARxen9df5LyFhP5PCQ2jU5BDmwNyaDvv7c9J_dEPX8SYGS6FeRUp15fvzgP81YTzAr8Xl0PgdZf7rVw",
-  },
-  {
-    id: "f2",
-    name: "Mechanical Gaming Keyboard with Custom RGB Lighting",
-    price: 129.0,
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuA9K9LiiN9GYBhU2kkcQpLFJ_REWUqXr1atjGN7i2aHvMvHv1pl_KU7t1SZy9A6tI4ebjSpMIZEdAKtvk_tZ0WqsAhpb-winpiNFBj19STePXr7mo5VJiKFUj_1oUQTQeAC2-GP8BzMpOe2JuoGOG_KiXwul9-j7rv07bucxcADPeypUEhuwmAt4zMs4DtoUdI64M5eyBK08G21c-2wtZD9N2CfzPdWrsyHVkFSi6HfL4YZyvhQY67Dww",
-  },
-  {
-    id: "f3",
-    name: "Premium Leather Minimalist Sneakers - All White",
-    price: 85.0,
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAx9OMmKiR2vh58mD2gJx1lXPjAUjjVMj__eWCsbE-gJJY0zTqL5kj00pu8BOuwDxuCWCnbNeDkoXnrCaGtFdAtoYD4EByVQJBaSwI3xcBfREqg2veru_w_1S9dhEFZ9OAliGPHKPleQUtu4i7CLU_yeEbLGi0-_2Nv6Zi6H47fUDH22e4INnDLfBtmCqcVrWzUIz7oMD4loEU0oLUElIhuguFwu0vpQojPqLgPalD-kNxMdG3HPNeqMw",
-  },
-  {
-    id: "f4",
-    name: "Handmade Ceramic Coffee Mugs (Set of 4)",
-    price: 34.5,
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuCOkxmt1DVJAyrPjtoD2w1oN3RtgzInTlhe_butszVRKPPri2MtPJvw0qvDqaideRjD7-UGamO_oOiOX3BK3KjcpIRct50xp1JcrJjwEVX9twLUtsXzp8i8LMcLEFXkOvfc8VYFDAuizIAcZejZcZeFmYY6G4FCbNM-5_OV_PrF0LtqHCv-a5ci24GLAm3CGILfBNj5KgtnBsO20znHatwew_DDeHgDkyHmLuwf3kghDHCug-lQZ_-PDg",
-  },
-];
 
 export default Home;

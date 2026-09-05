@@ -44,53 +44,6 @@ const getClaimedPercent = (id: string, customClaimed?: number): number => {
   return 60 + (Math.abs(hash) % 32); // Between 60% and 91%
 };
 
-const DEFAULT_FALLBACK_FLASH_DEALS: FlashDealProduct[] = [
-  {
-    id: "fd1",
-    name: "Wireless ANC Pro Noise-Canceling Headphones",
-    price: 350,
-    sale_price: 245,
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80",
-    category: "Audio",
-    department: "gadgets",
-    sellerName: "Trades Point Tech",
-    claimedPercent: 78,
-  },
-  {
-    id: "fd2",
-    name: "Oversized Streetwear Essential Hoodie",
-    price: 180,
-    sale_price: 125,
-    image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&q=80",
-    category: "Clothing",
-    department: "fashion",
-    sellerName: "Urban Style GH",
-    claimedPercent: 85,
-  },
-  {
-    id: "fd3",
-    name: "Ultra-Fast 65W GaN Dual-Port Fast Charger",
-    price: 95,
-    sale_price: 65,
-    image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&q=80",
-    category: "Gadgets",
-    department: "gadgets",
-    sellerName: "Prime Accessories",
-    claimedPercent: 92,
-  },
-  {
-    id: "fd4",
-    name: "Minimalist Modern Ceramic Plant Pot & Stand",
-    price: 110,
-    sale_price: 75,
-    image: "https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=600&q=80",
-    category: "Home Decor",
-    department: "home",
-    sellerName: "Modern Living",
-    claimedPercent: 64,
-  },
-];
-
 export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
   const { addToCart } = useCart();
   const { toast } = useToast();
@@ -185,7 +138,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
       });
     }
 
-    return DEFAULT_FALLBACK_FLASH_DEALS;
+    return [];
   }, [adminSettings.deals, products]);
 
   if (displayDeals.length === 0) {
