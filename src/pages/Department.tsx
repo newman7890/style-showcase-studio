@@ -195,9 +195,10 @@ const Department = () => {
       let loadedCats: Category[] = (catRes.data as Category[]) || [];
       const presets = PRESET_CATEGORIES_BY_DEPARTMENT[slug];
       if (presets) {
-        const existingSlugs = new Set(loadedCats.map((c) => c.slug));
+        const existingSlugs = new Set(loadedCats.map((c) => (c.slug || "").toLowerCase().trim()));
+        const existingNames = new Set(loadedCats.map((c) => (c.name || "").toLowerCase().trim()));
         const missingPresets: Category[] = presets
-          .filter((p) => !existingSlugs.has(p.slug))
+          .filter((p) => !existingSlugs.has(p.slug.toLowerCase().trim()) && !existingNames.has(p.name.toLowerCase().trim()))
           .map((p) => ({
             id: p.id,
             name: p.name,
@@ -206,6 +207,30 @@ const Department = () => {
           }));
         loadedCats = [...loadedCats, ...missingPresets];
       }
+
+      // Also dynamically include any distinct categories present on active products for this department
+      if (prodRes.data) {
+        const existingSlugs = new Set(loadedCats.map((c) => (c.slug || "").toLowerCase().trim()));
+        const existingNames = new Set(loadedCats.map((c) => (c.name || "").toLowerCase().trim()));
+        (prodRes.data as Product[]).forEach((p) => {
+          if (p.category) {
+            const rawName = p.category.trim();
+            const lowerName = rawName.toLowerCase();
+            const autoSlug = lowerName.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+            if (!existingNames.has(lowerName) && !existingSlugs.has(autoSlug)) {
+              existingNames.add(lowerName);
+              existingSlugs.add(autoSlug);
+              loadedCats.push({
+                id: `dynamic-${autoSlug}`,
+                name: rawName,
+                slug: autoSlug,
+                image: p.image || null,
+              });
+            }
+          }
+        });
+      }
+
       setCategories(loadedCats);
       setLoading(false);
     })();
@@ -227,14 +252,50 @@ const Department = () => {
   }, [products]);
 
   const filteredProducts = useMemo(() => {
+    const cleanText = (str: string) =>
+      (str || "")
+        .toLowerCase()
+        .replace(/[\p{Emoji}\p{Symbol}\p{Punctuation}]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const toSlug = (str: string) =>
+      cleanText(str).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+    const activeClean = cleanText(activeCategory);
+    const activeSlug = toSlug(activeCategory);
+
+    const targetCategoryObj = categories.find((c) => {
+      const cSlug = toSlug(c.slug || "");
+      const cName = cleanText(c.name || "");
+      const cId = toSlug(c.id || "");
+      return cSlug === activeSlug || cName === activeClean || cId === activeSlug;
+    });
+
+    const targetNameClean = targetCategoryObj ? cleanText(targetCategoryObj.name) : "";
+    const targetSlug = targetCategoryObj ? toSlug(targetCategoryObj.slug) : "";
+
     return products.filter((p) => {
-      const matchesCategory = activeCategory === "all" || p.category === activeCategory;
-      if (!matchesCategory) return false;
+      if (activeCategory !== "all") {
+        const pRaw = (p.category || "").trim().toLowerCase();
+        const pClean = cleanText(p.category || "");
+        const pSlug = toSlug(p.category || "");
+
+        const matchesCategory =
+          pRaw === activeCategory.toLowerCase().trim() ||
+          pClean === activeClean ||
+          pSlug === activeSlug ||
+          (targetNameClean && (pClean === targetNameClean || pClean.includes(targetNameClean) || targetNameClean.includes(pClean))) ||
+          (targetSlug && (pSlug === targetSlug || pSlug.includes(targetSlug) || targetSlug.includes(pSlug))) ||
+          (activeSlug && (pSlug.includes(activeSlug) || activeSlug.includes(pSlug)));
+
+        if (!matchesCategory) return false;
+      }
 
       const matchesSearch =
         searchQuery === "" ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchQuery.toLowerCase());
+        (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
       if (!matchesSearch) return false;
 
       const matchesPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
@@ -250,7 +311,7 @@ const Department = () => {
 
       return true;
     });
-  }, [products, activeCategory, searchQuery, priceRange, showInStock, showOnSale]);
+  }, [products, categories, activeCategory, searchQuery, priceRange, showInStock, showOnSale]);
 
   const activeFilters =
     (showInStock ? 1 : 0) +

@@ -100,6 +100,12 @@ export const PRESET_FASHION_CATEGORIES: CategoryItem[] = [
 ];
 
 export const PRESET_GADGETS_CATEGORIES: CategoryItem[] = [
+  // Laptops & Computers
+  { id: "laptops", name: "Laptops 💻", slug: "laptops", department: "gadgets", group: "Laptops & Computers" },
+  { id: "laptops-computers", name: "Laptops & Computers", slug: "laptops-computers", department: "gadgets", group: "Laptops & Computers" },
+  { id: "desktop-computers", name: "Desktops & All-in-Ones 🖥️", slug: "desktop-computers", department: "gadgets", group: "Laptops & Computers" },
+  { id: "monitors-displays", name: "Monitors & Displays 🖥️", slug: "monitors-displays", department: "gadgets", group: "Laptops & Computers" },
+
   // Smartphones & Tablets
   { id: "smartphones", name: "Smartphones 📱", slug: "smartphones", department: "gadgets", group: "Smartphones & Tablets" },
   { id: "tablets", name: "Tablets 📲", slug: "tablets", department: "gadgets", group: "Smartphones & Tablets" },

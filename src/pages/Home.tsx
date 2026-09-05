@@ -543,8 +543,10 @@ const Home = () => {
               {categories.slice(0, 4).map((cat, i) => {
                 const categoryImg =
                   cat.image ||
-                  DEFAULT_CATEGORY_IMAGES[cat.slug.toLowerCase()] ||
-                  featuredProducts.find((p) => p.category === cat.slug)?.image;
+                  featuredProducts.find((p) => {
+                    const pSlug = (p.category || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                    return p.category === cat.name || pSlug === cat.slug || pSlug.includes(cat.slug);
+                  })?.image;
 
                 return (
                   <motion.div
