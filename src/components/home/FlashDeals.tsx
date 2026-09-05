@@ -44,6 +44,53 @@ const getClaimedPercent = (id: string, customClaimed?: number): number => {
   return 60 + (Math.abs(hash) % 32); // Between 60% and 91%
 };
 
+const DEFAULT_FALLBACK_FLASH_DEALS: FlashDealProduct[] = [
+  {
+    id: "fd1",
+    name: "Wireless ANC Pro Noise-Canceling Headphones",
+    price: 350,
+    sale_price: 245,
+    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80",
+    category: "Audio",
+    department: "gadgets",
+    sellerName: "Trades Point Tech",
+    claimedPercent: 78,
+  },
+  {
+    id: "fd2",
+    name: "Oversized Streetwear Essential Hoodie",
+    price: 180,
+    sale_price: 125,
+    image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&q=80",
+    category: "Clothing",
+    department: "fashion",
+    sellerName: "Urban Style GH",
+    claimedPercent: 85,
+  },
+  {
+    id: "fd3",
+    name: "Ultra-Fast 65W GaN Dual-Port Fast Charger",
+    price: 95,
+    sale_price: 65,
+    image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&q=80",
+    category: "Gadgets",
+    department: "gadgets",
+    sellerName: "Prime Accessories",
+    claimedPercent: 92,
+  },
+  {
+    id: "fd4",
+    name: "Minimalist Modern Ceramic Plant Pot & Stand",
+    price: 110,
+    sale_price: 75,
+    image: "https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=600&q=80",
+    category: "Home Decor",
+    department: "home",
+    sellerName: "Modern Living",
+    claimedPercent: 64,
+  },
+];
+
 export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
   const { addToCart } = useCart();
   const { toast } = useToast();
@@ -94,31 +141,53 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
   const countdownTarget = adminSettings.endsAt;
   const { formattedHours, formattedMinutes, formattedSeconds } = useCountdown(countdownTarget, true);
 
-  // If disabled by admin, hide section
+  // If explicitly disabled by admin, hide section
   if (!adminSettings.enabled) {
     return null;
   }
 
-  // ONLY show deals explicitly linked by admin — no random Supabase merging
+  // Display Deals Hierarchy:
+  // 1. Explicit admin-configured deals
+  // 2. Store products with deal discounts
+  // 3. High quality default deals
   const displayDeals: FlashDealProduct[] = useMemo(() => {
-    if (!adminSettings.deals || adminSettings.deals.length === 0) {
-      return [];
+    if (adminSettings.deals && adminSettings.deals.length > 0) {
+      return adminSettings.deals.map((deal) => ({
+        id: deal.productId,
+        name: deal.productName,
+        image: deal.productImage || "/placeholder.svg",
+        price: Number(deal.originalPrice),
+        sale_price: Number(deal.flashPrice),
+        sellerName: deal.sellerName,
+        category: deal.category,
+        department: deal.department,
+        claimedPercent: deal.claimedPercent,
+      }));
     }
 
-    return adminSettings.deals.map((deal) => ({
-      id: deal.productId,
-      name: deal.productName,
-      image: deal.productImage || "/placeholder.svg",
-      price: Number(deal.originalPrice),
-      sale_price: Number(deal.flashPrice),
-      sellerName: deal.sellerName,
-      category: deal.category,
-      department: deal.department,
-      claimedPercent: deal.claimedPercent,
-    }));
-  }, [adminSettings.deals]);
+    if (products && products.length > 0) {
+      const discounted = products.filter((p) => p.sale_price && p.sale_price < p.price);
+      const pool = discounted.length > 0 ? discounted : products.slice(0, 6);
+      return pool.map((p) => {
+        const origPrice = Number(p.price || 100);
+        const flashPrice = Number(p.sale_price || Math.round(origPrice * 0.75));
+        return {
+          id: p.id,
+          name: p.name,
+          image: p.image || "/placeholder.svg",
+          price: origPrice,
+          sale_price: flashPrice,
+          sellerName: p.sellerName || "Trades Point Official",
+          category: p.category,
+          department: p.department,
+          claimedPercent: getClaimedPercent(p.id),
+        };
+      });
+    }
 
-  // If there are no flash deals to show, don't show an empty or random section
+    return DEFAULT_FALLBACK_FLASH_DEALS;
+  }, [adminSettings.deals, products]);
+
   if (displayDeals.length === 0) {
     return null;
   }
