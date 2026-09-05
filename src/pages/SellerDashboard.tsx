@@ -358,7 +358,7 @@ const SellerDashboard = () => {
         ...prev,
         name: aiResult.name || prev.name,
         category: aiResult.category || prev.category,
-        department: aiResult.department || prev.department || "fashion",
+        department: prev.department && prev.department !== "fashion" ? prev.department : (aiResult.department || prev.department || "fashion"),
         price: aiResult.price ? String(aiResult.price) : (prev.price || "150"),
         description: aiResult.description || "",
         sizes: aiResult.sizes || "",

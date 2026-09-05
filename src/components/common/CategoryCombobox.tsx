@@ -79,7 +79,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
               combined.push({
                 value: cat.name,
                 label: cat.name,
-                department: (cat.department || "fashion").toLowerCase(),
+                department: cat.department ? cat.department.toLowerCase() : undefined,
                 isDb: true,
               });
             }
@@ -106,7 +106,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
             combined.push({
               value: c.name,
               label: c.name,
-              department: (c.department || "fashion").toLowerCase(),
+              department: c.department ? c.department.toLowerCase() : undefined,
               isDb: true,
             });
           }
@@ -189,7 +189,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
       });
     });
 
-    // 3. Add Session Custom Categories typed by user
+    // 3. Add Session Custom Categories typed by user in current department
     sessionCustomCategories.forEach((customName) => {
       const norm = customName.toLowerCase().trim();
       if (norm && !seen.has(norm)) {
@@ -197,7 +197,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
         list.push({
           value: customName,
           label: customName,
-          department: department.toLowerCase(),
+          department: (department || "fashion").toLowerCase(),
           isCustom: true,
         });
       }
@@ -217,11 +217,11 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
     if (!q) {
       if (selectedDeptTab === "current") {
         targetPool = allKnownCategories.filter(
-          (c) => !c.department || c.department === currentDeptKey
+          (c) => !c.department || c.department.toLowerCase() === currentDeptKey
         );
       } else if (selectedDeptTab !== "all") {
         targetPool = allKnownCategories.filter(
-          (c) => c.department === selectedDeptTab.toLowerCase()
+          (c) => c.department && c.department.toLowerCase() === selectedDeptTab.toLowerCase()
         );
       }
       return {
@@ -240,7 +240,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
     const inOther: CategoryOption[] = [];
 
     matching.forEach((cat) => {
-      if (!cat.department || cat.department === currentDeptKey) {
+      if (!cat.department || cat.department.toLowerCase() === currentDeptKey) {
         inCurrent.push(cat);
       } else {
         inOther.push(cat);
@@ -262,15 +262,17 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
   }, [allKnownCategories, search]);
 
   // Handle selecting an existing category option
-  const handleSelect = (category: CategoryOption) => {
-    onChange(category.value.trim(), category.department);
+  const handleSelect = (category: CategoryOption, isCrossDepartment = false) => {
+    // Only pass department override if the user explicitly clicked an item under "In Other Departments"
+    const targetDept = isCrossDepartment ? category.department : undefined;
+    onChange(category.value.trim(), targetDept);
     setOpen(false);
     setSearch("");
     setIsCustomMode(false);
   };
 
-  // Save and apply a custom typed category
-  const saveCustomCategory = (name: string, customDept?: string) => {
+  // Save and apply a custom typed category (inherits the currently selected department)
+  const saveCustomCategory = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
@@ -286,7 +288,8 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
       return updated;
     });
 
-    onChange(trimmed, customDept || department);
+    // Custom category stays strictly in the user's currently selected department
+    onChange(trimmed, undefined);
     setOpen(false);
     setSearch("");
     setCustomInput("");
@@ -344,11 +347,12 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                   if (e.key === "Enter") {
                     e.preventDefault();
                     if (exactMatch) {
-                      handleSelect(exactMatch);
+                      const isCross = exactMatch.department && exactMatch.department.toLowerCase() !== (department || "fashion").toLowerCase();
+                      handleSelect(exactMatch, isCross);
                     } else if (search.trim() && allowCustom) {
                       handleApplyCustomFromSearch();
                     } else if (currentDeptMatches.length > 0) {
-                      handleSelect(currentDeptMatches[0]);
+                      handleSelect(currentDeptMatches[0], false);
                     }
                   }
                 }}
@@ -425,7 +429,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                   <div className="flex items-center gap-2 truncate">
                     <Sparkles className="w-4 h-4 text-primary shrink-0 group-hover:scale-110 transition-transform" />
                     <span className="truncate">
-                      Use custom: <strong className="font-semibold underline">"{search.trim()}"</strong>
+                      Use custom in {DEPT_LABELS[department.toLowerCase()] || department}: <strong className="font-semibold underline">"{search.trim()}"</strong>
                     </span>
                   </div>
                   <Badge variant="outline" className="text-[10px] bg-background shrink-0 border-primary/30">
@@ -453,9 +457,9 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                           const isSelected = value?.toLowerCase().trim() === cat.value.toLowerCase().trim();
                           return (
                             <button
-                              key={`${cat.department}-${cat.value}`}
+                              key={`${cat.department || department}-${cat.value}`}
                               type="button"
-                              onClick={() => handleSelect(cat)}
+                              onClick={() => handleSelect(cat, false)}
                               className={cn(
                                 "w-full text-left flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                                 isSelected && "bg-primary/10 text-primary font-medium"
@@ -497,7 +501,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                             <button
                               key={`${cat.department}-${cat.value}`}
                               type="button"
-                              onClick={() => handleSelect(cat)}
+                              onClick={() => handleSelect(cat, true)}
                               className={cn(
                                 "w-full text-left flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                                 isSelected && "bg-primary/10 text-primary font-medium"
@@ -535,7 +539,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                       className="w-full text-xs h-9 gap-1.5 bg-primary text-primary-foreground font-medium"
                     >
                       <Plus className="w-4 h-4" />
-                      Set "{search.trim()}" as Category
+                      Set "{search.trim()}" in {DEPT_LABELS[department.toLowerCase()] || department}
                     </Button>
                   )}
                 </div>
@@ -550,7 +554,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                     <div className="flex items-center gap-1.5">
                       <Input
                         type="text"
-                        placeholder="Type any custom category name..."
+                        placeholder={`Type custom category for ${DEPT_LABELS[department.toLowerCase()] || department}...`}
                         value={customInput}
                         onChange={(e) => setCustomInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -585,7 +589,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                       </Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground px-1">
-                      Custom categories are automatically saved and applied to your product.
+                      Custom categories are automatically saved under {DEPT_LABELS[department.toLowerCase()] || department}.
                     </p>
                   </div>
                 ) : (
