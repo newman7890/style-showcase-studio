@@ -41,11 +41,13 @@ export const getDefaultFlashEndTime = () => {
   return d.toISOString();
 };
 
+export const getDefaultEndTime = getDefaultFlashEndTime;
+
 export const DEFAULT_FLASH_DEALS_SETTINGS: FlashDealSettings = {
   enabled: true,
   title: "Lightning Flash Deals",
   subtitle: "Limited quantities at special discount prices",
-  endsAt: getDefaultEndTime(),
+  endsAt: getDefaultFlashEndTime(),
   deals: [],
 };
 
