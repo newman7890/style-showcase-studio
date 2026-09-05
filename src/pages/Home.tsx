@@ -8,6 +8,7 @@ import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
 import { Testimonials } from "@/components/home/Testimonials";
 import { ProductMarquee } from "@/components/home/ProductMarquee";
+import { FlashDeals } from "@/components/home/FlashDeals";
 import { getSpotlightSettings } from "@/components/admin/SpotlightManagement";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -450,6 +451,9 @@ const Home = () => {
           speed={spotlightSettings.speed}
           enabled={spotlightSettings.enabled}
         />
+
+        {/* ── Lightning Flash Deals with Live Countdown ── */}
+        <FlashDeals products={featuredProducts} />
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between px-4">
             <div className="flex items-center gap-2">

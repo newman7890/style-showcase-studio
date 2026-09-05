@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent, Building2, Megaphone, Bike, Mail, Clapperboard } from "lucide-react";
+import { LogOut, Package, ShoppingCart, Users, BarChart3, Tag, MessageSquare, Sparkles, LayoutGrid, Truck, Store, PackageCheck, Percent, Building2, Megaphone, Bike, Mail, Clapperboard, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
@@ -27,6 +27,7 @@ import { CustomerSupportChat } from "@/components/admin/CustomerSupportChat";
 import { RiderManagement } from "@/components/admin/RiderManagement";
 import { SubscribersManagement } from "@/components/admin/SubscribersManagement";
 import { SpotlightManagement } from "@/components/admin/SpotlightManagement";
+import { FlashDealsManagement } from "@/components/admin/FlashDealsManagement";
 
 const Admin = () => {
   const { user, isAdmin, isSeller, loading, signOut } = useAuth();
@@ -144,6 +145,10 @@ const Admin = () => {
                     <Clapperboard className="w-4 h-4" />
                     <span className="hidden sm:inline">Spotlight</span>
                   </TabsTrigger>
+                  <TabsTrigger value="flash-deals" className="flex items-center gap-2">
+                    <Zap className="w-4 h-4" />
+                    <span className="hidden sm:inline">Flash Deals</span>
+                  </TabsTrigger>
                   <TabsTrigger value="payouts" className="flex items-center gap-2">
                     <Percent className="w-4 h-4" />
                     <span className="hidden sm:inline">Seller Payouts</span>
@@ -211,6 +216,10 @@ const Admin = () => {
 
             <TabsContent value="spotlight">
               <SpotlightManagement />
+            </TabsContent>
+
+            <TabsContent value="flash-deals">
+              <FlashDealsManagement />
             </TabsContent>
 
             <TabsContent value="analytics">

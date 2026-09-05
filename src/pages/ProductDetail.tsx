@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Heart, ShoppingBag, 
-  Search, CheckCircle2
+  Search, CheckCircle2, Zap, Flame, Clock
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCart } from "@/hooks/useCart";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useCountdown } from "@/hooks/useCountdown";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ProductReviews } from "@/components/ProductReviews";
 import { Separator } from "@/components/ui/separator";
@@ -202,8 +203,21 @@ const ProductDetail = () => {
 
   const price = Number(product.price) || 0;
   const salePrice = product.sale_price != null ? Number(product.sale_price) : null;
-  const isOnSale = salePrice != null && product.sale_ends_at && new Date(product.sale_ends_at) > new Date();
+  const isOnSale = salePrice != null && salePrice < price && (product.sale_ends_at ? new Date(product.sale_ends_at) > new Date() : true);
   const displayPrice = isOnSale ? salePrice! : price;
+
+  const fallbackEndsAt = useMemo(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 6);
+    d.setMinutes(45);
+    return d.toISOString();
+  }, []);
+
+  const flashEndsTarget = (product?.sale_ends_at && new Date(product.sale_ends_at).getTime() > Date.now())
+    ? product.sale_ends_at
+    : fallbackEndsAt;
+
+  const { formattedHours, formattedMinutes, formattedSeconds } = useCountdown(isOnSale ? flashEndsTarget : null);
 
   const displayColor = hoveredColor || selectedColor;
   const activeColorIndex = colors.findIndex(c => c.name === displayColor);
@@ -334,6 +348,33 @@ const ProductDetail = () => {
               {product.name}
             </h1>
 
+            {/* Flash Deal Urgency Banner */}
+            {isOnSale && (
+              <div className="mb-5 p-3.5 rounded-2xl bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-orange-500/10 border border-rose-200/80 shadow-xs">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                  <span className="inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-lg bg-rose-600 text-white shadow-xs uppercase tracking-wide">
+                    <Zap className="w-3.5 h-3.5 fill-white" /> Limited Time Deal
+                  </span>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-700">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Ends in:</span>
+                    <span className="font-mono font-bold bg-rose-600 text-white px-2 py-0.5 rounded text-[11px]">
+                      {formattedHours}:{formattedMinutes}:{formattedSeconds}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-gray-700 font-medium pt-1 border-t border-rose-200/60">
+                  <span className="flex items-center gap-1 text-rose-600 font-bold">
+                    <Flame className="w-3.5 h-3.5 fill-rose-600" />
+                    84% Claimed — Order Soon!
+                  </span>
+                  <span className="text-gray-900 font-bold">
+                    Save GH₵{(price - displayPrice).toFixed(2)} ({Math.round(((price - displayPrice) / price) * 100)}%)
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Price Block */}
             <div className="flex items-center gap-4 mb-6">
               <span className="text-3xl font-bold text-black">
@@ -344,7 +385,7 @@ const ProductDetail = () => {
                   <span className="text-lg text-gray-400 line-through font-medium">
                     GH₵{price.toFixed(2)}
                   </span>
-                  <span className="text-xs font-bold text-white bg-black px-2 py-1 rounded">
+                  <span className="text-xs font-bold text-white bg-rose-600 px-2 py-1 rounded shadow-xs">
                     {Math.round(((price - displayPrice) / price) * 100)}% OFF
                   </span>
                 </>

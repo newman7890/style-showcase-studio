@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, ShoppingBag } from "lucide-react";
+import { Heart, ShoppingBag, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useFavorites } from "@/hooks/useFavorites";
 
@@ -23,7 +23,8 @@ export const ProductCard = ({ id, name, price, image, stock, sale_price, sale_en
     toggleFavorite(id);
   };
 
-  const isOnSale = sale_price != null && sale_ends_at && new Date(sale_ends_at) > new Date();
+  const isOnSale = sale_price != null && sale_price < price && (sale_ends_at ? new Date(sale_ends_at) > new Date() : true);
+  const discountPercent = isOnSale ? Math.round(((price - sale_price!) / price) * 100) : 0;
 
   return (
     <Link to={`/product/${id}`} className="block group">
@@ -42,8 +43,9 @@ export const ProductCard = ({ id, name, price, image, stock, sale_price, sale_en
           
           {/* Sale Badge */}
           {isOnSale && (
-            <div className="absolute top-3 left-3 px-2.5 py-1 bg-destructive text-destructive-foreground text-[10px] font-bold uppercase tracking-wider rounded-full">
-              Sale
+            <div className="absolute top-3 left-3 px-2 py-0.5 bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md flex items-center gap-0.5">
+              <Zap className="w-2.5 h-2.5 fill-white" />
+              -{discountPercent}%
             </div>
           )}
 
