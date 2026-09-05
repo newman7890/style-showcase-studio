@@ -161,7 +161,11 @@ export const FlashDealsManagement = () => {
   }, []);
 
   const updateSettings = (patch: Partial<FlashDealSettings>) => {
-    setSettings((prev) => ({ ...prev, ...patch }));
+    setSettings((prev) => {
+      const next = { ...prev, ...patch };
+      saveSettings(next);
+      return next;
+    });
     setHasChanges(true);
   };
 
@@ -172,12 +176,20 @@ export const FlashDealsManagement = () => {
     d.setMinutes(0);
     d.setSeconds(0);
     updateSettings({ endsAt: d.toISOString() });
+    toast({
+      title: `Timer set to +${hoursFromNow} Hours ⚡`,
+      description: "Countdown updated live on storefront.",
+    });
   };
 
   const setMidnightTonight = () => {
     const d = new Date();
     d.setHours(23, 59, 59, 999);
     updateSettings({ endsAt: d.toISOString() });
+    toast({
+      title: "Timer set to Tonight @ Midnight ⚡",
+      description: "Countdown updated live on storefront.",
+    });
   };
 
   const setTomorrowMidnight = () => {
@@ -185,6 +197,10 @@ export const FlashDealsManagement = () => {
     d.setDate(d.getDate() + 1);
     d.setHours(23, 59, 59, 999);
     updateSettings({ endsAt: d.toISOString() });
+    toast({
+      title: "Timer set to Tomorrow @ Midnight ⚡",
+      description: "Countdown updated live on storefront.",
+    });
   };
 
   // Unique categories for filter
@@ -228,7 +244,7 @@ export const FlashDealsManagement = () => {
   }, [allProducts, settings.deals, searchQuery, selectedSellerFilter, selectedCategoryFilter]);
 
   // Link a product to flash deals
-  const handleLinkProduct = (prod: ProductWithSeller) => {
+  const handleLinkProduct = async (prod: ProductWithSeller) => {
     const originalPrice = Number(prod.price) || 100;
     // Default 25% off flash sale price
     const flashPrice = Math.max(1, Math.round(originalPrice * 0.75 * 100) / 100);
@@ -247,25 +263,58 @@ export const FlashDealsManagement = () => {
       department: prod.department,
     };
 
+    const newDeals = [...settings.deals, newDeal];
     updateSettings({
-      deals: [...settings.deals, newDeal],
+      deals: newDeals,
     });
 
+    // Auto sync to Supabase in background
+    try {
+      await supabase
+        .from("products")
+        .update({
+          sale_price: flashPrice,
+          sale_ends_at: settings.endsAt,
+        })
+        .eq("id", prod.id);
+    } catch {
+      // ignore
+    }
+
     toast({
-      title: "Product Linked! ⚡",
-      description: `"${prod.name}" added to Flash Deals lineup.`,
+      title: "Linked & Live on Main Site! ⚡",
+      description: `"${prod.name}" is now live in Flash Deals at GH₵${flashPrice.toFixed(2)}.`,
     });
   };
 
   // Unlink deal
-  const handleUnlinkDeal = (productId: string) => {
+  const handleUnlinkDeal = async (productId: string) => {
+    const newDeals = settings.deals.filter((d) => d.productId !== productId);
     updateSettings({
-      deals: settings.deals.filter((d) => d.productId !== productId),
+      deals: newDeals,
+    });
+
+    // Clear sale_price in Supabase
+    try {
+      await supabase
+        .from("products")
+        .update({
+          sale_price: null,
+          sale_ends_at: null,
+        })
+        .eq("id", productId);
+    } catch {
+      // ignore
+    }
+
+    toast({
+      title: "Deal Removed",
+      description: "Product unlinked from Flash Deals.",
     });
   };
 
   // Update specific deal price or claimed %
-  const handleUpdateDeal = (index: number, patch: Partial<LinkedFlashDeal>) => {
+  const handleUpdateDeal = async (index: number, patch: Partial<LinkedFlashDeal>) => {
     const updated = [...settings.deals];
     const item = { ...updated[index], ...patch };
 
@@ -278,6 +327,20 @@ export const FlashDealsManagement = () => {
 
     updated[index] = item;
     updateSettings({ deals: updated });
+
+    if (patch.flashPrice !== undefined) {
+      try {
+        await supabase
+          .from("products")
+          .update({
+            sale_price: item.flashPrice,
+            sale_ends_at: settings.endsAt,
+          })
+          .eq("id", item.productId);
+      } catch {
+        // ignore
+      }
+    }
   };
 
   // Move deal position up / down
@@ -298,9 +361,8 @@ export const FlashDealsManagement = () => {
     const updated = [...settings.deals];
     const [removed] = updated.splice(dragIndex, 1);
     updated.splice(index, 0, removed);
-    setSettings((prev) => ({ ...prev, deals: updated }));
+    updateSettings({ deals: updated });
     setDragIndex(index);
-    setHasChanges(true);
   };
   const handleDragEnd = () => setDragIndex(null);
 

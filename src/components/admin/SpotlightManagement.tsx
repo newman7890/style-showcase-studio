@@ -117,9 +117,13 @@ export const SpotlightManagement = () => {
       .slice(0, 8);
   }, [searchQuery, allProducts, settings.pinnedProductIds]);
 
-  // Track changes
+  // Track changes & auto-save immediately
   const updateSettings = (patch: Partial<SpotlightSettings>) => {
-    setSettings((prev) => ({ ...prev, ...patch }));
+    setSettings((prev) => {
+      const next = { ...prev, ...patch };
+      saveSettings(next);
+      return next;
+    });
     setHasChanges(true);
   };
 
@@ -145,9 +149,8 @@ export const SpotlightManagement = () => {
     const newIds = [...settings.pinnedProductIds];
     const [removed] = newIds.splice(dragIndex, 1);
     newIds.splice(index, 0, removed);
-    setSettings((prev) => ({ ...prev, pinnedProductIds: newIds }));
+    updateSettings({ pinnedProductIds: newIds });
     setDragIndex(index);
-    setHasChanges(true);
   };
   const handleDragEnd = () => setDragIndex(null);
 
