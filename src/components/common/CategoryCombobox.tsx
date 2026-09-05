@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 export interface CategoryOption {
@@ -217,7 +218,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
     if (!q) {
       if (selectedDeptTab === "current") {
         targetPool = allKnownCategories.filter(
-          (c) => !c.department || c.department.toLowerCase() === currentDeptKey
+          (c) => !c.department || c.department === currentDeptKey
         );
       } else if (selectedDeptTab !== "all") {
         targetPool = allKnownCategories.filter(
@@ -240,7 +241,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
     const inOther: CategoryOption[] = [];
 
     matching.forEach((cat) => {
-      if (!cat.department || cat.department.toLowerCase() === currentDeptKey) {
+      if (!cat.department || cat.department === currentDeptKey) {
         inCurrent.push(cat);
       } else {
         inOther.push(cat);
@@ -332,10 +333,15 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[330px] sm:w-[420px] p-0 shadow-xl border-border/80" align="start">
-          <div className="flex flex-col max-h-[420px]">
+        <PopoverContent
+          className="w-[330px] sm:w-[420px] p-0 shadow-xl border-border/80 z-[100]"
+          align="start"
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          <div className="flex flex-col max-h-[400px]">
             {/* 1. Search Bar */}
-            <div className="flex items-center border-b px-3 py-2.5 gap-2 bg-muted/20">
+            <div className="flex items-center border-b px-3 py-2.5 gap-2 bg-muted/20 shrink-0">
               <Search className="w-4 h-4 text-muted-foreground shrink-0" />
               <input
                 ref={searchInputRef}
@@ -372,7 +378,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
 
             {/* 2. Department Quick Tabs (visible when not searching) */}
             {!search && (
-              <div className="flex items-center gap-1 px-2.5 py-1.5 border-b bg-muted/10 overflow-x-auto scrollbar-none text-[11px]">
+              <div className="flex items-center gap-1 px-2.5 py-1.5 border-b bg-muted/10 overflow-x-auto scrollbar-none text-[11px] shrink-0">
                 <button
                   type="button"
                   onClick={() => setSelectedDeptTab("current")}
@@ -420,7 +426,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
 
             {/* 3. Custom Category Quick Prompt from Search */}
             {search.trim() && !exactMatch && allowCustom && (
-              <div className="p-2 border-b bg-primary/5 hover:bg-primary/10 transition-colors">
+              <div className="p-2 border-b bg-primary/5 hover:bg-primary/10 transition-colors shrink-0">
                 <button
                   type="button"
                   onClick={handleApplyCustomFromSearch}
@@ -439,8 +445,8 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
               </div>
             )}
 
-            {/* 4. Category List */}
-            <div className="overflow-y-auto flex-1 p-1 divide-y divide-border/20">
+            {/* 4. Category List (Scrollable Area) */}
+            <ScrollArea className="h-[240px] flex-1 p-1">
               {hasMatches ? (
                 <div className="space-y-2">
                   {/* Current Department Matches */}
@@ -465,19 +471,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                                 isSelected && "bg-primary/10 text-primary font-medium"
                               )}
                             >
-                              <div className="flex items-center gap-2 truncate">
-                                <span className="truncate">{cat.label}</span>
-                                {cat.isDb && (
-                                  <span className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
-                                    Admin Added
-                                  </span>
-                                )}
-                                {cat.isCustom && (
-                                  <span className="text-[9px] uppercase font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
-                                    Custom
-                                  </span>
-                                )}
-                              </div>
+                              <span className="truncate">{cat.label}</span>
                               {isSelected && <Check className="w-4 h-4 text-primary shrink-0 ml-2" />}
                             </button>
                           );
@@ -512,11 +506,6 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                                 <Badge variant="secondary" className="text-[9px] uppercase font-medium px-1.5 py-0">
                                   {deptBadge}
                                 </Badge>
-                                {cat.isDb && (
-                                  <span className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
-                                    Admin
-                                  </span>
-                                )}
                               </div>
                               {isSelected && <Check className="w-4 h-4 text-primary shrink-0 ml-2" />}
                             </button>
@@ -544,11 +533,11 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
                   )}
                 </div>
               )}
-            </div>
+            </ScrollArea>
 
             {/* 5. Manual Custom Category Input Option */}
             {allowCustom && (
-              <div className="border-t p-2 bg-muted/10">
+              <div className="border-t p-2 bg-muted/10 shrink-0">
                 {isCustomMode ? (
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5">

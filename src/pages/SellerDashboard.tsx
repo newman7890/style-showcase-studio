@@ -358,8 +358,8 @@ const SellerDashboard = () => {
         ...prev,
         name: prev.name && prev.name.trim().length > 0 ? prev.name : (aiResult.name || prev.name),
         category: prev.category && prev.category.trim().length > 0 ? prev.category : (aiResult.category || prev.category),
-        department: prev.department && prev.department !== "fashion" ? prev.department : (aiResult.department || prev.department || "fashion"),
-        price: prev.price && parseFloat(prev.price) > 0 ? prev.price : (aiResult.price ? String(aiResult.price) : "150"),
+        department: prev.department || aiResult.department || "fashion",
+        price: prev.price && prev.price.trim().length > 0 ? prev.price : (aiResult.price ? String(aiResult.price) : "150"),
         description: aiResult.description || prev.description || "",
         sizes: prev.sizes && prev.sizes.trim().length > 0 ? prev.sizes : (aiResult.sizes || ""),
         features: aiResult.features || prev.features || "",
@@ -844,7 +844,7 @@ const SellerDashboard = () => {
                     <form onSubmit={submit} className="space-y-4">
                       <div>
                         <Label htmlFor="name">Name</Label>
-                        <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                        <Input id="name" value={form.name} onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, name: v })); }} />
                         {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
                       </div>
                       {/* Multiple Product Images Gallery */}
@@ -942,7 +942,7 @@ const SellerDashboard = () => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <Label htmlFor="price">Price (GH₵)</Label>
-                          <Input id="price" type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+                          <Input id="price" type="number" step="0.01" value={form.price} onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, price: v })); }} />
                           {errors.price && <p className="text-sm text-destructive">{errors.price}</p>}
                         </div>
                         <div>
@@ -952,7 +952,7 @@ const SellerDashboard = () => {
                             type="number"
                             disabled={colors.length > 0}
                             value={colors.length > 0 ? String(colors.reduce((s, c) => s + (Number(c.stock) || 0), 0)) : form.stock}
-                            onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                            onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, stock: v })); }}
                           />
                           {colors.length > 0 ? (
                             <p className="text-xs text-muted-foreground mt-1">Auto-calculated from your colour stock</p>
@@ -967,10 +967,10 @@ const SellerDashboard = () => {
                           <Select 
                             value={form.department || "fashion"} 
                             onValueChange={(v) => {
-                              setForm({ 
-                                ...form, 
+                              setForm((prev) => ({ 
+                                ...prev, 
                                 department: v,
-                              });
+                              }));
                             }}
                           >
                             <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
@@ -1023,7 +1023,7 @@ const SellerDashboard = () => {
                             Auto-fill details with AI
                           </Button>
                         </div>
-                        <Textarea id="description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                        <Textarea id="description" rows={3} value={form.description} onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, description: v })); }} />
                       </div>
                       
                       <div className="border-t pt-4">
@@ -1035,7 +1035,7 @@ const SellerDashboard = () => {
                           id="sizes" 
                           placeholder="S, M, L, XL" 
                           value={form.sizes} 
-                          onChange={(e) => setForm({ ...form, sizes: e.target.value })} 
+                          onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, sizes: v })); }} 
                         />
                       </div>
 
@@ -1043,15 +1043,15 @@ const SellerDashboard = () => {
                         <div>
                           <Label htmlFor="features">Key highlights (optional)</Label>
                           <p className="text-xs text-muted-foreground mt-1 mb-2">One per line — shown as bullet points under Details.</p>
-                          <Textarea id="features" rows={4} placeholder={"Oversized fit\nSoft & heavyweight fabric\nUnisex style"} value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} />
+                          <Textarea id="features" rows={4} placeholder={"Oversized fit\nSoft & heavyweight fabric\nUnisex style"} value={form.features} onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, features: v })); }} />
                         </div>
                         <div>
                           <Label htmlFor="materials_info">Materials & care (optional)</Label>
-                          <Textarea id="materials_info" rows={4} placeholder={"Composition: 100% cotton\nWeight: 450gsm\nMachine wash cold"} value={form.materials_info} onChange={(e) => setForm({ ...form, materials_info: e.target.value })} />
+                          <Textarea id="materials_info" rows={4} placeholder={"Composition: 100% cotton\nWeight: 450gsm\nMachine wash cold"} value={form.materials_info} onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, materials_info: v })); }} />
                         </div>
                         <div>
                           <Label htmlFor="size_fit_info">Size & fit (optional)</Label>
-                          <Textarea id="size_fit_info" rows={3} placeholder="Fit: true to size. Model is 185cm wearing Large." value={form.size_fit_info} onChange={(e) => setForm({ ...form, size_fit_info: e.target.value })} />
+                          <Textarea id="size_fit_info" rows={3} placeholder="Fit: true to size. Model is 185cm wearing Large." value={form.size_fit_info} onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, size_fit_info: v })); }} />
                         </div>
 
                       </div>
