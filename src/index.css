@@ -253,11 +253,54 @@ All colors MUST be HSL.
 }
 
 /* Fix marquee animation for RTL */
-[dir="rtl"] @keyframes marquee-rtl {
+@keyframes marquee-rtl {
   0% { transform: translateX(0); }
   100% { transform: translateX(50%); }
 }
 
 [dir="rtl"] .animate-marquee {
   animation: marquee-rtl 30s linear infinite;
+}
+
+/* Infinite Product Showcase Marquee */
+@keyframes product-marquee-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes product-marquee-scroll-reverse {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-product-marquee {
+  display: flex;
+  width: max-content;
+  animation: product-marquee-scroll 38s linear infinite;
+  will-change: transform;
+}
+
+.animate-product-marquee:hover,
+.pause-marquee-on-hover:hover .animate-product-marquee {
+  animation-play-state: paused !important;
+}
+
+.animate-product-marquee-reverse {
+  display: flex;
+  width: max-content;
+  animation: product-marquee-scroll-reverse 42s linear infinite;
+  will-change: transform;
+}
+
+.animate-product-marquee-reverse:hover,
+.pause-marquee-on-hover:hover .animate-product-marquee-reverse {
+  animation-play-state: paused !important;
 }

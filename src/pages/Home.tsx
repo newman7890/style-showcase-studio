@@ -2,11 +2,13 @@ import { SEO } from "@/components/SEO";
 import { NewsletterSubscribe } from "@/components/NewsletterSubscribe";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
 import { Testimonials } from "@/components/home/Testimonials";
+import { ProductMarquee } from "@/components/home/ProductMarquee";
+import { getSpotlightSettings } from "@/components/admin/SpotlightManagement";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -161,18 +163,49 @@ const Home = () => {
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  // ── Spotlight Marquee Settings ───────────────────────────────────────────
+  const [spotlightSettings, setSpotlightSettings] = useState(getSpotlightSettings);
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setSpotlightSettings(getSpotlightSettings());
+    };
+    window.addEventListener("spotlight-settings-changed", handleSettingsChange);
+    window.addEventListener("storage", handleSettingsChange);
+    return () => {
+      window.removeEventListener("spotlight-settings-changed", handleSettingsChange);
+      window.removeEventListener("storage", handleSettingsChange);
+    };
+  }, []);
+
   // ── Data fetching ─────────────────────────────────────────────────────────
   const { data: featuredProducts = [] } = useQuery<Product[]>({
     queryKey: ["featured-products-home"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price, image, category, sale_price, sale_ends_at")
-        .limit(4);
+        .select("id, name, price, image, category, department, sale_price, sale_ends_at, colors, status")
+        .order("created_at", { ascending: false })
+        .limit(36);
       if (error) throw error;
       return data || [];
     },
   });
+
+  const marqueeDisplayProducts = useMemo(() => {
+    if (!spotlightSettings.pinnedProductIds || spotlightSettings.pinnedProductIds.length === 0) {
+      return featuredProducts;
+    }
+    const pinned = spotlightSettings.pinnedProductIds
+      .map((id) => featuredProducts.find((p) => p.id === id))
+      .filter(Boolean) as Product[];
+
+    const remaining = featuredProducts.filter(
+      (p) => !spotlightSettings.pinnedProductIds.includes(p.id)
+    );
+
+    return [...pinned, ...remaining];
+  }, [featuredProducts, spotlightSettings.pinnedProductIds]);
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["homepage-categories"],
@@ -409,9 +442,14 @@ const Home = () => {
           </div>
         </section>
 
-
-
-        {/* Deal of the Day */}
+        {/* ── Infinite Live Product Showcase Marquee ── */}
+        <ProductMarquee
+          products={marqueeDisplayProducts}
+          title={spotlightSettings.title}
+          subtitle={spotlightSettings.subtitle}
+          speed={spotlightSettings.speed}
+          enabled={spotlightSettings.enabled}
+        />
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between px-4">
             <div className="flex items-center gap-2">
