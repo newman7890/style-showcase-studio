@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Package, Tag, Loader2, X, Smartphone, CreditCard, AlertTriangle, MapPin, CheckCircle2, Bookmark } from "lucide-react";
+import { Package, Tag, Loader2, X, Smartphone, CreditCard, AlertTriangle, MapPin, CheckCircle2, Bookmark, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -123,25 +123,30 @@ const Checkout = () => {
       town?: string;
     }> = [];
 
-    // 1. Load addresses from localStorage saved addresses
+    // 1. Load addresses from localStorage saved addresses, filtering out legacy invalid dummy addresses
     try {
       const stored = localStorage.getItem("tp_saved_addresses");
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
+          const cleanSaved: any[] = [];
           parsed.forEach((a: any) => {
+            const addr = (a?.address || "").toLowerCase();
+            if (!addr || addr.includes("paystack") || addr === "123 main street") return;
+            cleanSaved.push(a);
             options.push({
               id: a.id || String(Math.random()),
-              label: a.label || "Saved Address",
+              label: a.label || a.address || "Saved Address",
               name: user?.user_metadata?.full_name || "",
               email: user?.email || "",
               phone: a.phone || "",
               address: a.address || "",
-              city: a.city || "",
-              region: a.region || "",
+              city: a.city || "Accra",
+              region: a.region || "Greater Accra",
               town: a.town || "",
             });
           });
+          localStorage.setItem("tp_saved_addresses", JSON.stringify(cleanSaved));
         }
       }
     } catch {}
@@ -150,48 +155,65 @@ const Checkout = () => {
     if (user) {
       supabase
         .from("orders")
-        .select("shipping_name, shipping_email, shipping_phone, shipping_address, shipping_city, shipping_region")
+        .select("shipping_name, shipping_email, shipping_phone, shipping_address, shipping_city, shipping_region, shipping_town")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(1)
+        .limit(5)
         .then(({ data }) => {
-          if (data && data[0]) {
-            const pastOrder = data[0];
+          const validPastOrder = (data || []).find((o) => {
+            const addr = (o?.shipping_address || "").toLowerCase();
+            return addr && !addr.includes("paystack") && addr !== "123 main street";
+          });
+
+          if (validPastOrder) {
             const pastOption = {
               id: "past-order-last",
               label: "Recent Order Address",
-              name: pastOrder.shipping_name || "",
-              email: pastOrder.shipping_email || user.email || "",
-              phone: pastOrder.shipping_phone || "",
-              address: pastOrder.shipping_address || "",
-              city: pastOrder.shipping_city || "",
-              region: pastOrder.shipping_region || "",
+              name: validPastOrder.shipping_name || "",
+              email: validPastOrder.shipping_email || user.email || "",
+              phone: validPastOrder.shipping_phone || "",
+              address: validPastOrder.shipping_address || "",
+              city: validPastOrder.shipping_city || "Accra",
+              region: validPastOrder.shipping_region || "Greater Accra",
+              town: validPastOrder.shipping_town || "",
             };
 
             if (!options.some((o) => o.address.toLowerCase() === pastOption.address.toLowerCase())) {
               options.unshift(pastOption);
             }
 
-            // Auto-fill formData if currently empty
-            setFormData((prev) => ({
-              shipping_name: prev.shipping_name || pastOrder.shipping_name || user?.user_metadata?.full_name || "",
-              shipping_email: prev.shipping_email || pastOrder.shipping_email || user?.email || "",
-              shipping_phone: prev.shipping_phone || pastOrder.shipping_phone || "",
-              shipping_address: prev.shipping_address || pastOrder.shipping_address || (options[0]?.address || ""),
-              shipping_city: prev.shipping_city || pastOrder.shipping_city || (options[0]?.city || ""),
-              shipping_region: prev.shipping_region || pastOrder.shipping_region || (options[0]?.region || ""),
-              shipping_town: prev.shipping_town || "",
-            }));
+            // Auto-fill formData ONLY if currently empty or holding invalid legacy text
+            setFormData((prev) => {
+              const currentAddr = (prev.shipping_address || "").toLowerCase();
+              const isInvalidOrEmpty = !currentAddr || currentAddr.includes("paystack") || currentAddr === "123 main street";
+              if (!isInvalidOrEmpty) return prev;
+
+              return {
+                shipping_name: prev.shipping_name || validPastOrder.shipping_name || user?.user_metadata?.full_name || "",
+                shipping_email: prev.shipping_email || validPastOrder.shipping_email || user?.email || "",
+                shipping_phone: prev.shipping_phone || validPastOrder.shipping_phone || "",
+                shipping_address: validPastOrder.shipping_address,
+                shipping_city: validPastOrder.shipping_city || "Accra",
+                shipping_region: validPastOrder.shipping_region || "Greater Accra",
+                shipping_town: validPastOrder.shipping_town || "",
+              };
+            });
           } else if (options.length > 0) {
-            setFormData((prev) => ({
-              shipping_name: prev.shipping_name || user?.user_metadata?.full_name || "",
-              shipping_email: prev.shipping_email || user?.email || "",
-              shipping_phone: prev.shipping_phone || options[0].phone || "",
-              shipping_address: prev.shipping_address || options[0].address || "",
-              shipping_city: prev.shipping_city || options[0].city || "",
-              shipping_region: prev.shipping_region || options[0].region || "",
-              shipping_town: prev.shipping_town || options[0].town || "",
-            }));
+            setFormData((prev) => {
+              const currentAddr = (prev.shipping_address || "").toLowerCase();
+              const isInvalidOrEmpty = !currentAddr || currentAddr.includes("paystack") || currentAddr === "123 main street";
+              if (!isInvalidOrEmpty) return prev;
+
+              return {
+                shipping_name: prev.shipping_name || user?.user_metadata?.full_name || "",
+                shipping_email: prev.shipping_email || user?.email || "",
+                shipping_phone: prev.shipping_phone || options[0].phone || "",
+                shipping_address: options[0].address || "",
+                shipping_city: options[0].city || "Accra",
+                shipping_region: options[0].region || "Greater Accra",
+                shipping_town: options[0].town || "",
+              };
+            });
           } else if (user) {
             setFormData((prev) => ({
               ...prev,
@@ -204,12 +226,18 @@ const Checkout = () => {
     } else {
       setSavedAddresses(options);
       if (options.length > 0) {
-        setFormData((prev) => ({
-          ...prev,
-          shipping_address: prev.shipping_address || options[0].address || "",
-          shipping_city: prev.shipping_city || options[0].city || "",
-          shipping_region: prev.shipping_region || options[0].region || "",
-        }));
+        setFormData((prev) => {
+          const currentAddr = (prev.shipping_address || "").toLowerCase();
+          const isInvalidOrEmpty = !currentAddr || currentAddr.includes("paystack") || currentAddr === "123 main street";
+          if (!isInvalidOrEmpty) return prev;
+
+          return {
+            ...prev,
+            shipping_address: options[0].address || "",
+            shipping_city: options[0].city || "Accra",
+            shipping_region: options[0].region || "Greater Accra",
+          };
+        });
       }
     }
   }, [user]);
@@ -231,11 +259,28 @@ const Checkout = () => {
       shipping_email: addr.email || prev.shipping_email,
       shipping_phone: addr.phone || prev.shipping_phone,
       shipping_address: addr.address,
-      shipping_city: addr.city,
-      shipping_region: addr.region,
+      shipping_city: addr.city || "Accra",
+      shipping_region: addr.region || "Greater Accra",
       shipping_town: addr.town || "",
     }));
     toast.success(`Loaded address: ${addr.label}`);
+  };
+
+  const deleteSavedAddress = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSavedAddresses((prev) => prev.filter((a) => a.id !== id));
+    try {
+      const stored = localStorage.getItem("tp_saved_addresses");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const updated = parsed.filter((a: any) => a.id !== id && a.address !== id);
+          localStorage.setItem("tp_saved_addresses", JSON.stringify(updated));
+        }
+      }
+    } catch {}
+    toast.success("Saved address removed");
   };
 
   const availableTowns = useMemo(() => {
@@ -565,22 +610,25 @@ const Checkout = () => {
       toast.error("Please fill in all shipping fields"); return;
     }
 
-    // Auto-save address for future shopping trips
+    // Auto-save address for future shopping trips if valid
     try {
-      const stored = localStorage.getItem("tp_saved_addresses");
-      const existing = stored ? JSON.parse(stored) : [];
-      const newAddr = {
-        id: String(Date.now()),
-        label: formData.shipping_address,
-        phone: formData.shipping_phone,
-        address: formData.shipping_address,
-        city: formData.shipping_city,
-        region: formData.shipping_region,
-        town: formData.shipping_town,
-        isDefault: existing.length === 0,
-      };
-      if (!existing.some((e: any) => e.address?.toLowerCase() === formData.shipping_address.toLowerCase())) {
-        localStorage.setItem("tp_saved_addresses", JSON.stringify([newAddr, ...existing]));
+      const addrLower = (formData.shipping_address || "").trim().toLowerCase();
+      if (addrLower && !addrLower.includes("paystack") && addrLower !== "123 main street") {
+        const stored = localStorage.getItem("tp_saved_addresses");
+        const existing = stored ? JSON.parse(stored) : [];
+        const newAddr = {
+          id: String(Date.now()),
+          label: formData.shipping_address.trim(),
+          phone: formData.shipping_phone.trim(),
+          address: formData.shipping_address.trim(),
+          city: formData.shipping_city.trim(),
+          region: formData.shipping_region.trim(),
+          town: formData.shipping_town ? formData.shipping_town.trim() : "",
+          isDefault: existing.length === 0,
+        };
+        if (!existing.some((e: any) => e.address?.toLowerCase() === addrLower)) {
+          localStorage.setItem("tp_saved_addresses", JSON.stringify([newAddr, ...existing]));
+        }
       }
     } catch {}
 
@@ -772,11 +820,10 @@ const Checkout = () => {
                           formData.shipping_region === addr.region;
 
                         return (
-                          <button
+                          <div
                             key={addr.id}
-                            type="button"
                             onClick={() => selectSavedAddress(addr)}
-                            className={`p-3 rounded-lg border text-left transition-all relative ${
+                            className={`p-3 rounded-lg border text-left transition-all relative cursor-pointer group select-none ${
                               isSelected
                                 ? "border-primary bg-background shadow-xs ring-1 ring-primary"
                                 : "border-border/80 bg-background/80 hover:bg-background"
@@ -784,13 +831,24 @@ const Checkout = () => {
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-foreground truncate pr-2">{addr.label}</span>
-                              {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary" />}
+                                <button
+                                  type="button"
+                                  onClick={(e) => deleteSavedAddress(addr.id, e)}
+                                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                                  title="Delete saved address"
+                                  aria-label="Delete saved address"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
                             <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{addr.address}</p>
                             <p className="text-[10px] text-muted-foreground/80 font-medium">
                               {addr.city}, {addr.region}
                             </p>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>

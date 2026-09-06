@@ -195,10 +195,28 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Initializing payment, verified server amount: ${serverAmount}, orderId: ${preCreatedOrderId || "new_checkout"}`);
-
     const amountInPesewas = Math.round(serverAmount * 100);
     const channels = ["card", "mobile_money"];
+
+    const compactCheckoutDetails = authoritativeDetails ? {
+      shipping_name: authoritativeDetails.shipping_name,
+      shipping_email: authoritativeDetails.shipping_email,
+      shipping_phone: authoritativeDetails.shipping_phone,
+      shipping_address: authoritativeDetails.shipping_address,
+      shipping_city: authoritativeDetails.shipping_city,
+      shipping_region: authoritativeDetails.shipping_region,
+      shipping_town: authoritativeDetails.shipping_town || null,
+      delivery_fee: authoritativeDetails.delivery_fee || 0,
+      discount_code: authoritativeDetails.discount_code || null,
+      discount_amount: authoritativeDetails.discount_amount || 0,
+      items: (authoritativeDetails.items || []).map((i: any) => ({
+        product_id: i.product_id,
+        quantity: i.quantity,
+        price: i.price,
+        selected_color: typeof i.selected_color === "object" && i.selected_color?.name ? i.selected_color.name : (typeof i.selected_color === "string" ? i.selected_color : null),
+        selected_size: i.selected_size || null,
+      })),
+    } : null;
 
     const paystackPayload: Record<string, unknown> = {
       email,
@@ -209,10 +227,11 @@ const handler = async (req: Request): Promise<Response> => {
       channels,
       metadata: {
         order_id: preCreatedOrderId || null,
+        payment_reference: refCode,
         user_id: userId,
         payment_method: paymentMethod || "mobile_money",
         verified_amount_pesewas: amountInPesewas,
-        checkout_details: authoritativeDetails || null,
+        checkout_details: compactCheckoutDetails,
         custom_fields: [
           {
             display_name: "Customer Email",

@@ -31,18 +31,19 @@ const Address = () => {
   const [addresses, setAddresses] = useState<AddressType[]>(() => {
     try {
       const saved = localStorage.getItem("tp_saved_addresses");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const sanitized = parsed.filter((a: any) => {
+            const addr = (a?.address || "").toLowerCase();
+            return addr && !addr.includes("paystack") && addr !== "123 main street";
+          });
+          localStorage.setItem("tp_saved_addresses", JSON.stringify(sanitized));
+          return sanitized;
+        }
+      }
     } catch {}
-    return [
-      {
-        id: "1",
-        label: "Home",
-        address: "123 Main Street",
-        city: "Accra",
-        region: "Greater Accra",
-        isDefault: true,
-      },
-    ];
+    return [];
   });
 
   const updateAndSaveAddresses = (newAddresses: AddressType[]) => {

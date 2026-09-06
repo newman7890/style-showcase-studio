@@ -248,20 +248,27 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // 1. Look up existing order by payment_reference or order_id
+    const metaRef = metadata.payment_reference || null;
+    const trxRef = transaction.reference || null;
+    const refCandidates = Array.from(new Set([reference, trxRef, metaRef].filter(Boolean)));
+
     let dbOrder: any = null;
-    if (reference) {
+    for (const ref of refCandidates) {
       const { data: byRef } = await supabase
         .from("orders")
-        .select("id, total_amount, status, payment_status, user_id, shipping_email, tracking_code")
-        .eq("payment_reference", reference)
+        .select("id, total_amount, status, payment_status, user_id, shipping_email, tracking_code, shipping_name, shipping_phone, shipping_address, shipping_city, shipping_region, shipping_town")
+        .eq("payment_reference", ref)
         .maybeSingle();
-      if (byRef) dbOrder = byRef;
+      if (byRef) {
+        dbOrder = byRef;
+        break;
+      }
     }
 
     if (!dbOrder && orderId) {
       const { data: byId } = await supabase
         .from("orders")
-        .select("id, total_amount, status, payment_status, user_id, shipping_email, tracking_code")
+        .select("id, total_amount, status, payment_status, user_id, shipping_email, tracking_code, shipping_name, shipping_phone, shipping_address, shipping_city, shipping_region, shipping_town")
         .eq("id", orderId)
         .maybeSingle();
       if (byId) dbOrder = byId;
@@ -461,17 +468,47 @@ const handler = async (req: Request): Promise<Response> => {
       ? `${transaction.customer.first_name} ${transaction.customer.last_name || ""}`.trim() 
       : customerEmail;
 
+    let fallbackAddress = "Accra, Greater Accra";
+    let fallbackCity = "Accra";
+    let fallbackRegion = "Greater Accra";
+    let fallbackTown: string | null = null;
+    let fallbackPhone = transaction.customer?.phone || "N/A";
+    let fallbackName = customerName;
+
+    if (userId) {
+      const { data: pastOrders } = await supabase
+        .from("orders")
+        .select("shipping_name, shipping_phone, shipping_address, shipping_city, shipping_region, shipping_town")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      const authenticPastOrder = (pastOrders || []).find((o: any) => {
+        const addr = (o?.shipping_address || "").toLowerCase();
+        return addr && !addr.includes("paystack") && addr !== "123 main street";
+      });
+
+      if (authenticPastOrder) {
+        fallbackAddress = authenticPastOrder.shipping_address;
+        fallbackCity = authenticPastOrder.shipping_city || "Accra";
+        fallbackRegion = authenticPastOrder.shipping_region || "Greater Accra";
+        fallbackTown = authenticPastOrder.shipping_town || null;
+        if (authenticPastOrder.shipping_phone) fallbackPhone = authenticPastOrder.shipping_phone;
+        if (authenticPastOrder.shipping_name) fallbackName = authenticPastOrder.shipping_name;
+      }
+    }
+
     const insertPayload: Record<string, any> = {
       user_id: userId,
       tracking_code: trackingCode,
       total_amount: paidAmountGhs,
-      shipping_name: customerName,
+      shipping_name: fallbackName,
       shipping_email: customerEmail,
-      shipping_phone: transaction.customer?.phone || "N/A",
-      shipping_address: "Paystack Order",
-      shipping_city: "Accra",
-      shipping_region: "Greater Accra",
-      shipping_town: null,
+      shipping_phone: fallbackPhone,
+      shipping_address: fallbackAddress,
+      shipping_city: fallbackCity,
+      shipping_region: fallbackRegion,
+      shipping_town: fallbackTown,
       delivery_fee: 0,
       payment_method: metadata.payment_method || "mobile_money",
       payment_reference: reference,
