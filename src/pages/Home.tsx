@@ -409,9 +409,6 @@ const Home = () => {
                 <Link to="/products" className="bg-[#2d8a57] hover:bg-[#237046] text-white px-6 py-3 rounded-full font-semibold flex items-center gap-2 transition-colors text-sm">
                   Shop Now <ChevronRight className="w-4 h-4" />
                 </Link>
-                <Link to="/department/home?category=new" className="text-[#647187] hover:text-[#1c1c1c] font-medium flex items-center gap-1 transition-colors text-sm">
-                  New Arrivals <ChevronRight className="w-4 h-4" />
-                </Link>
               </div>
               
               <div className="flex items-center gap-8 mt-6 pt-6 border-t border-gray-200/60">
