@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
@@ -15,6 +15,7 @@ const PaymentCallback = () => {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [needsCartClear, setNeedsCartClear] = useState(false);
+  const cartClearedRef = useRef(false);
   const { clearCart } = useCart();
   const { user, loading: authLoading } = useAuth();
 
@@ -101,8 +102,10 @@ const PaymentCallback = () => {
 
   // Clear cart once auth is ready and we have a signed-in user.
   useEffect(() => {
-    if (!needsCartClear || authLoading) return;
-    clearCart().finally(() => setNeedsCartClear(false));
+    if (!needsCartClear || authLoading || cartClearedRef.current) return;
+    cartClearedRef.current = true;
+    setNeedsCartClear(false);
+    clearCart(false);
   }, [needsCartClear, authLoading, clearCart]);
 
   if (status === "loading") {

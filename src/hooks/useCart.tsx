@@ -41,7 +41,7 @@ interface CartContextType {
   ) => Promise<void>;
   updateQuantity: (cartItemId: string, quantity: number) => Promise<void>;
   removeFromCart: (cartItemId: string) => Promise<void>;
-  clearCart: () => Promise<void>;
+  clearCart: (showToast?: boolean) => Promise<void>;
   fetchCart: () => Promise<void>;
   total: number;
   originalTotal: number;
@@ -140,7 +140,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const addToCart = async (
+  const addToCart = useCallback(async (
     productId: string,
     quantity: number = 1,
     selectedColor: { name: string; hex: string; image: string | null } | null = null,
@@ -218,7 +218,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.error("Could not add item to cart. Please try again.");
       }
     }
-  };
+  }, [user, fetchCart]);
 
   /**
    * updateQuantity:
@@ -226,7 +226,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * React state updates immediately so numbers and totals change on tap.
    * Supabase network sync is debounced (350ms) to coalesce rapid clicks.
    */
-  const updateQuantity = async (cartItemId: string, quantity: number) => {
+  const updateQuantity = useCallback(async (cartItemId: string, quantity: number) => {
     if (quantity < 1) {
       await removeFromCart(cartItemId);
       return;
@@ -279,14 +279,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 350);
 
     debounceTimers.current.set(cartItemId, timer);
-  };
+  }, []);
 
   /**
    * removeFromCart:
    * Instantaneous Optimistic Removal.
    * Removes from state immediately (0ms) and persists to Supabase in background.
    */
-  const removeFromCart = async (cartItemId: string) => {
+  const removeFromCart = useCallback(async (cartItemId: string) => {
     // Cancel any pending debounced updates for this item
     if (debounceTimers.current.has(cartItemId)) {
       clearTimeout(debounceTimers.current.get(cartItemId)!);
@@ -312,13 +312,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCartItems(previousItems);
       toast.error("Failed to remove from cart");
     }
-  };
+  }, []);
 
   /**
    * clearCart:
    * Instantaneous Optimistic Cart Reset.
    */
-  const clearCart = async () => {
+  const clearCart = useCallback(async (showToast: boolean = false) => {
     if (!user) return;
 
     debounceTimers.current.forEach((timer) => clearTimeout(timer));
@@ -335,13 +335,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq("user_id", user.id);
 
       if (error) throw error;
-      toast.success("Cart cleared");
+      if (showToast) {
+        toast.success("Cart cleared");
+      }
     } catch (error) {
       console.error("Error clearing cart:", error);
       setCartItems(previousItems);
-      toast.error("Failed to clear cart");
+      if (showToast) {
+        toast.error("Failed to clear cart");
+      }
     }
-  };
+  }, [user]);
 
   const total = cartItems.reduce(
     (sum, item) => sum + getCartItemUnitPrice(item) * item.quantity,
