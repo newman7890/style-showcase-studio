@@ -37,12 +37,10 @@ export const ProductMarquee: React.FC<ProductMarqueeProps> = ({
   speed = 2,
   enabled = true,
 }) => {
-  // If disabled via admin, render nothing
-  if (!enabled) return null;
-
   // Map speed setting to animation duration (seconds)
   const speedDuration = speed === 1 ? 55 : speed === 3 ? 25 : 38;
 
+  // Unconditionally called hook
   const displayItems = useMemo(() => {
     const valid = (products || []).filter((p) => p && p.image);
     if (valid.length === 0) return [];
@@ -50,7 +48,8 @@ export const ProductMarquee: React.FC<ProductMarqueeProps> = ({
     return [...valid, ...valid, ...valid, ...valid];
   }, [products]);
 
-  if (displayItems.length === 0) return null;
+  // If disabled via admin or no valid items, render nothing
+  if (!enabled || displayItems.length === 0) return null;
 
   return (
     <section className="relative w-full py-6 overflow-hidden select-none">

@@ -94,15 +94,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
   const countdownTarget = adminSettings.endsAt;
   const { formattedHours, formattedMinutes, formattedSeconds } = useCountdown(countdownTarget, true);
 
-  // If explicitly disabled by admin, hide section
-  if (!adminSettings.enabled) {
-    return null;
-  }
-
-  // Display Deals Hierarchy:
-  // 1. Explicit admin-configured deals
-  // 2. Store products with deal discounts
-  // 3. High quality default deals
+  // Display Deals Hierarchy (Unconditionally called hook):
   const displayDeals: FlashDealProduct[] = useMemo(() => {
     if (adminSettings.deals && adminSettings.deals.length > 0) {
       return adminSettings.deals.map((deal) => ({
@@ -141,7 +133,8 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
     return [];
   }, [adminSettings.deals, products]);
 
-  if (displayDeals.length === 0) {
+  // If explicitly disabled by admin or no deals to show, hide section
+  if (!adminSettings.enabled || displayDeals.length === 0) {
     return null;
   }
 
