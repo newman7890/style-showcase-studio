@@ -167,7 +167,7 @@ const ProductDetail = () => {
 
   const price = Number(product?.price) || 0;
   const salePrice = product?.sale_price != null ? Number(product.sale_price) : null;
-  const isOnSale = salePrice != null && salePrice < price && (product?.sale_ends_at ? new Date(product.sale_ends_at) > new Date() : true);
+  const isOnSale = salePrice != null && salePrice > 0 && salePrice < price;
   const displayPrice = isOnSale && salePrice != null ? salePrice : price;
 
   const fallbackEndsAt = useMemo(() => {

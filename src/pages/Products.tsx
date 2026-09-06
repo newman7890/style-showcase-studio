@@ -147,7 +147,7 @@ const Products = () => {
     const matchesStock = !showInStock || p.stock > 0;
     const matchesSale =
       !showOnSale ||
-      (p.sale_price != null && p.sale_ends_at && new Date(p.sale_ends_at) > new Date());
+      (p.sale_price != null && Number(p.sale_price) > 0 && Number(p.sale_price) < Number(p.price));
     return matchesSearch && matchesPrice && matchesStock && matchesSale;
   });
 

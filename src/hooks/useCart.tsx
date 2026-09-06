@@ -26,8 +26,7 @@ export const getCartItemUnitPrice = (item: CartItem): number => {
   const isSaleActive =
     p.sale_price != null &&
     Number(p.sale_price) > 0 &&
-    Number(p.sale_price) < Number(p.price) &&
-    (!p.sale_ends_at || new Date(p.sale_ends_at).getTime() > Date.now());
+    Number(p.sale_price) < Number(p.price);
   return isSaleActive ? Number(p.sale_price) : Number(p.price);
 };
 

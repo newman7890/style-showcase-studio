@@ -644,6 +644,9 @@ const Checkout = () => {
           const popupConfig: Record<string, any> = {
             key: data.publicKey,
             email: email,
+            amount: Math.round(finalTotal * 100),
+            currency: "GHS",
+            channels: ["card", "mobile_money"],
             access_code: accessCode,
             callback: (response: any) => {
               const paidReference = response?.reference ?? data.reference;

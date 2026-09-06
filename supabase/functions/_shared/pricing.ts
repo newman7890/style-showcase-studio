@@ -76,8 +76,7 @@ export async function calculateAuthoritativeCheckoutTotal(
     const isSaleActive =
       prod.sale_price != null &&
       Number(prod.sale_price) > 0 &&
-      Number(prod.sale_price) < Number(prod.price) &&
-      (!prod.sale_ends_at || new Date(prod.sale_ends_at).getTime() > Date.now());
+      Number(prod.sale_price) < Number(prod.price);
 
     const unitPrice = isSaleActive ? Number(prod.sale_price) : Number(prod.price);
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
