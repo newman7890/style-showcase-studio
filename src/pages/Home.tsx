@@ -5,7 +5,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef, useMemo, useEffect } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { Header } from "@/components/Header";
-import { ProductCard } from "@/components/ProductCard";
 import { Testimonials } from "@/components/home/Testimonials";
 import { ProductMarquee } from "@/components/home/ProductMarquee";
 import { FlashDeals } from "@/components/home/FlashDeals";
@@ -508,36 +507,6 @@ const Home = () => {
                   </motion.div>
                 ))}
               </div>
-            </div>
-          </section>
-        )}
-
-        {/* Recommended For You (Only real database products) */}
-        {featuredProducts.length > 0 && (
-          <section className="flex flex-col gap-3 px-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground font-plus-jakarta">
-                Recommended for you
-              </h2>
-              <Link
-                to="/department/home"
-                className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
-              >
-                View all <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-              {featuredProducts.slice(0, 8).map((product, i) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <ProductCard {...product} />
-                </motion.div>
-              ))}
             </div>
           </section>
         )}
