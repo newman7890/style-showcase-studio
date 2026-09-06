@@ -149,7 +149,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const amountInPesewas = Math.round(serverAmount * 100);
     const channels = ["card", "mobile_money"];
-    const refCode = orderId ? `ORDER_${orderId}_${Date.now()}` : `PAY_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const uniqueSuffix = Math.random().toString(36).substring(2, 8) + Date.now().toString(36);
+    const refCode = orderId ? `ORDER_${orderId.replace(/-/g, "").substring(0, 8)}_${uniqueSuffix}` : `PAY_${Date.now()}_${uniqueSuffix}`;
 
     const paystackPayload: Record<string, unknown> = {
       email,

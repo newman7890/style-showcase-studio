@@ -630,16 +630,13 @@ const Checkout = () => {
 
       console.log("initialize-payment response data:", JSON.stringify(data));
 
-      // 1. Try inline popup — publicKey + reference is all we need
-      if (data?.publicKey && data?.reference && (window as any).PaystackPop) {
+      // 1. Try inline popup — use access_code so Paystack loads the pre-initialized server transaction without duplicating ref
+      const accessCode = data?.accessCode || data?.access_code;
+      if (accessCode && (window as any).PaystackPop && data?.publicKey) {
         try {
           const popupConfig: Record<string, any> = {
             key: data.publicKey,
-            email: formData.shipping_email,
-            amount: Math.round(finalTotal * 100),
-            currency: "GHS",
-            ref: data.reference,
-            channels: data.channels || ["card", "mobile_money"],
+            access_code: accessCode,
             callback: (response: any) => {
               const paidReference = response?.reference ?? data.reference;
               window.location.href = `${callbackUrl}?reference=${paidReference}`;
