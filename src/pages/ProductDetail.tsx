@@ -165,6 +165,24 @@ const ProductDetail = () => {
   ];
   const currentTab = tabs.includes(activeTab) ? activeTab : tabs[0];
 
+  const price = Number(product?.price) || 0;
+  const salePrice = product?.sale_price != null ? Number(product.sale_price) : null;
+  const isOnSale = salePrice != null && salePrice < price && (product?.sale_ends_at ? new Date(product.sale_ends_at) > new Date() : true);
+  const displayPrice = isOnSale && salePrice != null ? salePrice : price;
+
+  const fallbackEndsAt = useMemo(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 6);
+    d.setMinutes(45);
+    return d.toISOString();
+  }, []);
+
+  const flashEndsTarget = (product?.sale_ends_at && new Date(product.sale_ends_at).getTime() > Date.now())
+    ? product.sale_ends_at
+    : fallbackEndsAt;
+
+  const { formattedHours, formattedMinutes, formattedSeconds } = useCountdown(isOnSale ? flashEndsTarget : null);
+
   const handleAddToCart = () => {
     if (product) {
       if (sizes.length > 0 && !selectedSize) {
@@ -200,24 +218,6 @@ const ProductDetail = () => {
       </div>
     );
   }
-
-  const price = Number(product.price) || 0;
-  const salePrice = product.sale_price != null ? Number(product.sale_price) : null;
-  const isOnSale = salePrice != null && salePrice < price && (product.sale_ends_at ? new Date(product.sale_ends_at) > new Date() : true);
-  const displayPrice = isOnSale ? salePrice! : price;
-
-  const fallbackEndsAt = useMemo(() => {
-    const d = new Date();
-    d.setHours(d.getHours() + 6);
-    d.setMinutes(45);
-    return d.toISOString();
-  }, []);
-
-  const flashEndsTarget = (product?.sale_ends_at && new Date(product.sale_ends_at).getTime() > Date.now())
-    ? product.sale_ends_at
-    : fallbackEndsAt;
-
-  const { formattedHours, formattedMinutes, formattedSeconds } = useCountdown(isOnSale ? flashEndsTarget : null);
 
   const displayColor = hoveredColor || selectedColor;
   const activeColorIndex = colors.findIndex(c => c.name === displayColor);
