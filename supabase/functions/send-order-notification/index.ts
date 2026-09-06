@@ -197,29 +197,23 @@ const handler = async (req: Request): Promise<Response> => {
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f1f5f9; margin: 0; padding: 24px 12px;">
           <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.08); border: 1px solid #cbd5e1;">
             
-            <!-- Header with Official Trades Point Logo & Brand Emerald Colors -->
-            <div style="background: linear-gradient(135deg, #1c1c1c 0%, #0f172a 100%); padding: 32px 28px; color: #ffffff; border-bottom: 4px solid #329363;">
+            <!-- Header with Official Trades Point Logo & Brand Emerald Accents -->
+            <div style="background: #ffffff; padding: 32px 28px 24px 28px; border-top: 6px solid #10b981; border-bottom: 1px solid #e2e8f0;">
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td style="vertical-align: middle;">
-                    <table style="border-collapse: collapse; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);">
-                      <tr>
-                        <td style="padding: 8px 16px; background: #ffffff; border-radius: 12px;">
-                          <img src="https://tradespoint.store/logo.png" alt="Trades Point Logo" style="height: 46px; width: auto; display: block; border: 0;" />
-                        </td>
-                      </tr>
-                    </table>
+                    <img src="https://tradespoint.store/logo.png" alt="Trades Point Logo" style="height: 58px; width: auto; display: block; border: 0;" />
                   </td>
                   <td style="text-align: right; vertical-align: middle;">
-                    <div style="background: #329363; color: #ffffff; padding: 8px 16px; border-radius: 30px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: inline-block; box-shadow: 0 4px 10px rgba(50,147,99,0.3);">
+                    <div style="background: #10b981; color: #ffffff; padding: 8px 18px; border-radius: 30px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: inline-block; box-shadow: 0 4px 12px rgba(16,185,129,0.25);">
                       PAID IN FULL ✅
                     </div>
                   </td>
                 </tr>
               </table>
-              <div style="margin-top: 20px;">
-                <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">OFFICIAL PAYMENT RECEIPT</h2>
-                <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">Trades Point E-Commerce Store • Tax Invoice</p>
+              <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid #f1f5f9;">
+                <h2 style="margin: 0; font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: 0.5px;">OFFICIAL PAYMENT RECEIPT</h2>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #64748b; font-weight: 600;">Trades Point E-Commerce Store • Tax Invoice</p>
               </div>
             </div>
 
@@ -304,10 +298,10 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
 
             <!-- Footer with Customer Support & Brand Copyright -->
-            <div style="background: #1c1c1c; padding: 24px 28px; text-align: center; color: #94a3b8; font-size: 13px;">
-              <p style="margin: 0 0 6px 0; font-weight: 700; color: #ffffff;">Trades Point E-Commerce Store</p>
-              <p style="margin: 0 0 10px 0; color: #cbd5e1;">Shop More. Save More. Live Better.</p>
-              <p style="margin: 0; font-size: 12px;">Need assistance? Contact support at <a href="mailto:info@tradespoint.store" style="color: #34d399; font-weight: 700; text-decoration: none;">info@tradespoint.store</a> or visit <a href="https://tradespoint.store" style="color: #34d399; font-weight: 700; text-decoration: none;">tradespoint.store</a></p>
+            <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 24px 28px; text-align: center; color: #64748b; font-size: 13px;">
+              <p style="margin: 0 0 4px 0; font-weight: 800; color: #0f172a; font-size: 14px;">Trades Point E-Commerce Store</p>
+              <p style="margin: 0 0 10px 0; color: #64748b; font-size: 12px; font-weight: 500;">Shop More. Save More. Live Better.</p>
+              <p style="margin: 0; font-size: 12px; color: #64748b;">Need assistance? Contact support at <a href="mailto:info@tradespoint.store" style="color: #10b981; font-weight: 700; text-decoration: none;">info@tradespoint.store</a> or visit <a href="https://tradespoint.store" style="color: #10b981; font-weight: 700; text-decoration: none;">tradespoint.store</a></p>
             </div>
           </div>
         </body>
