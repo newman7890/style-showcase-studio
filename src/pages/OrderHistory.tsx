@@ -106,6 +106,7 @@ const OrderHistory = () => {
       } else if (data.accessCode && (window as any).PaystackPop && data.publicKey) {
         const handler = (window as any).PaystackPop.setup({
           key: data.publicKey,
+          email: (order.shipping_email || "").trim(),
           access_code: data.accessCode,
           callback: (response: any) => {
             const paidReference = response?.reference ?? data.reference;

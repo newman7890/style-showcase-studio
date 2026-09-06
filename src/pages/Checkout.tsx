@@ -584,6 +584,13 @@ const Checkout = () => {
       }
     } catch {}
 
+    const email = (formData.shipping_email || user?.email || "").trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      toast.error("Please enter a valid shipping email address");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const orderItems = cartItems.map((item) => ({
@@ -595,13 +602,13 @@ const Checkout = () => {
       }));
 
       const checkoutDetails = {
-        shipping_name: formData.shipping_name,
-        shipping_email: formData.shipping_email,
-        shipping_phone: formData.shipping_phone,
-        shipping_address: formData.shipping_address,
-        shipping_city: formData.shipping_city,
-        shipping_region: formData.shipping_region,
-        shipping_town: formData.shipping_town || null,
+        shipping_name: formData.shipping_name.trim(),
+        shipping_email: email,
+        shipping_phone: formData.shipping_phone.trim(),
+        shipping_address: formData.shipping_address.trim(),
+        shipping_city: formData.shipping_city.trim(),
+        shipping_region: formData.shipping_region.trim(),
+        shipping_town: formData.shipping_town ? formData.shipping_town.trim() : null,
         delivery_fee: deliveryFee,
         discount_code: appliedDiscount?.code || null,
         discount_amount: appliedDiscount?.amount || null,
@@ -612,7 +619,7 @@ const Checkout = () => {
       const callbackUrl = `${window.location.origin}/payment/callback`;
       const { data, error } = await supabase.functions.invoke("initialize-payment", {
         body: {
-          email: formData.shipping_email,
+          email,
           amount: finalTotal,
           paymentMethod,
           mobileNumber: momoNumber || formData.shipping_phone,
@@ -630,12 +637,13 @@ const Checkout = () => {
 
       console.log("initialize-payment response data:", JSON.stringify(data));
 
-      // 1. Try inline popup — use access_code so Paystack loads the pre-initialized server transaction without duplicating ref
+      // 1. Try inline popup — pass key, email, and access_code
       const accessCode = data?.accessCode || data?.access_code;
       if (accessCode && (window as any).PaystackPop && data?.publicKey) {
         try {
           const popupConfig: Record<string, any> = {
             key: data.publicKey,
+            email: email,
             access_code: accessCode,
             callback: (response: any) => {
               const paidReference = response?.reference ?? data.reference;
