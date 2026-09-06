@@ -78,6 +78,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     let serverAmount = amount;
     let authoritativeDetails = checkoutDetails;
+    let preCreatedOrderId: string | null = orderId || null;
+
+    const uniqueSuffix = Math.random().toString(36).substring(2, 8) + Date.now().toString(36);
+    const refCode = orderId ? `ORDER_${orderId.replace(/-/g, "").substring(0, 8)}_${uniqueSuffix}` : `PAY_${Date.now()}_${uniqueSuffix}`;
 
     // 1. If orderId is supplied, strictly verify against database order total and ownership
     if (orderId) {
@@ -117,7 +121,8 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      // CRITICAL: Always use database total_amount, overriding any client-supplied amount
+      // Update payment_reference on the existing order
+      await adminClient.from("orders").update({ payment_reference: refCode }).eq("id", orderId);
       serverAmount = Number(orderRow.total_amount);
     } else if (checkoutDetails && checkoutDetails.items && checkoutDetails.items.length > 0) {
       // 2. Direct checkout flow: compute server-authoritative item prices, delivery fees, and discount codes
@@ -130,6 +135,51 @@ const handler = async (req: Request): Promise<Response> => {
           discount_amount: pricing.discountAmount,
           items: pricing.items,
         };
+
+        // Pre-create pending order in orders table
+        const trackingCode = "TRK" + Math.random().toString(36).substring(2, 10).toUpperCase();
+        const insertPayload: Record<string, any> = {
+          user_id: userId,
+          tracking_code: trackingCode,
+          total_amount: serverAmount,
+          shipping_name: authoritativeDetails.shipping_name,
+          shipping_email: authoritativeDetails.shipping_email,
+          shipping_phone: authoritativeDetails.shipping_phone,
+          shipping_address: authoritativeDetails.shipping_address,
+          shipping_city: authoritativeDetails.shipping_city,
+          shipping_region: authoritativeDetails.shipping_region,
+          shipping_town: authoritativeDetails.shipping_town || null,
+          delivery_fee: authoritativeDetails.delivery_fee || 0,
+          discount_code: authoritativeDetails.discount_code || null,
+          discount_amount: authoritativeDetails.discount_amount || 0,
+          payment_method: paymentMethod || "mobile_money",
+          payment_reference: refCode,
+          status: "pending",
+          payment_status: "pending",
+        };
+
+        const { data: createdOrder, error: orderInsertErr } = await adminClient
+          .from("orders")
+          .insert(insertPayload)
+          .select()
+          .single();
+
+        if (!orderInsertErr && createdOrder) {
+          preCreatedOrderId = createdOrder.id;
+          if (authoritativeDetails.items.length > 0) {
+            const itemsPayload = authoritativeDetails.items.map((item: any) => ({
+              order_id: createdOrder.id,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              price: item.price,
+              selected_color: item.selected_color || null,
+              selected_size: item.selected_size || null,
+            }));
+            await adminClient.from("order_items").insert(itemsPayload);
+          }
+        } else {
+          console.warn("Could not pre-create pending order, will create upon verification:", orderInsertErr);
+        }
       } catch (priceErr: any) {
         return new Response(
           JSON.stringify({ error: priceErr?.message || "Failed to calculate authoritative order total." }),
@@ -145,12 +195,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Initializing payment, verified server amount: ${serverAmount}, orderId: ${orderId || "new_checkout"}`);
+    console.log(`Initializing payment, verified server amount: ${serverAmount}, orderId: ${preCreatedOrderId || "new_checkout"}`);
 
     const amountInPesewas = Math.round(serverAmount * 100);
     const channels = ["card", "mobile_money"];
-    const uniqueSuffix = Math.random().toString(36).substring(2, 8) + Date.now().toString(36);
-    const refCode = orderId ? `ORDER_${orderId.replace(/-/g, "").substring(0, 8)}_${uniqueSuffix}` : `PAY_${Date.now()}_${uniqueSuffix}`;
 
     const paystackPayload: Record<string, unknown> = {
       email,
@@ -160,9 +208,9 @@ const handler = async (req: Request): Promise<Response> => {
       callback_url: callbackUrl,
       channels,
       metadata: {
-        order_id: orderId || null,
+        order_id: preCreatedOrderId || null,
         user_id: userId,
-        payment_method: paymentMethod || "bank_card",
+        payment_method: paymentMethod || "mobile_money",
         verified_amount_pesewas: amountInPesewas,
         checkout_details: authoritativeDetails || null,
         custom_fields: [
