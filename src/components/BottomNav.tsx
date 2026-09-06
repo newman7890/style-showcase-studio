@@ -3,11 +3,13 @@ import { NavLink } from "@/components/NavLink";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export const BottomNav = () => {
   const { isAdmin } = useAuth();
   const { itemCount } = useCart();
+  const { unreadCount } = useNotifications();
   const { t } = useLanguage();
 
   const navItems = [
@@ -38,6 +40,11 @@ export const BottomNav = () => {
                   {path === "/cart" && itemCount > 0 && (
                     <span className="absolute -top-1.5 -right-2 bg-purple-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
                       {itemCount}
+                    </span>
+                  )}
+                  {path === "/profile" && unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 bg-emerald-600 text-white font-bold text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center shadow-sm animate-pulse">
+                      {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
                   {isActive && (

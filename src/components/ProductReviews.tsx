@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { createNotification } from "@/services/notificationService";
 
 interface Review {
   id: string;
@@ -97,6 +98,34 @@ export const ProductReviews = ({ productId }: ProductReviewsProps) => {
           .insert({ product_id: productId, user_id: user.id, rating, comment: comment.trim() || null });
         if (error) throw error;
         toast({ title: "Review submitted!" });
+
+        // Notify seller about the new review
+        try {
+          const { data: prodData } = await supabase
+            .from("products")
+            .select("name, seller_id")
+            .eq("id", productId)
+            .single();
+
+          if (prodData?.seller_id) {
+            const { data: sellerData } = await supabase
+              .from("seller_profiles")
+              .select("user_id")
+              .eq("id", prodData.seller_id)
+              .single();
+
+            if (sellerData?.user_id && sellerData.user_id !== user.id) {
+              createNotification({
+                userId: sellerData.user_id,
+                title: "New Product Review ⭐",
+                message: `Someone left a ${rating}-star review on "${prodData.name}".`,
+                type: "general",
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Could not notify seller:", e);
+        }
       }
       await fetchReviews();
     } catch (error: any) {

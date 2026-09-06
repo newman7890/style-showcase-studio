@@ -34,6 +34,7 @@ import {
   AlertCircle,
   Send,
 } from "lucide-react";
+import { createNotification } from "@/services/notificationService";
 
 interface AccessCode {
   id: string;
@@ -223,6 +224,18 @@ export const RiderManagement = () => {
         .eq("id", riderId);
       if (error) throw error;
 
+      const targetRider = riders.find((r) => r.id === riderId) || (selectedRider?.id === riderId ? selectedRider : null);
+      if (targetRider?.user_id) {
+        createNotification({
+          userId: targetRider.user_id,
+          title: nextStatus === "active" ? "Rider Account Activated 🚴" : "Rider Account Suspended ⚠️",
+          message: nextStatus === "active"
+            ? "Your rider dispatch account has been activated. You can now accept deliveries."
+            : "Your rider dispatch account has been suspended. Please contact admin for assistance.",
+          type: "general",
+        });
+      }
+
       toast({ title: `Rider ${nextStatus}`, description: `Rider status updated to ${nextStatus}.` });
       if (selectedRider && selectedRider.id === riderId) {
         setSelectedRider({ ...selectedRider, status: nextStatus });
@@ -255,6 +268,18 @@ export const RiderManagement = () => {
         .eq("id", selectedTicket.id);
 
       if (error) throw error;
+
+      // Find the rider's user_id from the ticket
+      const riderForTicket = riders.find((r) => r.id === selectedTicket.rider_id);
+      const recipientUserId = riderForTicket?.user_id || selectedTicket.rider_id;
+      if (recipientUserId) {
+        createNotification({
+          userId: recipientUserId,
+          title: "Support Ticket Updated 💬",
+          message: `Admin responded to your ticket: "${selectedTicket.subject}" (${updatingTicketStatus}).`,
+          type: "general",
+        });
+      }
 
       toast({
         title: "Ticket Updated! 🎟️",

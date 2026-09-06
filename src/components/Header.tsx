@@ -1,8 +1,9 @@
-import { Heart, ShoppingBag, ArrowLeft } from "lucide-react";
+import { Heart, ShoppingBag, ArrowLeft, Bell } from "lucide-react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useCart } from "@/hooks/useCart";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const DEPARTMENTS = [
@@ -16,6 +17,7 @@ const DEPARTMENTS = [
 export const Header = () => {
   const { favorites } = useFavorites();
   const { itemCount } = useCart();
+  const { unreadCount } = useNotifications();
   const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -59,12 +61,23 @@ export const Header = () => {
         )}
 
         <div className="flex items-center gap-3 shrink-0">
-          <Link to="/favorites" className="text-foreground">
+          <Link to="/favorites" className="text-foreground" aria-label="Favorites">
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative p-1">
               <Heart className="w-5 h-5" />
               {favorites.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-accent-foreground rounded-full text-[10px] font-bold flex items-center justify-center">
                   {favorites.length}
+                </span>
+              )}
+            </motion.button>
+          </Link>
+
+          <Link to="/profile/notifications" className="text-foreground" aria-label="Notifications">
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative p-1">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-emerald-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs animate-pulse">
+                  {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
             </motion.button>

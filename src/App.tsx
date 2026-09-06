@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import NetworkStatus from "@/components/NetworkStatus";
 import { SourceProtection } from "@/components/SourceProtection";
 import { AIChatbot } from "@/components/AIChatbot";
+import { RealtimeNotificationListener } from "@/components/RealtimeNotificationListener";
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import Department from "./pages/Department";
@@ -63,6 +64,7 @@ const App = () => (
                 <Sonner />
                 <BrowserRouter>
                   <NetworkStatus />
+                  <RealtimeNotificationListener />
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/products" element={<Navigate to="/department/home" replace />} />

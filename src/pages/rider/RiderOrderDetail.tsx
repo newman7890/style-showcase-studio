@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createNotification } from "@/services/notificationService";
 
 interface OrderItem {
   id: string;
@@ -22,6 +23,7 @@ interface OrderItem {
 
 interface Order {
   id: string;
+  user_id?: string | null;
   status: string;
   total_amount: number;
   currency: string;
@@ -125,6 +127,16 @@ const RiderOrderDetail = () => {
 
       if (error) throw error;
 
+      if (order.user_id) {
+        createNotification({
+          userId: order.user_id,
+          title: "Order Picked Up! 🚚",
+          message: `Your order #${order.id.slice(0, 8).toUpperCase()} has been picked up by the courier and is on its way to you.`,
+          type: "order_update",
+          orderId: order.id,
+        });
+      }
+
       toast({
         title: "Pickup Confirmed! 🚚",
         description: "Seller handover verified. The order is now Shipped / In Transit.",
@@ -156,6 +168,16 @@ const RiderOrderDetail = () => {
       });
 
       if (error) throw error;
+
+      if (order.user_id) {
+        createNotification({
+          userId: order.user_id,
+          title: "Order Delivered! 🎉",
+          message: `Your order #${order.id.slice(0, 8).toUpperCase()} has been successfully delivered. Thank you for shopping with us!`,
+          type: "order_update",
+          orderId: order.id,
+        });
+      }
 
       toast({
         title: "Order Delivered! 🎉",

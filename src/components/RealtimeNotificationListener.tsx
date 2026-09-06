@@ -1,20 +1,30 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Package, CreditCard, CheckCircle2, ShieldCheck, Bell, User, MapPin } from "lucide-react";
+import { 
+  Package, CreditCard, CheckCircle2, ShieldCheck, Bell, 
+  User, MapPin, Truck, Sparkles, Tag, Store, AlertCircle 
+} from "lucide-react";
+import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { playNotificationSound } from "@/utils/audio";
 
-export const RealtimeNotificationListener = () => {
+export const RealtimeNotificationListener: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const knownOrderStatuses = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (!user) return;
 
-    // Listen for new realtime notifications inserted for this user
-    const channel = supabase
+    // Request native notification permission unobtrusively if supported
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+
+    // 1. Channel for User Notifications Table
+    const notifChannel = supabase
       .channel(`user-realtime-notifications-${user.id}`)
       .on(
         "postgres_changes",
@@ -29,40 +39,47 @@ export const RealtimeNotificationListener = () => {
             id: string;
             title: string;
             message: string;
-            type: string;
+            type?: string;
             order_id?: string | null;
           };
 
           if (!newNotif) return;
 
-          // 1. Play chime audio sound
+          // 1. Sound & Vibration Chime
           playNotificationSound();
+          if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+            navigator.vibrate([100, 50, 100]);
+          }
 
-          // 2. Determine icon based on notification type
-          const getIcon = (type: string) => {
+          // 2. Determine Icon
+          const getIcon = (type?: string) => {
             switch (type) {
               case "order_update":
               case "order":
-                return <Package className="w-5 h-5 text-emerald-500 shrink-0" />;
+                return React.createElement(Package, { className: "w-5 h-5 text-emerald-500 shrink-0" });
               case "payment":
               case "payment_status":
-                return <CreditCard className="w-5 h-5 text-blue-500 shrink-0" />;
+                return React.createElement(CreditCard, { className: "w-5 h-5 text-blue-500 shrink-0" });
               case "profile_update":
               case "user":
-                return <User className="w-5 h-5 text-purple-500 shrink-0" />;
+                return React.createElement(User, { className: "w-5 h-5 text-purple-500 shrink-0" });
               case "address_update":
-                return <MapPin className="w-5 h-5 text-amber-500 shrink-0" />;
+                return React.createElement(MapPin, { className: "w-5 h-5 text-amber-500 shrink-0" });
               case "security":
-                return <ShieldCheck className="w-5 h-5 text-red-500 shrink-0" />;
+                return React.createElement(ShieldCheck, { className: "w-5 h-5 text-rose-500 shrink-0" });
               case "seller_status":
+                return React.createElement(Store, { className: "w-5 h-5 text-indigo-500 shrink-0" });
               case "product_status":
-                return <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />;
+                return React.createElement(CheckCircle2, { className: "w-5 h-5 text-emerald-400 shrink-0" });
+              case "promo":
+              case "promotion":
+                return React.createElement(Tag, { className: "w-5 h-5 text-pink-500 shrink-0" });
               default:
-                return <Bell className="w-5 h-5 text-primary shrink-0" />;
+                return React.createElement(Bell, { className: "w-5 h-5 text-primary shrink-0" });
             }
           };
 
-          // 3. Show rich toast notification
+          // 3. Rich Toast Notification
           toast(newNotif.title, {
             description: newNotif.message,
             icon: getIcon(newNotif.type),
@@ -70,16 +87,16 @@ export const RealtimeNotificationListener = () => {
               label: newNotif.order_id ? "View Order" : "View Inbox",
               onClick: () => {
                 if (newNotif.order_id) {
-                  navigate("/orders");
+                  navigate(`/order-confirmation/${newNotif.order_id}`);
                 } else {
                   navigate("/profile/notifications");
                 }
               },
             },
-            duration: 6000,
+            duration: 7000,
           });
 
-          // 4. Native Browser Push Notification (if permitted)
+          // 4. Native Browser Push Notification
           if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
             try {
               new Notification(newNotif.title, {
@@ -87,15 +104,155 @@ export const RealtimeNotificationListener = () => {
                 icon: "/favicon.ico",
               });
             } catch (e) {
-              console.warn("Could not trigger native browser notification:", e);
+              console.warn("Could not trigger browser notification:", e);
             }
           }
         }
       )
       .subscribe();
 
+    // 2. Channel for Realtime Order Status Updates for Customer
+    const ordersChannel = supabase
+      .channel(`user-realtime-orders-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const oldOrder = payload.old as { id: string; status?: string };
+          const newOrder = payload.new as {
+            id: string;
+            status: string;
+            tracking_code?: string | null;
+            shipping_name?: string;
+          };
+
+          if (!newOrder || !newOrder.status) return;
+
+          // Only notify if status actually changed
+          const prevStatus = oldOrder?.status || knownOrderStatuses.current.get(newOrder.id);
+          if (prevStatus === newOrder.status) return;
+          knownOrderStatuses.current.set(newOrder.id, newOrder.status);
+
+          const shortId = (newOrder.id || "").substring(0, 8).toUpperCase();
+          let title = "Order Status Update";
+          let message = `Order #${shortId} status changed to ${newOrder.status}.`;
+          let icon = React.createElement(Package, { className: "w-5 h-5 text-primary shrink-0" });
+
+          switch (newOrder.status.toLowerCase()) {
+            case "confirmed":
+              title = "Order Confirmed! 🎉";
+              message = `Your payment for order #${shortId} was confirmed and is now being processed.`;
+              icon = React.createElement(CheckCircle2, { className: "w-5 h-5 text-emerald-500 shrink-0" });
+              break;
+            case "processing":
+              title = "Order Processing 📦";
+              message = `We are packing your items for order #${shortId}.`;
+              icon = React.createElement(Package, { className: "w-5 h-5 text-blue-500 shrink-0" });
+              break;
+            case "shipped":
+            case "in_transit":
+              title = "Order In Transit 🚚";
+              message = `Order #${shortId} has been picked up by our courier and is moving to your area.`;
+              icon = React.createElement(Truck, { className: "w-5 h-5 text-amber-500 shrink-0" });
+              break;
+            case "out_for_delivery":
+              title = "Out For Delivery 🚴";
+              message = `Your rider is on the way to your delivery address with order #${shortId}!`;
+              icon = React.createElement(Truck, { className: "w-5 h-5 text-emerald-500 shrink-0" });
+              break;
+            case "delivered":
+              title = "Order Delivered! 🎊";
+              message = `Order #${shortId} was delivered successfully. Enjoy your purchase!`;
+              icon = React.createElement(CheckCircle2, { className: "w-5 h-5 text-emerald-600 shrink-0" });
+              break;
+            case "cancelled":
+              title = "Order Cancelled ⚠️";
+              message = `Order #${shortId} has been cancelled.`;
+              icon = React.createElement(AlertCircle, { className: "w-5 h-5 text-rose-500 shrink-0" });
+              break;
+          }
+
+          // Sound & vibration
+          playNotificationSound();
+          if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+            navigator.vibrate([100, 50, 100]);
+          }
+
+          toast(title, {
+            description: message,
+            icon,
+            action: {
+              label: newOrder.tracking_code ? "Track Live" : "View Order",
+              onClick: () => {
+                if (newOrder.tracking_code) {
+                  navigate(`/track?code=${newOrder.tracking_code}`);
+                } else {
+                  navigate(`/order-confirmation/${newOrder.id}`);
+                }
+              },
+            },
+            duration: 8000,
+          });
+
+          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            try {
+              new Notification(title, {
+                body: message,
+                icon: "/favicon.ico",
+              });
+            } catch (e) {}
+          }
+        }
+      )
+      .subscribe();
+
+    // 3. Channel for Seller Updates (if applicable)
+    const sellerChannel = supabase
+      .channel(`user-realtime-seller-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "seller_profiles",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as { status?: string; business_name?: string };
+          if (!updated?.status) return;
+
+          playNotificationSound();
+          if (updated.status === "approved") {
+            toast.success("Seller Account Approved! 🏪", {
+              description: `Congratulations! Your seller store "${updated.business_name || "Store"}" has been approved. You can now sell items!`,
+              action: {
+                label: "Seller Hub",
+                onClick: () => navigate("/seller"),
+              },
+              duration: 9000,
+            });
+          } else if (updated.status === "rejected") {
+            toast.error("Seller Application Update", {
+              description: "Your seller application was not approved. Check your dashboard for details.",
+              action: {
+                label: "View Status",
+                onClick: () => navigate("/sell"),
+              },
+            });
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(notifChannel);
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(sellerChannel);
     };
   }, [user, navigate]);
 

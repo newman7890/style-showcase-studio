@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { createNotification } from "@/services/notificationService";
 import { useToast } from "@/hooks/use-toast";
 
 const ChangePassword = () => {
@@ -70,6 +71,14 @@ const ChangePassword = () => {
 
       if (error) throw error;
 
+      if (sessionData.user?.id) {
+        createNotification({
+          userId: sessionData.user.id,
+          title: "Security Alert: Password Updated 🔐",
+          message: "Your account password was updated successfully. If this wasn't you, contact support immediately.",
+          type: "security",
+        });
+      }
 
       toast({
         title: "Success",

@@ -9,9 +9,11 @@ import {
   RefreshCw, Loader2, Clock, ChevronRight, LogOut, Bike,
   LayoutGrid, Bell, User, KeyRound, Truck
 } from "lucide-react";
+import { createNotification } from "@/services/notificationService";
 
 interface Order {
   id: string;
+  user_id?: string | null;
   status: string;
   total_amount: number;
   currency: string;
@@ -115,6 +117,18 @@ const RiderDashboard = () => {
     try {
       const { error } = await (supabase as any).rpc("claim_order_by_rider", { _order_id: orderId });
       if (error) throw error;
+
+      const claimedOrder = orders.find((o) => o.id === orderId);
+      if (claimedOrder?.user_id) {
+        createNotification({
+          userId: claimedOrder.user_id,
+          title: "Rider Assigned 🚴",
+          message: `A dispatch rider has claimed your order #${orderId.slice(0, 8).toUpperCase()} and is preparing for pickup.`,
+          type: "order_update",
+          orderId: orderId,
+        });
+      }
+
       toast({ title: "Delivery Order Claimed! 🚴" });
       fetchOrders();
     } catch (error: any) {
@@ -136,6 +150,18 @@ const RiderDashboard = () => {
         .update({ status: "delivered", updated_at: new Date().toISOString() })
         .eq("id", orderId);
       if (error) throw error;
+
+      const deliveredOrder = orders.find((o) => o.id === orderId);
+      if (deliveredOrder?.user_id) {
+        createNotification({
+          userId: deliveredOrder.user_id,
+          title: "Order Delivered! 🎉",
+          message: `Your order #${orderId.slice(0, 8).toUpperCase()} has been delivered successfully. Thank you!`,
+          type: "order_update",
+          orderId: orderId,
+        });
+      }
+
       toast({ title: "Order Delivered ✅" });
       fetchOrders();
     } catch (error: any) {

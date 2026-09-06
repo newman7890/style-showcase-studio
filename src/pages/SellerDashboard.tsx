@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PRESET_CATEGORIES_BY_DEPARTMENT } from "@/constants/categories";
 import { processAiBackgroundRemoval } from "@/utils/imageStudio";
 import { CategoryCombobox } from "@/components/common/CategoryCombobox";
+import { createNotification } from "@/services/notificationService";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Name required").max(100),
@@ -727,6 +728,12 @@ const SellerDashboard = () => {
       if (editing) {
         const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
         if (error) throw error;
+        createNotification({
+          userId: user.id,
+          title: "Product Updated 📝",
+          message: `Your changes to "${form.name}" have been submitted for admin review.`,
+          type: "product_status",
+        });
         toast({
           title: "Product updated",
           description: "Price/name/image changes submitted for review.",
@@ -736,6 +743,12 @@ const SellerDashboard = () => {
           .from("products")
           .insert({ ...payload, seller_id: user.id });
         if (error) throw error;
+        createNotification({
+          userId: user.id,
+          title: "Product Submitted for Review 📦",
+          message: `"${form.name}" was successfully submitted and is awaiting admin approval.`,
+          type: "product_status",
+        });
         toast({ title: "Product submitted", description: "Awaiting admin approval." });
       }
       localStorage.removeItem("seller_product_draft");

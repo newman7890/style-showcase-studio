@@ -16,6 +16,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { createNotification } from "@/services/notificationService";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,9 @@ export const ProductApprovalsManagement = () => {
   }, [filter]);
 
   const updateStatus = async (id: string, status: "approved" | "rejected" | "hidden", rej?: string) => {
+    // Find the product row so we can notify the seller
+    const product = rows.find((r) => r.id === id);
+
     const { error } = await supabase
       .from("products")
       .update({ status, rejection_reason: rej ?? null })
@@ -110,6 +114,41 @@ export const ProductApprovalsManagement = () => {
       return toast({ title: "Error", description: error.message, variant: "destructive" });
     }
     toast({ title: `Product status updated to ${status}` });
+
+    // Notify the seller about their product status change
+    if (product?.seller_id) {
+      // seller_id is the seller_profiles.id — we need the user_id
+      const { data: sellerProfile } = await supabase
+        .from("seller_profiles")
+        .select("user_id")
+        .eq("id", product.seller_id)
+        .single();
+
+      if (sellerProfile?.user_id) {
+        const productName = product.name || "Your product";
+        let title = "";
+        let message = "";
+        if (status === "approved") {
+          title = "Product Approved! ✅";
+          message = `"${productName}" has been approved and is now live in the store.`;
+        } else if (status === "rejected") {
+          title = "Product Rejected ❌";
+          message = `"${productName}" was not approved.${rej ? ` Reason: ${rej}` : " Please review and resubmit."}`;
+        } else if (status === "hidden") {
+          title = "Product Hidden 🔒";
+          message = `"${productName}" has been hidden from the store by an admin.`;
+        }
+        if (title) {
+          createNotification({
+            userId: sellerProfile.user_id,
+            title,
+            message,
+            type: "product_status",
+          });
+        }
+      }
+    }
+
     load();
   };
 

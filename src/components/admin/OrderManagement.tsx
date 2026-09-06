@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Eye, Package, Truck, CheckCircle, CheckCircle2, Clock, XCircle, Mail, ShieldCheck, KeyRound, Bike, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { createNotification } from "@/services/notificationService";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -182,6 +183,42 @@ export const OrderManagement = () => {
         .eq("id", orderId);
 
       if (error) throw error;
+
+      // Trigger realtime in-app notification for the customer
+      const targetOrder = orders.find((o) => o.id === orderId);
+      if (targetOrder?.user_id) {
+        const shortId = orderId.slice(0, 8).toUpperCase();
+        let notifTitle = "Order Status Update 📦";
+        let notifMsg = `Your order #${shortId} status was updated to ${status}.`;
+
+        if (status === "confirmed") {
+          notifTitle = "Order Confirmed! 🎉";
+          notifMsg = `Your payment for order #${shortId} has been confirmed.`;
+        } else if (status === "processing") {
+          notifTitle = "Order Processing 📦";
+          notifMsg = `We are packing your items for order #${shortId}.`;
+        } else if (status === "shipped") {
+          notifTitle = "Order Dispatched! 🚚";
+          notifMsg = `Your order #${shortId} has been dispatched for delivery.`;
+        } else if (status === "out_for_delivery") {
+          notifTitle = "Out For Delivery 🚴";
+          notifMsg = `Your rider is on the way with order #${shortId}!`;
+        } else if (status === "delivered") {
+          notifTitle = "Order Delivered! ✅";
+          notifMsg = `Your order #${shortId} has been delivered successfully.`;
+        } else if (status === "cancelled") {
+          notifTitle = "Order Cancelled ⚠️";
+          notifMsg = `Your order #${shortId} has been cancelled.`;
+        }
+
+        createNotification({
+          userId: targetOrder.user_id,
+          title: notifTitle,
+          message: notifMsg,
+          type: "order_update",
+          orderId: targetOrder.id,
+        });
+      }
       
       // Send email notification for certain status changes
       if (notifiableStatuses.includes(status)) {

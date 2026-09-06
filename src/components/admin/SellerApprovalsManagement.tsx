@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { createNotification } from "@/services/notificationService";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -173,12 +174,39 @@ export const SellerApprovalsManagement = () => {
     status: "approved" | "rejected" | "suspended",
     rejection?: string,
   ) => {
+    const seller = rows.find((r) => r.id === id);
+
     const { error } = await supabase
       .from("seller_profiles")
       .update({ status, rejection_reason: rejection ?? null })
       .eq("id", id);
     if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
     toast({ title: `Seller ${status}` });
+
+    // Notify the seller about their application status
+    if (seller?.user_id) {
+      const storeName = seller.business_name || "Your store";
+      let notifTitle = "";
+      let notifMessage = "";
+      if (status === "approved") {
+        notifTitle = "Seller Account Approved! 🎉";
+        notifMessage = `Congratulations! Your seller store "${storeName}" has been approved. You can now start listing products!`;
+      } else if (status === "rejected") {
+        notifTitle = "Seller Application Not Approved";
+        notifMessage = `Your seller application for "${storeName}" was not approved.${rejection ? ` Reason: ${rejection}` : ""}`;
+      } else if (status === "suspended") {
+        notifTitle = "Seller Account Suspended ⚠️";
+        notifMessage = `Your seller store "${storeName}" has been suspended.${rejection ? ` Reason: ${rejection}` : " Contact support for more information."}`;
+      }
+      if (notifTitle) {
+        createNotification({
+          userId: seller.user_id,
+          title: notifTitle,
+          message: notifMessage,
+          type: "seller_status",
+        });
+      }
+    }
 
     if (status === "approved") {
       syncSubaccount(id);
