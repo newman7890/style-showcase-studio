@@ -202,7 +202,7 @@ const handler = async (req: Request): Promise<Response> => {
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td style="vertical-align: middle;">
-                    <img src="https://tradespoint.store/logo.png" alt="Trades Point Logo" style="height: 58px; width: auto; display: block; border: 0;" />
+                    <img src="https://tradespoint.store/logo.png" alt="Trades Point Logo" style="height: 64px; max-height: 64px; width: auto; display: block; border: 0;" />
                   </td>
                   <td style="text-align: right; vertical-align: middle;">
                     <div style="background: #10b981; color: #ffffff; padding: 8px 18px; border-radius: 30px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: inline-block; box-shadow: 0 4px 12px rgba(16,185,129,0.25);">
