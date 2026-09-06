@@ -98,9 +98,11 @@ export const ProductMarquee: React.FC<ProductMarqueeProps> = ({
           {displayItems.map((product, index) => {
             const deptKey = (product.department || "other").toLowerCase();
             const deptInfo = DEPT_BADGES[deptKey] || DEPT_BADGES.other;
-            const hasDiscount = product.sale_price && product.sale_price < product.price;
-            const discountPercent = hasDiscount
-              ? Math.round(((product.price - (product.sale_price || product.price)) / product.price) * 100)
+            const origPrice = Number(product.price || 0);
+            const salePrice = product.sale_price != null ? Number(product.sale_price) : null;
+            const hasDiscount = salePrice != null && salePrice < origPrice;
+            const discountPercent = hasDiscount && origPrice > 0
+              ? Math.round(((origPrice - salePrice!) / origPrice) * 100)
               : null;
 
             return (
@@ -112,7 +114,7 @@ export const ProductMarquee: React.FC<ProductMarqueeProps> = ({
                 {/* Product Image Area */}
                 <div className="relative w-full h-36 sm:h-44 bg-secondary/30 overflow-hidden flex items-center justify-center">
                   <img
-                    src={product.image}
+                    src={product.image || "/placeholder.svg"}
                     alt={product.name}
                     loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
@@ -159,11 +161,11 @@ export const ProductMarquee: React.FC<ProductMarqueeProps> = ({
                   <div className="flex items-center justify-between pt-1 border-t border-border/40 mt-auto">
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-xs sm:text-sm font-bold text-foreground">
-                        GH₵{(hasDiscount ? product.sale_price! : product.price).toFixed(2)}
+                        GH₵{(hasDiscount ? salePrice! : origPrice).toFixed(2)}
                       </span>
                       {hasDiscount && (
                         <span className="text-[10px] text-muted-foreground line-through">
-                          GH₵{product.price.toFixed(2)}
+                          GH₵{origPrice.toFixed(2)}
                         </span>
                       )}
                     </div>

@@ -23,8 +23,10 @@ export const ProductCard = ({ id, name, price, image, stock, sale_price, sale_en
     toggleFavorite(id);
   };
 
-  const isOnSale = sale_price != null && sale_price < price && (sale_ends_at ? new Date(sale_ends_at) > new Date() : true);
-  const discountPercent = isOnSale ? Math.round(((price - sale_price!) / price) * 100) : 0;
+  const numPrice = Number(price || 0);
+  const numSalePrice = sale_price != null ? Number(sale_price) : null;
+  const isOnSale = numSalePrice != null && numSalePrice < numPrice && (sale_ends_at ? new Date(sale_ends_at) > new Date() : true);
+  const discountPercent = isOnSale && numPrice > 0 ? Math.round(((numPrice - numSalePrice!) / numPrice) * 100) : 0;
 
   return (
     <Link to={`/product/${id}`} className="block group">
@@ -35,7 +37,7 @@ export const ProductCard = ({ id, name, price, image, stock, sale_price, sale_en
         {/* Image Container */}
         <div className="relative aspect-[3/4] bg-secondary/50 rounded-2xl mb-4 overflow-hidden">
           <img
-            src={image}
+            src={image || "/placeholder.svg"}
             alt={name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
@@ -76,18 +78,18 @@ export const ProductCard = ({ id, name, price, image, stock, sale_price, sale_en
           <h3 className="text-sm font-medium text-foreground leading-tight line-clamp-1 group-hover:text-foreground/80 transition-colors">
             {name}
           </h3>
-          {isOnSale ? (
+          {isOnSale && numSalePrice != null ? (
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-destructive">
-                GH₵{sale_price!.toFixed(2)}
+                GH₵{numSalePrice.toFixed(2)}
               </span>
               <span className="text-xs text-muted-foreground line-through">
-                GH₵{price.toFixed(2)}
+                GH₵{numPrice.toFixed(2)}
               </span>
             </div>
           ) : (
             <p className="text-sm font-semibold text-foreground">
-              GH₵{price.toFixed(2)}
+              GH₵{numPrice.toFixed(2)}
             </p>
           )}
           {typeof stock === "number" && (

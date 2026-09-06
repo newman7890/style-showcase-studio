@@ -43,8 +43,16 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-foreground">Something went wrong</h2>
               <p className="text-sm text-muted-foreground">
-                We encountered an unexpected issue while loading this page. Please try refreshing.
+                We encountered an unexpected issue while loading this page:
               </p>
+              {this.state.error && (
+                <div className="text-left bg-destructive/10 text-destructive text-xs p-3 rounded-lg overflow-auto max-h-40 font-mono">
+                  <p className="font-bold">{this.state.error.name}: {this.state.error.message}</p>
+                  {this.state.error.stack && (
+                    <pre className="mt-1 text-[10px] opacity-80 whitespace-pre-wrap">{this.state.error.stack}</pre>
+                  )}
+                </div>
+              )}
             </div>
             <button
               onClick={this.handleReload}
