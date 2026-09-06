@@ -59,7 +59,7 @@ const getFunctionErrorMessage = async (error: any) => {
 const Checkout = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { cartItems, total, clearCart } = useCart();
+  const { cartItems, total, originalTotal, savingsTotal, getItemUnitPrice, clearCart } = useCart();
   const { createOrder } = useOrders();
   const [submitting, setSubmitting] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
@@ -589,7 +589,7 @@ const Checkout = () => {
       const orderItems = cartItems.map((item) => ({
         product_id: item.product_id,
         quantity: item.quantity,
-        price: item.products.price,
+        price: getItemUnitPrice(item),
         selected_color: (item as any).selected_color || null,
         selected_size: (item as any).selected_size || null,
       }));
@@ -954,30 +954,55 @@ const Checkout = () => {
                 </h2>
 
                 <div className="space-y-6">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="flex gap-4">
-                      <div className="w-20 h-24 bg-secondary rounded-lg overflow-hidden flex-shrink-0">
-                        <img src={item.products.image} alt={item.products.name} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start">
-                          <h3 className="font-semibold text-sm">{item.products.name}</h3>
-                          <span className="font-semibold text-sm ml-2 flex-shrink-0">
-                            GH₵{(item.products.price * item.quantity).toFixed(2)}
-                          </span>
+                  {cartItems.map((item) => {
+                    const unitPrice = getItemUnitPrice(item);
+                    const isDiscounted = unitPrice < (item.products?.price || 0);
+
+                    return (
+                      <div key={item.id} className="flex gap-4">
+                        <div className="w-20 h-24 bg-secondary rounded-lg overflow-hidden flex-shrink-0">
+                          <img src={item.products.image} alt={item.products.name} className="w-full h-full object-cover" />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">{item.products.category}</p>
-                        {!(item.selected_color as any)?.isGiftCard ? (
-                          <p className="text-xs text-muted-foreground mt-1">Quantity: {item.quantity}</p>
-                        ) : (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            <p>To: {(item.selected_color as any).recipientName} ({(item.selected_color as any).recipientEmail})</p>
-                            <span className="inline-block mt-1 px-2 py-0.5 bg-secondary rounded text-foreground font-medium">Digital Item</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-semibold text-sm">{item.products.name}</h3>
+                              {isDiscounted && (
+                                <span className="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 mt-0.5">
+                                  ⚡ Flash Deal
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-right ml-2 flex-shrink-0">
+                              {isDiscounted ? (
+                                <div>
+                                  <span className="text-[11px] text-muted-foreground line-through block">
+                                    GH₵{(item.products.price * item.quantity).toFixed(2)}
+                                  </span>
+                                  <span className="font-semibold text-sm text-rose-600 dark:text-rose-400">
+                                    GH₵{(unitPrice * item.quantity).toFixed(2)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="font-semibold text-sm">
+                                  GH₵{(unitPrice * item.quantity).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
+                          <p className="text-xs text-muted-foreground mt-1">{item.products.category}</p>
+                          {!(item.selected_color as any)?.isGiftCard ? (
+                            <p className="text-xs text-muted-foreground mt-1">Quantity: {item.quantity}</p>
+                          ) : (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              <p>To: {(item.selected_color as any).recipientName} ({(item.selected_color as any).recipientEmail})</p>
+                              <span className="inline-block mt-1 px-2 py-0.5 bg-secondary rounded text-foreground font-medium">Digital Item</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Promo Code */}
@@ -1011,6 +1036,25 @@ const Checkout = () => {
 
                 {/* Totals */}
                 <div className="mt-6 space-y-3 pt-4 border-t border-border">
+                  {savingsTotal > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Original Items Price</span>
+                      <span className="line-through text-muted-foreground">GH₵{originalTotal.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  {savingsTotal > 0 && (
+                    <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                      <span className="flex items-center gap-1">⚡ Promotional Savings</span>
+                      <span>-GH₵{savingsTotal.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>GH₵{total.toFixed(2)}</span>
+                  </div>
+
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
                       Delivery {formData.shipping_region ? `(${formData.shipping_region})` : ""}
@@ -1028,14 +1072,14 @@ const Checkout = () => {
                     </span>
                   </div>
                   {appliedDiscount && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Discount</span>
+                    <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                      <span>Coupon ({appliedDiscount.code})</span>
                       <span>-GH₵{appliedDiscount.amount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-lg font-semibold pt-3 border-t border-border">
                     <span>Total:</span>
-                    <span>GH₵{finalTotal.toFixed(2)}</span>
+                    <span className="text-primary font-bold">GH₵{finalTotal.toFixed(2)}</span>
                   </div>
                 </div>
               </div>

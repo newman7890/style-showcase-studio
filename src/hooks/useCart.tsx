@@ -13,10 +13,23 @@ export interface CartItem {
     id: string;
     name: string;
     price: number;
+    sale_price?: number | null;
+    sale_ends_at?: string | null;
     image: string;
     category: string;
   };
 }
+
+export const getCartItemUnitPrice = (item: CartItem): number => {
+  if (!item.products) return 0;
+  const p = item.products;
+  const isSaleActive =
+    p.sale_price != null &&
+    Number(p.sale_price) > 0 &&
+    Number(p.sale_price) < Number(p.price) &&
+    (!p.sale_ends_at || new Date(p.sale_ends_at).getTime() > Date.now());
+  return isSaleActive ? Number(p.sale_price) : Number(p.price);
+};
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -32,7 +45,10 @@ interface CartContextType {
   clearCart: () => Promise<void>;
   fetchCart: () => Promise<void>;
   total: number;
+  originalTotal: number;
+  savingsTotal: number;
   itemCount: number;
+  getItemUnitPrice: (item: CartItem) => number;
 }
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -72,6 +88,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id,
             name,
             price,
+            sale_price,
+            sale_ends_at,
             image,
             category
           )
@@ -90,6 +108,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id,
               name,
               price,
+              sale_price,
+              sale_ends_at,
               image,
               category
             )
@@ -325,9 +345,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const total = cartItems.reduce(
-    (sum, item) => sum + (item.products?.price || 0) * item.quantity,
+    (sum, item) => sum + getCartItemUnitPrice(item) * item.quantity,
     0
   );
+
+  const originalTotal = cartItems.reduce(
+    (sum, item) => sum + (Number(item.products?.price) || 0) * item.quantity,
+    0
+  );
+
+  const savingsTotal = Math.max(0, originalTotal - total);
 
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -340,7 +367,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearCart,
     fetchCart,
     total,
+    originalTotal,
+    savingsTotal,
     itemCount,
+    getItemUnitPrice: getCartItemUnitPrice,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

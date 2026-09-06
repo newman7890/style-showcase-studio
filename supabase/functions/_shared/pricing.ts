@@ -50,7 +50,7 @@ export async function calculateAuthoritativeCheckoutTotal(
 
   const { data: dbProducts, error: prodErr } = await supabase
     .from("products")
-    .select("id, price, stock, name")
+    .select("id, price, sale_price, sale_ends_at, stock, name")
     .in("id", productIds);
 
   if (prodErr || !dbProducts) {
@@ -73,7 +73,13 @@ export async function calculateAuthoritativeCheckoutTotal(
       throw new Error(`Product ${item.product_id} was not found in the active catalog`);
     }
 
-    const unitPrice = Number(prod.price);
+    const isSaleActive =
+      prod.sale_price != null &&
+      Number(prod.sale_price) > 0 &&
+      Number(prod.sale_price) < Number(prod.price) &&
+      (!prod.sale_ends_at || new Date(prod.sale_ends_at).getTime() > Date.now());
+
+    const unitPrice = isSaleActive ? Number(prod.sale_price) : Number(prod.price);
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
       throw new Error(`Invalid price for product ${prod.name}`);
     }
