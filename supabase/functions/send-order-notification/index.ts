@@ -202,7 +202,13 @@ const handler = async (req: Request): Promise<Response> => {
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td style="vertical-align: middle;">
-                    <img src="https://tradespoint.store/logo.png" alt="Trades Point Logo" style="height: 52px; width: auto; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
+                    <table style="border-collapse: collapse; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);">
+                      <tr>
+                        <td style="padding: 8px 16px; background: #ffffff; border-radius: 12px;">
+                          <img src="https://tradespoint.store/logo.png" alt="Trades Point Logo" style="height: 46px; width: auto; display: block; border: 0;" />
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                   <td style="text-align: right; vertical-align: middle;">
                     <div style="background: #329363; color: #ffffff; padding: 8px 16px; border-radius: 30px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: inline-block; box-shadow: 0 4px 10px rgba(50,147,99,0.3);">
@@ -211,9 +217,9 @@ const handler = async (req: Request): Promise<Response> => {
                   </td>
                 </tr>
               </table>
-              <div style="margin-top: 18px; pt-2 border-t border-slate-800;">
-                <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #ffffff;">OFFICIAL PAYMENT RECEIPT</h2>
-                <p style="margin: 3px 0 0 0; font-size: 13px; color: #94a3b8;">Trades Point E-Commerce Store • Tax Invoice</p>
+              <div style="margin-top: 20px;">
+                <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">OFFICIAL PAYMENT RECEIPT</h2>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">Trades Point E-Commerce Store • Tax Invoice</p>
               </div>
             </div>
 
@@ -344,6 +350,13 @@ const handler = async (req: Request): Promise<Response> => {
           
           <!-- Header Banner -->
           <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center; color: white;">
+            <table align="center" style="margin: 0 auto 16px auto; border-collapse: collapse; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.15);">
+              <tr>
+                <td style="padding: 6px 14px; background: #ffffff; border-radius: 12px;">
+                  <img src="https://tradespoint.store/logo.png" alt="Trades Point Logo" style="height: 38px; width: auto; display: block; margin: 0 auto; border: 0;" />
+                </td>
+              </tr>
+            </table>
             <h1 style="margin: 0; font-size: 24px; font-weight: 800;">${escapeHtml(statusInfo.heading)}</h1>
             <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.9;">Order #${shortOrderId}</p>
           </div>
