@@ -94,7 +94,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
   const countdownTarget = adminSettings.endsAt;
   const { formattedHours, formattedMinutes, formattedSeconds } = useCountdown(countdownTarget, true);
 
-  // Display Deals Hierarchy (Unconditionally called hook):
+  // Display Deals Hierarchy:
   const displayDeals: FlashDealProduct[] = useMemo(() => {
     if (adminSettings.deals && adminSettings.deals.length > 0) {
       return adminSettings.deals.map((deal) => ({
@@ -110,28 +110,9 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
       }));
     }
 
-    if (products && products.length > 0) {
-      const discounted = products.filter((p) => p.sale_price && p.sale_price < p.price);
-      const pool = discounted.length > 0 ? discounted : products.slice(0, 6);
-      return pool.map((p) => {
-        const origPrice = Number(p.price || 100);
-        const flashPrice = Number(p.sale_price || Math.round(origPrice * 0.75));
-        return {
-          id: p.id,
-          name: p.name,
-          image: p.image || "/placeholder.svg",
-          price: origPrice,
-          sale_price: flashPrice,
-          sellerName: p.sellerName || "Trades Point Official",
-          category: p.category,
-          department: p.department,
-          claimedPercent: getClaimedPercent(p.id),
-        };
-      });
-    }
-
+    // If admin has removed all products / no deals configured, do not fallback to arbitrary products
     return [];
-  }, [adminSettings.deals, products]);
+  }, [adminSettings.deals]);
 
   // If explicitly disabled by admin or no deals to show, hide section
   if (!adminSettings.enabled || displayDeals.length === 0) {
