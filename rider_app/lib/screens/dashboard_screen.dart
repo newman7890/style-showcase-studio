@@ -396,22 +396,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // Top row: name + status
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order['shipping_name'] ?? '',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '#$trackingCode',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 12, fontFamily: 'monospace'),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order['shipping_name'] ?? '',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '#$trackingCode',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 12, fontFamily: 'monospace'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -461,15 +470,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Icon(LucideIcons.clock, size: 14, color: Colors.white.withValues(alpha: 0.3)),
                 const SizedBox(width: 8),
-                Text(
-                  createdAt != null
-                      ? '${createdAt.day}/${createdAt.month}/${createdAt.year}'
-                      : 'N/A',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+                Expanded(
+                  child: Text(
+                    createdAt != null
+                        ? '${createdAt.day}/${createdAt.month}/${createdAt.year}'
+                        : 'N/A',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   '${order['currency'] ?? ''} ${(order['total_amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ],
             ),
