@@ -211,9 +211,10 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
           className="flex gap-4 overflow-x-auto pb-2 pt-1 hide-scrollbar snap-x snap-mandatory scroll-smooth"
         >
           {displayDeals.map((product) => {
-            const salePrice = product.sale_price || product.price * 0.8;
+            const salePrice = product.sale_price ? Number(product.sale_price) : null;
             const originalPrice = product.price;
-            const discountPercent = Math.max(1, Math.round(((originalPrice - salePrice) / originalPrice) * 100));
+            const hasDeal = salePrice != null && salePrice > 0 && salePrice < originalPrice;
+            const discountPercent = hasDeal ? Math.max(1, Math.round(((originalPrice - salePrice) / originalPrice) * 100)) : 0;
             const claimed = getClaimedPercent(product.id, product.claimedPercent);
 
             return (
@@ -232,12 +233,14 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
                     />
 
                     {/* Discount Badge */}
-                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1">
-                      <span className="text-xs font-black px-2 py-1 rounded-lg bg-rose-600 text-white shadow-md flex items-center gap-0.5">
-                        <Flame className="w-3 h-3 fill-white" />
-                        -{discountPercent}%
-                      </span>
-                    </div>
+                    {hasDeal && discountPercent > 0 && (
+                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1">
+                        <span className="text-xs font-black px-2 py-1 rounded-lg bg-rose-600 text-white shadow-md flex items-center gap-0.5">
+                          <Flame className="w-3 h-3 fill-white" />
+                          -{discountPercent}%
+                        </span>
+                      </div>
+                    )}
 
                     {/* Limited Deal Pill */}
                     <div className="absolute top-2.5 right-2.5">
@@ -274,11 +277,13 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ products = [] }) => {
                   {/* Pricing */}
                   <div className="flex items-baseline gap-2">
                     <span className="text-base sm:text-lg font-black text-rose-600 dark:text-rose-400">
-                      GH₵{salePrice.toFixed(2)}
+                      GH₵{hasDeal && salePrice != null ? salePrice.toFixed(2) : originalPrice.toFixed(2)}
                     </span>
-                    <span className="text-xs text-muted-foreground line-through">
-                      GH₵{originalPrice.toFixed(2)}
-                    </span>
+                    {hasDeal && (
+                      <span className="text-xs text-muted-foreground line-through">
+                        GH₵{originalPrice.toFixed(2)}
+                      </span>
+                    )}
                   </div>
 
                   {/* Claimed Progress Bar */}

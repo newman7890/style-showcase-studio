@@ -25,7 +25,8 @@ export const ProductCard = ({ id, name, price, image, stock, sale_price, sale_en
 
   const numPrice = Number(price || 0);
   const numSalePrice = sale_price != null ? Number(sale_price) : null;
-  const isOnSale = numSalePrice != null && numSalePrice > 0 && numSalePrice < numPrice;
+  const saleEndsAtValid = sale_ends_at && new Date(sale_ends_at).getTime() > Date.now();
+  const isOnSale = numSalePrice != null && numSalePrice > 0 && numSalePrice < numPrice && saleEndsAtValid;
   const discountPercent = isOnSale && numPrice > 0 ? Math.round(((numPrice - numSalePrice!) / numPrice) * 100) : 0;
 
   return (

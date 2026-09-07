@@ -167,19 +167,11 @@ const ProductDetail = () => {
 
   const price = Number(product?.price) || 0;
   const salePrice = product?.sale_price != null ? Number(product.sale_price) : null;
-  const isOnSale = salePrice != null && salePrice > 0 && salePrice < price;
+  const saleEndsAtValid = product?.sale_ends_at && new Date(product.sale_ends_at).getTime() > Date.now();
+  const isOnSale = salePrice != null && salePrice > 0 && salePrice < price && saleEndsAtValid;
   const displayPrice = isOnSale && salePrice != null ? salePrice : price;
 
-  const fallbackEndsAt = useMemo(() => {
-    const d = new Date();
-    d.setHours(d.getHours() + 6);
-    d.setMinutes(45);
-    return d.toISOString();
-  }, []);
-
-  const flashEndsTarget = (product?.sale_ends_at && new Date(product.sale_ends_at).getTime() > Date.now())
-    ? product.sale_ends_at
-    : fallbackEndsAt;
+  const flashEndsTarget = saleEndsAtValid ? product.sale_ends_at! : null;
 
   const { formattedHours, formattedMinutes, formattedSeconds } = useCountdown(isOnSale ? flashEndsTarget : null);
 
