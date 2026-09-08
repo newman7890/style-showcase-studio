@@ -23,10 +23,14 @@ export interface CartItem {
 export const getCartItemUnitPrice = (item: CartItem): number => {
   if (!item.products) return 0;
   const p = item.products;
+  const isSaleExpired = Boolean(
+    p.sale_ends_at && new Date(p.sale_ends_at).getTime() <= Date.now()
+  );
   const isSaleActive =
     p.sale_price != null &&
     Number(p.sale_price) > 0 &&
-    Number(p.sale_price) < Number(p.price);
+    Number(p.sale_price) < Number(p.price) &&
+    !isSaleExpired;
   return isSaleActive ? Number(p.sale_price) : Number(p.price);
 };
 

@@ -10,6 +10,7 @@ interface MarqueeProduct {
   category?: string;
   department?: string | null;
   sale_price?: number | null;
+  sale_ends_at?: string | null;
   colors?: any[] | null;
   status?: string;
 }
@@ -99,7 +100,10 @@ export const ProductMarquee: React.FC<ProductMarqueeProps> = ({
             const deptInfo = DEPT_BADGES[deptKey] || DEPT_BADGES.other;
             const origPrice = Number(product.price || 0);
             const salePrice = product.sale_price != null ? Number(product.sale_price) : null;
-            const hasDiscount = salePrice != null && salePrice < origPrice;
+            const isSaleExpired = Boolean(
+              product.sale_ends_at && new Date(product.sale_ends_at).getTime() <= Date.now()
+            );
+            const hasDiscount = salePrice != null && salePrice > 0 && salePrice < origPrice && !isSaleExpired;
             const discountPercent = hasDiscount && origPrice > 0
               ? Math.round(((origPrice - salePrice!) / origPrice) * 100)
               : null;
