@@ -277,7 +277,13 @@ const ProductDetail = () => {
               {productImages.map((img, index) => (
                 <button
                   key={index}
-                  onClick={() => setCurrentImageIndex(index)}
+                  onClick={() => {
+                    setCurrentImageIndex(index);
+                    const matchedColor = colors.find((c) => c.image === img);
+                    if (matchedColor) {
+                      setSelectedColor(matchedColor.name);
+                    }
+                  }}
                   className={`flex-shrink-0 aspect-[4/5] rounded-xl overflow-hidden border-2 transition-all duration-200 ${
                     index === currentImageIndex
                       ? "border-black"

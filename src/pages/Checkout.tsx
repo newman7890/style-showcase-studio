@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useCart } from "@/hooks/useCart";
+import { useCart, getCartItemImage } from "@/hooks/useCart";
 import { useOrders } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
@@ -1027,7 +1027,7 @@ const Checkout = () => {
                     return (
                       <div key={item.id} className="flex gap-4">
                         <div className="w-20 h-24 bg-secondary rounded-lg overflow-hidden flex-shrink-0">
-                          <img src={item.products.image} alt={item.products.name} className="w-full h-full object-cover" />
+                          <img src={getCartItemImage(item)} alt={item.products.name} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start">
@@ -1057,6 +1057,18 @@ const Checkout = () => {
                             </div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">{item.products.category}</p>
+                          {item.selected_color && !(item.selected_color as any).isGiftCard && (
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span
+                                className="w-3.5 h-3.5 rounded-full border border-gray-300 inline-block shrink-0"
+                                style={{ backgroundColor: (item.selected_color as any).hex || '#ccc' }}
+                              />
+                              <span className="text-xs text-muted-foreground">{(item.selected_color as any).name}</span>
+                            </div>
+                          )}
+                          {item.selected_size && (
+                            <p className="text-xs text-muted-foreground mt-0.5">Size: {item.selected_size}</p>
+                          )}
                           {!(item.selected_color as any)?.isGiftCard ? (
                             <p className="text-xs text-muted-foreground mt-1">Quantity: {item.quantity}</p>
                           ) : (

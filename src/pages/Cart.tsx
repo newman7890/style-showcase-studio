@@ -79,13 +79,6 @@ const Cart = () => {
             {/* Left: Cart Items */}
             <div className="lg:col-span-2">
               {/* Header row - desktop */}
-              <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_auto] gap-4 pb-4 border-b border-border text-sm text-muted-foreground uppercase tracking-wider">
-                <span>Product</span>
-                <span className="text-center">Quantity</span>
-                <span className="text-right">Price</span>
-                <span className="w-8" />
-              </div>
-
               <div className="divide-y divide-border">
                 {cartItems.map((item, index) => {
                   const unitPrice = getItemUnitPrice(item);
@@ -104,7 +97,7 @@ const Cart = () => {
                         <Link to={`/product/${item.product_id}`} className="flex gap-5 items-center group">
                           <div className="w-24 h-28 bg-secondary rounded-lg overflow-hidden flex-shrink-0">
                             <img
-                              src={item.products.image}
+                              src={getCartItemImage(item)}
                               alt={item.products.name}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
@@ -140,53 +133,53 @@ const Cart = () => {
                           </div>
                         </Link>
 
-                        <div className="flex items-center justify-center gap-3">
+                        {/* Quantity controls */}
+                        <div className="flex items-center justify-center">
                           {!(item.selected_color as any)?.isGiftCard ? (
-                            <>
+                            <div className="flex items-center gap-1 bg-secondary rounded-full p-1">
                               <button
-                                type="button"
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-background transition-colors"
                                 aria-label="Decrease quantity"
                               >
-                                <Minus className="w-3 h-3 pointer-events-none" />
+                                <Minus className="w-3.5 h-3.5" />
                               </button>
-                              <span className="text-sm font-medium w-6 text-center select-none tabular-nums">{item.quantity}</span>
+                              <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
                               <button
-                                type="button"
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-secondary active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-background transition-colors"
                                 aria-label="Increase quantity"
                               >
-                                <Plus className="w-3 h-3 pointer-events-none" />
+                                <Plus className="w-3.5 h-3.5" />
                               </button>
-                            </>
+                            </div>
                           ) : (
-                            <span className="text-sm font-medium text-center px-4 py-1 bg-secondary rounded-full">Digital Item</span>
+                            <span className="text-xs text-muted-foreground">Digital (1)</span>
                           )}
                         </div>
 
+                        {/* Total price */}
                         <div className="text-right">
                           {isDiscounted ? (
                             <div>
-                              <span className="text-xs text-muted-foreground line-through block">
-                                GH₵{(item.products.price * item.quantity).toFixed(2)}
-                              </span>
-                              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                              <p className="font-semibold text-base text-rose-600 dark:text-rose-400">
                                 GH₵{(unitPrice * item.quantity).toFixed(2)}
-                              </span>
+                              </p>
+                              <p className="text-xs text-muted-foreground line-through">
+                                GH₵{(item.products.price * item.quantity).toFixed(2)}
+                              </p>
                             </div>
                           ) : (
-                            <p className="font-semibold">
+                            <p className="font-semibold text-base">
                               GH₵{(unitPrice * item.quantity).toFixed(2)}
                             </p>
                           )}
                         </div>
 
+                        {/* Remove button */}
                         <button
-                          type="button"
                           onClick={() => removeFromCart(item.id)}
-                          className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                          className="p-2 text-muted-foreground hover:text-destructive transition-colors ml-2"
                           aria-label="Remove item"
                         >
                           <X className="w-4 h-4 pointer-events-none" />
@@ -198,7 +191,7 @@ const Cart = () => {
                         <Link to={`/product/${item.product_id}`} className="flex-shrink-0">
                           <div className="w-20 h-24 bg-secondary rounded-lg overflow-hidden">
                             <img
-                              src={item.products.image}
+                              src={getCartItemImage(item)}
                               alt={item.products.name}
                               className="w-full h-full object-cover"
                             />

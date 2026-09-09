@@ -16,9 +16,36 @@ export interface CartItem {
     sale_price?: number | null;
     sale_ends_at?: string | null;
     image: string;
+    images?: string[] | null;
+    colors?: any[] | null;
     category: string;
   };
 }
+
+export const getCartItemImage = (item: CartItem | any): string => {
+  if (!item) return "/placeholder.svg";
+
+  // 1. If item has selected_color with an explicit image
+  if (item.selected_color && typeof item.selected_color === "object" && item.selected_color.image) {
+    return item.selected_color.image;
+  }
+
+  // 2. If item.selected_color has a name, find matching color image in products.colors
+  const colorName = typeof item.selected_color === "string" ? item.selected_color : item.selected_color?.name;
+  if (colorName && item.products?.colors && Array.isArray(item.products.colors)) {
+    const matched = item.products.colors.find(
+      (c: any) =>
+        (typeof c === "string" && c.toLowerCase().trim() === colorName.toLowerCase().trim()) ||
+        (typeof c === "object" && c?.name?.toLowerCase().trim() === colorName.toLowerCase().trim())
+    );
+    if (matched && typeof matched === "object" && matched.image) {
+      return matched.image;
+    }
+  }
+
+  // 3. Fallback to product primary image or first gallery image
+  return item.products?.image || item.products?.images?.[0] || "/placeholder.svg";
+};
 
 export const getCartItemUnitPrice = (item: CartItem): number => {
   if (!item.products) return 0;
@@ -94,6 +121,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             sale_price,
             sale_ends_at,
             image,
+            images,
+            colors,
             category
           )
         `)
@@ -114,6 +143,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               sale_price,
               sale_ends_at,
               image,
+              images,
+              colors,
               category
             )
           `)

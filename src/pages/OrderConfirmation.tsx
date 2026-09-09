@@ -258,10 +258,10 @@ const OrderConfirmation = () => {
                 {order.order_items.map((item, idx) => (
                   <div key={item.id || idx} className="py-2.5 flex items-center justify-between gap-3 text-sm">
                     <div className="flex items-center gap-3 min-w-0">
-                      {item.products?.image && (
+                      {(item.selected_color?.image || item.products?.image) && (
                         <img 
-                          src={item.products.image} 
-                          alt={item.products.name} 
+                          src={item.selected_color?.image || item.products?.image} 
+                          alt={item.products?.name || "Product"} 
                           className="w-12 h-12 rounded-xl object-cover border border-border shrink-0 bg-secondary/50" 
                         />
                       )}
