@@ -18,6 +18,8 @@ interface OrderItem {
   product_id: string;
   quantity: number;
   price: number;
+  selected_color?: { name: string; hex: string; image: string | null } | null;
+  selected_size?: string | null;
   products?: { name: string; image: string } | null;
 }
 
@@ -407,24 +409,41 @@ const RiderOrderDetail = () => {
               <h3 className="text-white font-semibold text-sm">Order Items ({items.length})</h3>
             </div>
             <div className="space-y-3">
-              {items.map((item) => (
-                <div key={item.id} className="flex items-center gap-3">
-                  {item.products?.image && (
-                    <img
-                      src={item.products.image}
-                      alt={item.products?.name || "Product"}
-                      className="w-12 h-12 rounded-xl object-cover border border-white/10 flex-shrink-0"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{item.products?.name || "Product"}</p>
-                    <p className="text-white/40 text-xs">Qty: {item.quantity}</p>
+              {items.map((item) => {
+                const itemImg = item.selected_color?.image || item.products?.image;
+                return (
+                  <div key={item.id} className="flex items-center gap-3">
+                    {itemImg && (
+                      <img
+                        src={itemImg}
+                        alt={item.products?.name || "Product"}
+                        className="w-12 h-12 rounded-xl object-cover border border-white/10 flex-shrink-0 bg-white/5"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">{item.products?.name || "Product"}</p>
+                      <div className="flex items-center gap-2 text-white/50 text-xs mt-0.5 flex-wrap">
+                        <span>Qty: {item.quantity}</span>
+                        {item.selected_color?.name && (
+                          <span className="flex items-center gap-1 text-white/80">
+                            <span
+                              className="w-2 h-2 rounded-full inline-block"
+                              style={{ backgroundColor: item.selected_color.hex || '#aaa' }}
+                            />
+                            {item.selected_color.name}
+                          </span>
+                        )}
+                        {item.selected_size && (
+                          <span className="text-white/80">Size: {item.selected_size}</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-white font-bold text-sm flex-shrink-0">
+                      {order.currency} {(item.price * item.quantity).toFixed(2)}
+                    </span>
                   </div>
-                  <span className="text-white font-bold text-sm flex-shrink-0">
-                    {order.currency} {item.price.toFixed(2)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="border-t border-white/8 mt-4 pt-4 flex justify-between items-center">
               <span className="text-white/60 text-sm font-medium">Total</span>

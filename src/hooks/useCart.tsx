@@ -187,17 +187,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Check if item already exists in cart with the same user and product
+      // Check if item already exists in cart with the exact same user, product, color, and size
       const { data: existingItems } = await supabase
         .from("cart_items")
         .select("id, quantity, selected_color, selected_size")
         .eq("user_id", user.id)
         .eq("product_id", productId);
 
-      const existing = existingItems && existingItems.length > 0 ? existingItems[0] : null;
+      const incomingColorName = selectedColor?.name?.trim() || "";
+      const incomingSize = selectedSize?.trim() || "";
 
-      if (existing) {
-        const newQty = existing.quantity + quantity;
+      // Find an item with the EXACT same color and size variant
+      const exactMatch = (existingItems || []).find((item: any) => {
+        const itemColorName = (typeof item.selected_color === "object" && item.selected_color?.name)
+          ? item.selected_color.name.trim()
+          : (typeof item.selected_color === "string" ? item.selected_color.trim() : "");
+        const itemSize = item.selected_size?.trim() || "";
+        return itemColorName === incomingColorName && itemSize === incomingSize;
+      });
+
+      if (exactMatch) {
+        const newQty = exactMatch.quantity + quantity;
         const { error } = await supabase
           .from("cart_items")
           .update({
@@ -205,13 +215,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...(selectedColor ? { selected_color: selectedColor } : {}),
             ...(selectedSize ? { selected_size: selectedSize } : {}),
           })
-          .eq("id", existing.id);
+          .eq("id", exactMatch.id);
 
         if (error) {
           const { error: fallbackError } = await supabase
             .from("cart_items")
             .update({ quantity: newQty })
-            .eq("id", existing.id);
+            .eq("id", exactMatch.id);
 
           if (fallbackError) throw fallbackError;
         }
@@ -223,19 +233,31 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             product_id: productId,
             quantity,
             selected_color: selectedColor || null,
-            selected_size: selectedSize,
+            selected_size: selectedSize || null,
           });
 
         if (error) {
-          console.warn("Insert with color/size failed, retrying basic insert:", error.message);
-          const { error: fallbackError } = await supabase
-            .from("cart_items")
-            .insert({
-              user_id: user.id,
-              product_id: productId,
-              quantity,
-            });
-          if (fallbackError) throw fallbackError;
+          console.warn("Insert with color/size failed, checking constraint fallback:", error.message);
+          if (/duplicate key|unique constraint/i.test(error.message) && existingItems && existingItems.length > 0) {
+            const first = existingItems[0];
+            await supabase
+              .from("cart_items")
+              .update({
+                quantity: first.quantity + quantity,
+                selected_color: selectedColor || null,
+                selected_size: selectedSize || null,
+              })
+              .eq("id", first.id);
+          } else {
+            const { error: fallbackError } = await supabase
+              .from("cart_items")
+              .insert({
+                user_id: user.id,
+                product_id: productId,
+                quantity,
+              });
+            if (fallbackError) throw fallbackError;
+          }
         }
       }
 

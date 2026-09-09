@@ -33,6 +33,9 @@ interface OrderItem {
   product_id: string;
   quantity: number;
   price: number;
+  selected_color?: { name: string; hex: string; image: string | null } | null;
+  selected_size?: string | null;
+  products?: { id: string; name: string; image: string } | null;
 }
 
 interface Order {
@@ -111,7 +114,14 @@ export const OrderManagement = () => {
               id,
               product_id,
               quantity,
-              price
+              price,
+              selected_color,
+              selected_size,
+              products (
+                id,
+                name,
+                image
+              )
             )
           `)
           .order("created_at", { ascending: false }),
@@ -457,13 +467,42 @@ export const OrderManagement = () => {
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-muted-foreground">Order Items</h4>
                 <div className="bg-secondary/50 p-4 rounded-lg">
-                  {selectedOrder.order_items?.map((item) => (
-                    <div key={item.id} className="flex justify-between py-2 border-b border-border last:border-0">
-                      <span className="text-sm font-mono">{item.product_id.slice(0, 8)}</span>
-                      <span className="text-sm">Qty: {item.quantity}</span>
-                      <span className="text-sm font-medium">GH₵{item.price.toFixed(2)}</span>
-                    </div>
-                  ))}
+                  {selectedOrder.order_items?.map((item: any) => {
+                    const prod = Array.isArray(item.products) ? item.products[0] : item.products;
+                    const itemImage = item.selected_color?.image || prod?.image;
+                    return (
+                      <div key={item.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0 gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {itemImage && (
+                            <img
+                              src={itemImage}
+                              alt={prod?.name || "Product"}
+                              className="w-10 h-10 rounded-lg object-cover border border-border shrink-0 bg-background"
+                            />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{prod?.name || `Product #${item.product_id.slice(0, 8)}`}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap mt-0.5">
+                              <span>Qty: <strong className="text-foreground">{item.quantity}</strong></span>
+                              {item.selected_color?.name && (
+                                <span className="inline-flex items-center gap-1">
+                                  <span
+                                    className="w-2.5 h-2.5 rounded-full border border-border inline-block"
+                                    style={{ backgroundColor: item.selected_color.hex || '#888' }}
+                                  />
+                                  <span>{item.selected_color.name}</span>
+                                </span>
+                              )}
+                              {item.selected_size && (
+                                <span>Size: <strong className="text-foreground">{item.selected_size}</strong></span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold shrink-0">GH₵{(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
                   {(() => {
                     const itemsTotal = selectedOrder.order_items?.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0;
                     const deliveryFee = Number(selectedOrder.delivery_fee ?? 0);
