@@ -763,10 +763,9 @@ const Checkout = () => {
           <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl font-bold tracking-tight mb-10"
-            style={{ fontStyle: "italic" }}
+            className="text-4xl md:text-5xl font-bold tracking-tight mb-8"
           >
-            CHECKOUT
+            Checkout
           </motion.h1>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-16">
