@@ -122,7 +122,7 @@ const RiderOrderDetail = () => {
 
     setVerifyingPickup(true);
     try {
-      const { data, error } = await supabase.rpc("confirm_pickup_otp", {
+      const { data, error } = await (supabase.rpc as any)("confirm_pickup_otp", {
         _order_id: order.id,
         _otp: pickupPin.trim(),
       });
@@ -164,7 +164,7 @@ const RiderOrderDetail = () => {
 
     setVerifyingDelivery(true);
     try {
-      const { data, error } = await supabase.rpc("confirm_delivery_otp", {
+      const { data, error } = await (supabase.rpc as any)("confirm_delivery_otp", {
         _order_id: order.id,
         _otp: deliveryOtp.trim(),
       });

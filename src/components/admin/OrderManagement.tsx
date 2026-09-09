@@ -173,7 +173,7 @@ export const OrderManagement = () => {
         });
       }
       setOrderSellers(orderSellerMapping);
-      setOrders(orderData || []);
+      setOrders((orderData as any) || []);
     } catch (error: any) {
       toast({
         title: "Error",
