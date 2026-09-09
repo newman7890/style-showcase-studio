@@ -62,9 +62,27 @@ const ProductDetail = () => {
   const [selectedSize, setSelectedSize] = useState("");
   const [activeTab, setActiveTab] = useState("Details");
 
-  const { addToCart } = useCart();
+  const { cartItems, addToCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { t } = useLanguage();
+
+  // Compute how many of this exact variant are already in the user's cart
+  const quantityInCart = useMemo(() => {
+    if (!product) return 0;
+    return cartItems
+      .filter((item) => {
+        if (item.product_id !== product.id) return false;
+        const itemColorName =
+          typeof item.selected_color === "object" && item.selected_color?.name
+            ? item.selected_color.name.trim()
+            : typeof item.selected_color === "string"
+            ? (item.selected_color as string).trim()
+            : "";
+        const itemSize = item.selected_size?.trim() || "";
+        return itemColorName === (selectedColor?.trim() || "") && itemSize === (selectedSize?.trim() || "");
+      })
+      .reduce((sum, item) => sum + item.quantity, 0);
+  }, [cartItems, product, selectedColor, selectedSize]);
 
   useEffect(() => {
     fetchProduct();
@@ -181,10 +199,28 @@ const ProductDetail = () => {
         toast.error("Please select a size first");
         return;
       }
+      // Client-side stock guard
+      if (quantity > remainingStock && availableStock > 0) {
+        if (remainingStock <= 0) {
+          toast.error(`You already have all ${availableStock} available in your cart.`);
+        } else {
+          toast.error(`Only ${remainingStock} more can be added (${quantityInCart} already in cart).`);
+        }
+        return;
+      }
       const colorObj = colors.find(c => c.name === selectedColor) || null;
       addToCart(product.id, quantity, colorObj, selectedSize);
     }
   };
+
+  // Reset quantity to 1 (or remaining) when variant changes
+  useEffect(() => {
+    if (availableStock > 0 && remainingStock > 0) {
+      setQuantity(1);
+    } else {
+      setQuantity(1);
+    }
+  }, [selectedColor, selectedSize]);
 
   const handleToggleFavorite = () => {
     if (product) {
@@ -223,6 +259,10 @@ const ProductDetail = () => {
     ? Number(selectedColorObj?.stock ?? 0)
     : Number(product.stock ?? 0);
   const isSoldOut = availableStock <= 0;
+
+  // Remaining stock after subtracting what's already in cart
+  const remainingStock = Math.max(0, availableStock - quantityInCart);
+  const isAtStockLimit = availableStock > 0 && remainingStock <= 0;
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -492,15 +532,56 @@ const ProductDetail = () => {
               </div>
             )}
 
+            {/* Quantity Selector */}
+            {!isSoldOut && !isAtStockLimit && (
+              <div className="mb-6">
+                <p className="text-sm font-bold text-black mb-3">Quantity</p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                    className={`w-10 h-10 rounded-lg border flex items-center justify-center transition-colors ${
+                      quantity <= 1 ? "opacity-30 cursor-not-allowed border-gray-200" : "border-gray-300 hover:border-black"
+                    }`}
+                  >
+                    <span className="text-lg font-medium">−</span>
+                  </button>
+                  <span className="w-10 text-center font-bold text-lg tabular-nums">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity(Math.min(remainingStock, quantity + 1))}
+                    disabled={quantity >= remainingStock}
+                    className={`w-10 h-10 rounded-lg border flex items-center justify-center transition-colors ${
+                      quantity >= remainingStock ? "opacity-30 cursor-not-allowed border-gray-200" : "border-gray-300 hover:border-black"
+                    }`}
+                  >
+                    <span className="text-lg font-medium">+</span>
+                  </button>
+                  {quantityInCart > 0 && (
+                    <span className="text-xs text-amber-600 font-medium ml-2">
+                      ({quantityInCart} already in cart)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Action Row */}
             <div className="flex gap-4 mb-8">
               <Button
                 onClick={handleAddToCart}
-                disabled={isSoldOut}
-                className="flex-1 h-14 bg-black hover:bg-black/90 text-white rounded-xl font-bold text-base gap-3"
+                disabled={isSoldOut || isAtStockLimit}
+                className={`flex-1 h-14 rounded-xl font-bold text-base gap-3 ${
+                  isSoldOut || isAtStockLimit
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed hover:bg-gray-300"
+                    : "bg-black hover:bg-black/90 text-white"
+                }`}
               >
                 <ShoppingBag className="w-5 h-5" />
-                {isSoldOut ? "Out of stock" : "Add to Cart"}
+                {isSoldOut
+                  ? "Out of stock"
+                  : isAtStockLimit
+                  ? `Max stock reached (${quantityInCart} in cart)`
+                  : `Add to Cart${quantity > 1 ? ` (${quantity})` : ""}`}
               </Button>
               <button
                 onClick={handleToggleFavorite}

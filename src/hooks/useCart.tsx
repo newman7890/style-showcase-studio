@@ -19,6 +19,7 @@ export interface CartItem {
     images?: string[] | null;
     colors?: any[] | null;
     category: string;
+    stock?: number | null;
   };
 }
 
@@ -45,6 +46,31 @@ export const getCartItemImage = (item: CartItem | any): string => {
 
   // 3. Fallback to product primary image or first gallery image
   return item.products?.image || item.products?.images?.[0] || "/placeholder.svg";
+};
+
+export const getCartItemAvailableStock = (item: CartItem | any): number => {
+  if (!item || !item.products) return 9999;
+  if ((item.selected_color as any)?.isGiftCard) return 9999;
+
+  const product = item.products;
+  const colorName = typeof item.selected_color === "string" ? item.selected_color : item.selected_color?.name;
+
+  if (colorName && product.colors && Array.isArray(product.colors)) {
+    const matched = product.colors.find(
+      (c: any) =>
+        (typeof c === "string" && c.toLowerCase().trim() === colorName.toLowerCase().trim()) ||
+        (typeof c === "object" && c?.name?.toLowerCase().trim() === colorName.toLowerCase().trim())
+    );
+    if (matched && typeof matched === "object" && typeof matched.stock === "number") {
+      return Math.max(0, matched.stock);
+    }
+  }
+
+  if (typeof product.stock === "number") {
+    return Math.max(0, product.stock);
+  }
+
+  return 9999;
 };
 
 export const getCartItemUnitPrice = (item: CartItem): number => {
@@ -79,6 +105,7 @@ interface CartContextType {
   savingsTotal: number;
   itemCount: number;
   getItemUnitPrice: (item: CartItem) => number;
+  getItemAvailableStock: (item: CartItem) => number;
 }
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -123,7 +150,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             image,
             images,
             colors,
-            category
+            category,
+            stock
           )
         `)
         .eq("user_id", user.id);
@@ -145,7 +173,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               image,
               images,
               colors,
-              category
+              category,
+              stock
             )
           `)
           .eq("user_id", user.id);
@@ -187,6 +216,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      // 1. Fetch current product and variant stock info
+      const { data: productData } = await supabase
+        .from("products")
+        .select("id, name, stock, colors")
+        .eq("id", productId)
+        .maybeSingle();
+
+      let availableStock = 9999;
+      if (productData) {
+        if ((selectedColor as any)?.isGiftCard) {
+          availableStock = 9999;
+        } else if (selectedColor?.name && productData.colors && Array.isArray(productData.colors)) {
+          const matched = productData.colors.find(
+            (c: any) =>
+              (typeof c === "string" && c.toLowerCase().trim() === selectedColor.name.toLowerCase().trim()) ||
+              (typeof c === "object" && c?.name?.toLowerCase().trim() === selectedColor.name.toLowerCase().trim())
+          );
+          if (matched && typeof matched === "object" && typeof matched.stock === "number") {
+            availableStock = Math.max(0, matched.stock);
+          } else if (typeof productData.stock === "number") {
+            availableStock = Math.max(0, productData.stock);
+          }
+        } else if (typeof productData.stock === "number") {
+          availableStock = Math.max(0, productData.stock);
+        }
+      }
+
       // Check if item already exists in cart with the exact same user, product, color, and size
       const { data: existingItems } = await supabase
         .from("cart_items")
@@ -205,6 +261,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const itemSize = item.selected_size?.trim() || "";
         return itemColorName === incomingColorName && itemSize === incomingSize;
       });
+
+      const currentQty = exactMatch ? exactMatch.quantity : 0;
+      if (currentQty + quantity > availableStock) {
+        if (currentQty >= availableStock) {
+          toast.error(`You already have all ${availableStock} available in your cart.`);
+          return;
+        } else {
+          toast.error(`Cannot add ${quantity} more. Only ${availableStock - currentQty} left in stock.`);
+          return;
+        }
+      }
 
       if (exactMatch) {
         const newQty = exactMatch.quantity + quantity;
@@ -291,6 +358,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const currentItem = cartItemsRef.current.find((item) => item.id === cartItemId);
     if (!currentItem) return;
+
+    // Check stock limit
+    const maxStock = getCartItemAvailableStock(currentItem);
+    if (quantity > maxStock) {
+      toast.error(`Cannot add more. Only ${maxStock} left in stock.`);
+      return;
+    }
 
     // Record original quantity once per series of rapid clicks for rollback
     if (!rollbackQuantities.current.has(cartItemId)) {
@@ -431,6 +505,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     savingsTotal,
     itemCount,
     getItemUnitPrice: getCartItemUnitPrice,
+    getItemAvailableStock: getCartItemAvailableStock,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

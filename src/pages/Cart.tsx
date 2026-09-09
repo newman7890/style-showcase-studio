@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useCart, getCartItemImage } from "@/hooks/useCart";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
 
 const Cart = () => {
-  const { cartItems, loading, updateQuantity, removeFromCart, total, originalTotal, savingsTotal, getItemUnitPrice } = useCart();
+  const { cartItems, loading, updateQuantity, removeFromCart, total, originalTotal, savingsTotal, getItemUnitPrice, getItemAvailableStock } = useCart();
   const { t } = useLanguage();
 
   if (loading) {
@@ -83,6 +84,8 @@ const Cart = () => {
                 {cartItems.map((item, index) => {
                   const unitPrice = getItemUnitPrice(item);
                   const isDiscounted = unitPrice < (item.products?.price || 0);
+                  const availableStock = getItemAvailableStock(item);
+                  const isMaxStockReached = item.quantity >= availableStock;
 
                   return (
                     <motion.div
@@ -134,7 +137,7 @@ const Cart = () => {
                         </Link>
 
                         {/* Quantity controls */}
-                        <div className="flex items-center justify-center">
+                        <div className="flex flex-col items-center justify-center gap-1">
                           {!(item.selected_color as any)?.isGiftCard ? (
                             <div className="flex items-center gap-1 bg-secondary rounded-full p-1">
                               <button
@@ -146,8 +149,17 @@ const Cart = () => {
                               </button>
                               <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
                               <button
-                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-background transition-colors"
+                                onClick={() => {
+                                  if (isMaxStockReached) {
+                                    toast.error(`Only ${availableStock} available in stock`);
+                                    return;
+                                  }
+                                  updateQuantity(item.id, item.quantity + 1);
+                                }}
+                                disabled={isMaxStockReached}
+                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                                  isMaxStockReached ? "opacity-30 cursor-not-allowed text-muted-foreground" : "hover:bg-background"
+                                }`}
                                 aria-label="Increase quantity"
                               >
                                 <Plus className="w-3.5 h-3.5" />
@@ -155,6 +167,11 @@ const Cart = () => {
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">Digital (1)</span>
+                          )}
+                          {isMaxStockReached && availableStock < 9999 && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                              Max stock ({availableStock})
+                            </span>
                           )}
                         </div>
 
@@ -237,29 +254,45 @@ const Cart = () => {
                             </button>
                           </div>
                           <div className="flex items-center justify-between mt-3">
-                            <div className="flex items-center gap-2">
-                              {!(item.selected_color as any)?.isGiftCard ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                    className="w-7 h-7 border border-border rounded-full flex items-center justify-center hover:bg-secondary active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
-                                    aria-label="Decrease quantity"
-                                  >
-                                    <Minus className="w-3 h-3 pointer-events-none" />
-                                  </button>
-                                  <span className="text-sm font-medium w-5 text-center select-none tabular-nums">{item.quantity}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                    className="w-7 h-7 border border-border rounded-full flex items-center justify-center hover:bg-secondary active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
-                                    aria-label="Increase quantity"
-                                  >
-                                    <Plus className="w-3 h-3 pointer-events-none" />
-                                  </button>
-                                </>
-                              ) : (
-                                <span className="text-xs font-medium px-2 py-0.5 bg-secondary rounded text-muted-foreground">Digital Item</span>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                {!(item.selected_color as any)?.isGiftCard ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                      className="w-7 h-7 border border-border rounded-full flex items-center justify-center hover:bg-secondary active:scale-90 transition-all select-none touch-manipulation cursor-pointer"
+                                      aria-label="Decrease quantity"
+                                    >
+                                      <Minus className="w-3 h-3 pointer-events-none" />
+                                    </button>
+                                    <span className="text-sm font-medium w-5 text-center select-none tabular-nums">{item.quantity}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (isMaxStockReached) {
+                                          toast.error(`Only ${availableStock} available in stock`);
+                                          return;
+                                        }
+                                        updateQuantity(item.id, item.quantity + 1);
+                                      }}
+                                      disabled={isMaxStockReached}
+                                      className={`w-7 h-7 border border-border rounded-full flex items-center justify-center select-none touch-manipulation cursor-pointer transition-all ${
+                                        isMaxStockReached ? "opacity-30 cursor-not-allowed text-muted-foreground" : "hover:bg-secondary active:scale-90"
+                                      }`}
+                                      aria-label="Increase quantity"
+                                    >
+                                      <Plus className="w-3 h-3 pointer-events-none" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="text-xs font-medium px-2 py-0.5 bg-secondary rounded text-muted-foreground">Digital Item</span>
+                                )}
+                              </div>
+                              {isMaxStockReached && availableStock < 9999 && (
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                  Max stock ({availableStock})
+                                </span>
                               )}
                             </div>
                             <div>
