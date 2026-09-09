@@ -271,13 +271,13 @@ const Home = () => {
     return marketingBanners.filter((b) => b.placement === "promo_banner");
   }, [marketingBanners]);
 
-  const handleAdClick = async (adId?: string, rawLink?: string) => {
+  const handleAdClick = async (adId?: string, rawLink?: string, title?: string) => {
     if (adId) {
       try {
         await (supabase as any).rpc("increment_banner_click", { banner_id: adId }).catch(() => {});
       } catch {}
     }
-    handleDealClick(rawLink);
+    await handleDealClick(rawLink, title);
   };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -292,24 +292,81 @@ const Home = () => {
     if (searchQuery.trim()) navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
   };
 
-  const handleDealClick = (rawLink?: string) => {
-    if (!rawLink) {
-      navigate("/department/home");
-      return;
-    }
-    const target = rawLink.trim();
-    if (!target) {
-      navigate("/department/home");
-      return;
-    }
-    if (target.startsWith("http://") || target.startsWith("https://")) {
-      window.location.href = target;
+  const handleDealClick = async (rawLink?: string, title?: string) => {
+    const trimmedLink = (rawLink || "").trim();
+    const trimmedTitle = (title || "").trim();
+
+    // 1. External URL
+    if (trimmedLink.startsWith("http://") || trimmedLink.startsWith("https://")) {
+      window.location.href = trimmedLink;
       return;
     }
 
-    const clean = target.toLowerCase().replace(/^\/+/, "").trim();
+    // 2. Direct product URL: /product/<id> or /products/<id>
+    if (/^\/products?\/[a-zA-Z0-9_-]+$/i.test(trimmedLink)) {
+      const productId = trimmedLink.replace(/^\/products?\//i, "");
+      navigate(`/product/${productId}`);
+      return;
+    }
 
-    // Direct section & category aliases
+    // 3. Raw UUID in the link_url field
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedLink)) {
+      navigate(`/product/${trimmedLink}`);
+      return;
+    }
+
+    // 4. Match against product catalog by title or specific link term
+    const searchTarget =
+      trimmedTitle ||
+      (trimmedLink &&
+      trimmedLink !== "/department/home" &&
+      trimmedLink !== "/products" &&
+      !trimmedLink.startsWith("/")
+        ? trimmedLink
+        : "");
+
+    if (searchTarget) {
+      const lower = searchTarget.toLowerCase();
+
+      // Check in-memory featured products first
+      const exactMatch = featuredProducts.find(
+        (p) => p.name.toLowerCase() === lower
+      );
+      if (exactMatch) {
+        navigate(`/product/${exactMatch.id}`);
+        return;
+      }
+
+      const partialMatch = featuredProducts.find(
+        (p) =>
+          p.name.toLowerCase().includes(lower) ||
+          lower.includes(p.name.toLowerCase()) ||
+          p.category?.toLowerCase() === lower
+      );
+      if (partialMatch) {
+        navigate(`/product/${partialMatch.id}`);
+        return;
+      }
+
+      // Query database for matching product
+      try {
+        const { data: dbProducts } = await supabase
+          .from("products")
+          .select("id, name")
+          .or(`name.ilike.%${searchTarget}%,category.ilike.%${searchTarget}%`)
+          .limit(1);
+
+        if (dbProducts && dbProducts.length > 0) {
+          navigate(`/product/${dbProducts[0].id}`);
+          return;
+        }
+      } catch (err) {
+        console.error("Error searching product for banner:", err);
+      }
+    }
+
+    // 5. Section & category aliases
+    const clean = trimmedLink.toLowerCase().replace(/^\/+/, "").trim();
     if (clean === "art" || clean === "painted art" || clean === "art gallery" || clean === "art-gallery") {
       navigate("/art");
       return;
@@ -322,27 +379,25 @@ const Home = () => {
       navigate("/department/gadgets");
       return;
     }
-    if (clean === "home" || clean === "kitchen" || clean === "department/home") {
-      navigate("/department/home");
-      return;
-    }
     if (clean === "other" || clean === "department/other") {
       navigate("/department/other");
       return;
     }
-    if (clean === "products" || clean === "all" || clean === "deals") {
-      navigate("/department/home");
+
+    // 6. Explicit custom path (e.g. /cart, /seller, etc.)
+    if (trimmedLink.startsWith("/") && trimmedLink !== "/department/home" && trimmedLink !== "/products") {
+      navigate(trimmedLink);
       return;
     }
 
-    // If it's a relative path starting with slash (e.g. /product/123 or /art)
-    if (target.startsWith("/")) {
-      navigate(target);
+    // 7. If we have a title or keyword, redirect to search results for that exact query
+    if (searchTarget) {
+      navigate(`/products?search=${encodeURIComponent(searchTarget)}`);
       return;
     }
 
-    // Otherwise, treat as a search query for products matching that title/term!
-    navigate(`/department/home?search=${encodeURIComponent(target)}`);
+    // 8. Fallback
+    navigate("/department/home");
   };
 
   // ── Category pill data (DB or fallback) ──────────────────────────────────
@@ -457,7 +512,7 @@ const Home = () => {
                 src={heroBanners[0]?.image_url || "/hero-image.jpg"} 
                 alt={heroBanners[0]?.title || "Spring Collection Model"} 
                 className="absolute inset-0 w-full h-full object-cover object-top rounded-2xl cursor-pointer"
-                onClick={() => heroBanners[0] && handleAdClick(heroBanners[0].id, heroBanners[0].link_url)}
+                onClick={() => heroBanners[0] && handleAdClick(heroBanners[0].id, heroBanners[0].link_url, heroBanners[0].title)}
               />
             </div>
           </div>
@@ -502,7 +557,7 @@ const Home = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.08 }}
                     className="w-[260px] bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0 cursor-pointer"
-                    onClick={() => handleAdClick(deal.id, deal.link_url)}
+                    onClick={() => handleAdClick(deal.id, deal.link_url, deal.title)}
                   >
                     <div className="h-36 bg-secondary/50 overflow-hidden">
                       <img
@@ -540,7 +595,7 @@ const Home = () => {
               {promoBanners.map((promo) => (
                 <div
                   key={promo.id}
-                  onClick={() => handleAdClick(promo.id, promo.link_url)}
+                  onClick={() => handleAdClick(promo.id, promo.link_url, promo.title)}
                   className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden cursor-pointer shadow-md group border border-border"
                 >
                   <img

@@ -215,12 +215,38 @@ const Products = () => {
               {shopBanners.map((banner) => (
                 <div
                   key={banner.id}
-                  onClick={() => {
+                  onClick={async () => {
                     try {
                       (supabase as any).rpc("increment_banner_click", { banner_id: banner.id }).catch(() => {});
                     } catch {}
-                    if (banner.link_url?.startsWith("/")) {
-                      window.location.href = banner.link_url;
+
+                    const link = (banner.link_url || "").trim();
+                    const title = (banner.title || "").trim();
+
+                    // Direct product link
+                    if (/^\/products?\/[a-zA-Z0-9_-]+$/i.test(link)) {
+                      window.location.href = `/product/${link.replace(/^\/products?\//i, "")}`;
+                      return;
+                    }
+
+                    // Try to match by title against products in the store
+                    if (title) {
+                      try {
+                        const { data: matched } = await supabase
+                          .from("products")
+                          .select("id")
+                          .or(`name.ilike.%${title}%,category.ilike.%${title}%`)
+                          .limit(1);
+                        if (matched && matched.length > 0) {
+                          window.location.href = `/product/${matched[0].id}`;
+                          return;
+                        }
+                      } catch {}
+                    }
+
+                    // Fallback
+                    if (link.startsWith("/")) {
+                      window.location.href = link;
                     }
                   }}
                   className="relative w-full h-44 sm:h-56 rounded-2xl overflow-hidden cursor-pointer shadow-md group border border-border"
