@@ -180,15 +180,35 @@ const Home = () => {
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const { data: featuredProducts = [] } = useQuery<Product[]>({
-    queryKey: ["featured-products-home"],
+    queryKey: ["featured-products-home", spotlightSettings.pinnedProductIds],
     queryFn: async () => {
+      const pinnedIds = (spotlightSettings.pinnedProductIds || []).filter(Boolean);
+      let pinnedItems: Product[] = [];
+      if (pinnedIds.length > 0) {
+        const { data: pinnedData } = await supabase
+          .from("products")
+          .select("id, name, price, image, category, department, sale_price, sale_ends_at, colors, status")
+          .in("id", pinnedIds);
+        if (pinnedData) {
+          pinnedItems = pinnedData;
+        }
+      }
+
       const { data, error } = await supabase
         .from("products")
         .select("id, name, price, image, category, department, sale_price, sale_ends_at, colors, status")
         .order("created_at", { ascending: false })
         .limit(36);
       if (error) throw error;
-      return data || [];
+
+      const combined = [...pinnedItems];
+      (data || []).forEach((item) => {
+        if (!combined.some((p) => p.id === item.id)) {
+          combined.push(item);
+        }
+      });
+
+      return combined;
     },
   });
 
