@@ -213,13 +213,9 @@ const ProductDetail = () => {
     }
   };
 
-  // Reset quantity to 1 (or remaining) when variant changes
+  // Reset quantity to 1 when variant changes
   useEffect(() => {
-    if (availableStock > 0 && remainingStock > 0) {
-      setQuantity(1);
-    } else {
-      setQuantity(1);
-    }
+    setQuantity(1);
   }, [selectedColor, selectedSize]);
 
   const handleToggleFavorite = () => {
