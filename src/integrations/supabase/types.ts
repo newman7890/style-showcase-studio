@@ -538,6 +538,7 @@ export type Database = {
           shipping_name: string
           shipping_phone: string
           shipping_region: string
+          shipping_town: string | null
           status: string
           total_amount: number
           tracking_code: string | null
@@ -559,6 +560,7 @@ export type Database = {
           shipping_name: string
           shipping_phone: string
           shipping_region: string
+          shipping_town?: string | null
           status?: string
           total_amount: number
           tracking_code?: string | null
@@ -580,6 +582,7 @@ export type Database = {
           shipping_name?: string
           shipping_phone?: string
           shipping_region?: string
+          shipping_town?: string | null
           status?: string
           total_amount?: number
           tracking_code?: string | null
