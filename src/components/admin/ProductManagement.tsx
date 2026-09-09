@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, AlertTriangle, Package, Sparkles, Loader2, Star, Wand2, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Package, Sparkles, Loader2, Star, Wand2, Upload, ExternalLink, Eye, CheckCircle2, XCircle } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -48,12 +48,17 @@ interface Product {
   name: string;
   price: number;
   image: string;
+  images?: string[];
   category: string;
   stock: number;
   low_stock_threshold: number;
   description?: string;
   department?: string;
-  colors?: { name: string; hex: string; image: string | null }[];
+  status?: string;
+  seller_id?: string | null;
+  seller_profiles?: { business_name: string } | null;
+  colors?: { name: string; hex: string; image: string | null; stock?: number }[];
+  sizes?: string[];
 }
 
 const DEPARTMENTS = [
@@ -61,6 +66,7 @@ const DEPARTMENTS = [
   { value: "fashion", label: "Fashion" },
   { value: "gadgets", label: "Gadgets" },
   { value: "home", label: "Home & Living" },
+  { value: "art", label: "Art & Collectibles" },
   { value: "other", label: "Other" },
 ];
 
@@ -87,7 +93,8 @@ export const ProductManagement = () => {
     shipping_returns_info: "",
     sale_price: "",
     sale_ends_at: "",
-    colors: [] as { name: string; hex: string; image: string | null; file?: File | null }[],
+    status: "approved",
+    colors: [] as { name: string; hex: string; image: string | null; file?: File | null; stock?: string | number }[],
   });
   interface GalleryItem {
     id: string;
@@ -110,7 +117,7 @@ export const ProductManagement = () => {
   const fetchProducts = async () => {
     let query = supabase
       .from("products")
-      .select("*")
+      .select("*, seller_profiles:seller_id(business_name)")
       .order("created_at", { ascending: false });
 
     if (isSeller && !isAdmin && user) {
@@ -119,7 +126,14 @@ export const ProductManagement = () => {
 
     const { data, error } = await query;
 
-    if (!error && data) {
+    if (error) {
+      // Fallback without relation if join fails
+      const { data: fallbackData } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (fallbackData) setProducts(fallbackData as any);
+    } else if (data) {
       setProducts(data as any);
     }
   };
@@ -156,6 +170,7 @@ export const ProductManagement = () => {
 
       const finalColors = [];
       for (const color of formData.colors) {
+        const stockVal = color.stock !== undefined && color.stock !== "" ? parseInt(String(color.stock)) : undefined;
         if (color.file) {
           const fileExt = color.file.name.split('.').pop();
           const fileName = `${Math.random()}.${fileExt}`;
@@ -171,9 +186,19 @@ export const ProductManagement = () => {
             .from('product-images')
             .getPublicUrl(filePath);
 
-          finalColors.push({ name: color.name, hex: color.hex, image: publicUrl });
+          finalColors.push({
+            name: color.name,
+            hex: color.hex,
+            image: publicUrl,
+            ...(stockVal !== undefined && { stock: stockVal }),
+          });
         } else {
-          finalColors.push({ name: color.name, hex: color.hex, image: color.image });
+          finalColors.push({
+            name: color.name,
+            hex: color.hex,
+            image: color.image,
+            ...(stockVal !== undefined && { stock: stockVal }),
+          });
         }
       }
 
@@ -198,7 +223,7 @@ export const ProductManagement = () => {
             sale_price: formData.sale_price ? parseFloat(formData.sale_price) : null,
             sale_ends_at: formData.sale_ends_at || null,
             colors: finalColors,
-            ...(isAdmin && { status: 'approved' }),
+            status: formData.status || (isAdmin ? 'approved' : 'pending'),
           })
           .eq("id", editingProduct.id);
 
@@ -223,7 +248,7 @@ export const ProductManagement = () => {
           sale_price: formData.sale_price ? parseFloat(formData.sale_price) : null,
           sale_ends_at: formData.sale_ends_at || null,
           colors: finalColors,
-          status: isAdmin ? 'approved' : 'pending',
+          status: formData.status || (isAdmin ? 'approved' : 'pending'),
         });
 
         if (error) throw error;
@@ -278,7 +303,16 @@ export const ProductManagement = () => {
       shipping_returns_info: (product as any).shipping_returns_info || "",
       sale_price: (product as any).sale_price?.toString() || "",
       sale_ends_at: (product as any).sale_ends_at || "",
-      colors: product.colors ? product.colors.map((c: any) => ({ ...c, file: null })) : [],
+      status: (product as any).status || "approved",
+      colors: product.colors
+        ? product.colors.map((c: any) => ({
+            name: c.name || "",
+            hex: c.hex || "#000000",
+            image: c.image || null,
+            stock: c.stock !== undefined ? String(c.stock) : "",
+            file: null,
+          }))
+        : [],
     });
     const existingImages = ((product as any).images && (product as any).images.length > 0 ? (product as any).images : [product.image]).filter(Boolean);
     setGalleryItems(existingImages.map((url: string, i: number) => ({
@@ -335,7 +369,7 @@ export const ProductManagement = () => {
   const addColor = () => {
     setFormData((prev) => ({
       ...prev,
-      colors: [...prev.colors, { name: "", hex: "#000000", image: null, file: null }],
+      colors: [...prev.colors, { name: "", hex: "#000000", image: null, file: null, stock: "" }],
     }));
   };
 
@@ -467,7 +501,25 @@ export const ProductManagement = () => {
 
   const resetForm = () => {
     setEditingProduct(null);
-    setFormData({ name: "", price: "", image: "", category: "", department: "fashion", stock: "0", low_stock_threshold: "5", description: "", sizes: "", features: "", materials_info: "", size_fit_info: "", shipping_returns_info: "", sale_price: "", sale_ends_at: "", colors: [] });
+    setFormData({
+      name: "",
+      price: "",
+      image: "",
+      category: "",
+      department: "fashion",
+      stock: "0",
+      low_stock_threshold: "5",
+      description: "",
+      sizes: "",
+      features: "",
+      materials_info: "",
+      size_fit_info: "",
+      shipping_returns_info: "",
+      sale_price: "",
+      sale_ends_at: "",
+      status: "approved",
+      colors: [],
+    });
     setFormErrors({});
     setGalleryItems([]);
   };
@@ -890,51 +942,84 @@ export const ProductManagement = () => {
                 </div>
                 {/* Color Variants Fields */}
                 <div className="border-t pt-4 mt-2 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
-                      🎨 Color Variants (Optional)
-                    </h4>
-                    <Button type="button" variant="outline" size="sm" onClick={addColor}>
-                      <Plus className="w-3 h-3 mr-1" /> Add Color
-                    </Button>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        🎨 Color Variants & Stock (Optional)
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Define colors and their individual stock quantities.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {formData.colors.some(c => c.stock !== undefined && c.stock !== "") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sum = formData.colors.reduce((s, c) => s + (parseInt(String(c.stock)) || 0), 0);
+                            setFormData(prev => ({ ...prev, stock: String(sum) }));
+                            toast({ title: "Total stock synced", description: `Updated main stock to ${sum} units from colors.` });
+                          }}
+                          className="text-xs text-primary hover:underline font-semibold"
+                        >
+                          ⚡ Sync total ({formData.colors.reduce((s, c) => s + (parseInt(String(c.stock)) || 0), 0)} units)
+                        </button>
+                      )}
+                      <Button type="button" variant="outline" size="sm" onClick={addColor}>
+                        <Plus className="w-3 h-3 mr-1" /> Add Color
+                      </Button>
+                    </div>
                   </div>
                   {formData.colors.map((color, index) => (
-                    <div key={index} className="flex flex-col gap-2 p-3 border rounded-md relative">
+                    <div key={index} className="flex flex-col gap-3 p-3 border rounded-lg bg-card relative">
                       <button
                         type="button"
                         onClick={() => removeColor(index)}
-                        className="absolute top-2 right-2 text-destructive hover:text-destructive/80"
+                        className="absolute top-2 right-2 text-destructive hover:text-destructive/80 p-1"
+                        title="Remove color variant"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <div className="grid grid-cols-2 gap-3 mr-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mr-6">
                         <div>
-                          <Label>Color Name</Label>
+                          <Label className="text-xs">Color Name</Label>
                           <Input
-                            placeholder="e.g. Navy Blue"
+                            placeholder="e.g. Navy Blue, Red, Yellow"
                             value={color.name}
                             onChange={(e) => updateColor(index, "name", e.target.value)}
+                            className="mt-1 h-9"
                           />
                         </div>
                         <div>
-                          <Label>Color Hex</Label>
-                          <div className="flex gap-2">
+                          <Label className="text-xs">Variant Stock (Units)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="e.g. 10"
+                            value={color.stock !== undefined ? color.stock : ""}
+                            onChange={(e) => updateColor(index, "stock", e.target.value)}
+                            className="mt-1 h-9 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Swatch Color</Label>
+                          <div className="flex gap-2 mt-1">
                             <Input
                               type="color"
                               value={color.hex}
                               onChange={(e) => updateColor(index, "hex", e.target.value)}
-                              className="w-12 h-10 p-1 cursor-pointer"
+                              className="w-10 h-9 p-1 cursor-pointer"
                             />
                             <Input
                               value={color.hex}
                               onChange={(e) => updateColor(index, "hex", e.target.value)}
-                              className="flex-1"
+                              className="flex-1 h-9 font-mono text-xs"
                             />
                           </div>
                         </div>
                       </div>
                       <div>
-                        <Label>Specific Image for this color (Optional)</Label>
+                        <Label className="text-xs">Specific Photo for this color (Optional)</Label>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
                           {color.image && (
                             <div className="relative group rounded border overflow-hidden w-12 h-12 bg-muted/30">
@@ -953,13 +1038,31 @@ export const ProductManagement = () => {
                             type="file"
                             accept="image/*"
                             onChange={(e) => handleColorImageChange(index, e)}
-                            className="flex-1"
+                            className="flex-1 text-xs"
                           />
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
+
+                {/* Status Selection for Admin */}
+                {isAdmin && (
+                  <div className="border-t pt-4 mt-2">
+                    <Label htmlFor="status" className="text-xs font-semibold uppercase tracking-wider">Catalog Status</Label>
+                    <select
+                      id="status"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="approved">Approved & Live in Store</option>
+                      <option value="pending">Pending Approval</option>
+                      <option value="hidden">Hidden from Storefront</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                )}
 
                 {/* Flash Sale Fields */}
                 <div className="border-t pt-4 mt-2">
@@ -1029,54 +1132,149 @@ export const ProductManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products
           .filter((p) => departmentFilter === "all" || (p.department || "fashion") === departmentFilter)
-          .map((product, index) => (
-          <motion.div
-            key={product.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="bg-card border border-border rounded-lg overflow-hidden"
-          >
-            <img
-              src={product.image}
-              alt={product.name}
-              className="w-full h-48 object-cover"
-            />
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-medium">{product.name}</h3>
-                {getStockBadge(product)}
-              </div>
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <Badge variant="outline" className="capitalize">
-                  {product.department || "fashion"}
-                </Badge>
-                <span className="text-sm text-muted-foreground">{product.category}</span>
-              </div>
-              <p className="text-lg font-light mb-4">GH₵{product.price}</p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleEdit(product)}
-                >
-                  <Pencil className="w-3 h-3 mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleDelete(product.id)}
-                >
-                  <Trash2 className="w-3 h-3 mr-1" />
-                  Delete
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+          .map((product, index) => {
+            const hasColors = product.colors && Array.isArray(product.colors) && product.colors.length > 0;
+            const hasSizes = product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0;
+            const isApproved = product.status === "approved" || !product.status;
+
+            return (
+              <motion.div
+                key={product.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-card border border-border rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="relative h-52 bg-muted/30 overflow-hidden group">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute top-2 left-2 flex flex-col gap-1">
+                      {getStockBadge(product)}
+                      {product.status && product.status !== "approved" && (
+                        <Badge
+                          variant={
+                            product.status === "pending"
+                              ? "outline"
+                              : product.status === "rejected"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                          className="capitalize text-[10px]"
+                        >
+                          {product.status}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="absolute top-2 right-2">
+                      <Badge variant="secondary" className="bg-background/80 backdrop-blur-xs text-[10px] shadow-xs">
+                        {product.seller_profiles?.business_name || "Official Store"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <h3 className="font-semibold text-base leading-tight truncate">{product.name}</h3>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                      <Badge variant="outline" className="capitalize text-[11px] px-2 py-0">
+                        {product.department || "fashion"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{product.category}</span>
+                    </div>
+
+                    {/* Color Swatches and Stock */}
+                    {hasColors && (
+                      <div className="mb-3 p-2 rounded-lg bg-secondary/40 border border-border/60">
+                        <div className="text-[11px] font-medium text-muted-foreground mb-1.5 flex items-center justify-between">
+                          <span>{product.colors!.length} Color Variants</span>
+                          <span className="text-[10px]">
+                            {product.colors!.reduce((s, c) => s + (c.stock ?? 0), 0) > 0 ? "Tracked" : "Shared stock"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {product.colors!.map((c, ci) => (
+                            <div
+                              key={ci}
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border bg-background text-[10px]"
+                              title={`${c.name}: ${c.stock !== undefined ? `${c.stock} in stock` : 'shared stock'}`}
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full border border-black/10 inline-block"
+                                style={{ backgroundColor: c.hex || "#ccc" }}
+                              />
+                              <span className="truncate max-w-[60px]">{c.name}</span>
+                              {c.stock !== undefined && (
+                                <strong className="text-foreground font-mono">({c.stock})</strong>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sizes */}
+                    {hasSizes && (
+                      <div className="flex items-center gap-1 mb-3 flex-wrap text-xs text-muted-foreground">
+                        <span className="font-medium text-[11px]">Sizes:</span>
+                        {product.sizes!.map((s, si) => (
+                          <span key={si} className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <p className="text-xl font-bold text-foreground">GH₵{Number(product.price).toFixed(2)}</p>
+                      {(product as any).sale_price && (
+                        <span className="text-xs text-rose-600 font-semibold line-through">
+                          GH₵{Number((product as any).sale_price).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 pt-0">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => handleEdit(product)}
+                    >
+                      <Pencil className="w-3.5 h-3.5 mr-1" />
+                      Edit
+                    </Button>
+                    <a
+                      href={`/product/${product.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground px-3 h-9"
+                      title="View live product page in storefront"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="px-3 text-xs"
+                      onClick={() => handleDelete(product.id)}
+                      title="Delete product"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
       </div>
 
       {products.filter((p) => departmentFilter === "all" || (p.department || "fashion") === departmentFilter).length === 0 && (
