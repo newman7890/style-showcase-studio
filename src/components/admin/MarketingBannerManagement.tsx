@@ -96,8 +96,10 @@ export const MarketingBannerManagement = () => {
     }
   };
 
+  const fetchBanners = fetchBannersAndProducts;
+
   useEffect(() => {
-    fetchBannersAndProducts();
+    fetchBanners();
   }, []);
 
   const resetForm = () => {
