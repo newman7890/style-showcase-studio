@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, SlidersHorizontal, X, LayoutGrid, Rows3, Sparkles } from "lucide-react";
+import { Search, SlidersHorizontal, X, LayoutGrid, Rows3, Sparkles, ChevronRight } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import {
   Sheet,
@@ -35,6 +35,7 @@ const Products = () => {
   const [activeCategory, setActiveCategory] = useState("all");
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<{ name: string; slug: string }[]>([]);
+  const [shopBanners, setShopBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
@@ -58,10 +59,13 @@ const Products = () => {
 
   const fetchProducts = async () => {
     try {
-      const [prodRes, catRes] = await Promise.all([
+      const [prodRes, catRes, bannerRes] = await Promise.all([
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("categories").select("name, slug").eq("is_active", true).order("display_order", { ascending: true }),
+        (supabase as any).from("marketing_banners").select("*").eq("is_active", true).eq("placement", "shop_banner").order("display_order", { ascending: true }),
       ]);
+
+      if (bannerRes?.data) setShopBanners(bannerRes.data);
 
       let loadedCats = catRes.data || [];
 
@@ -204,6 +208,52 @@ const Products = () => {
               {filteredProducts.length} {filteredProducts.length === 1 ? "product" : "products"} available
             </p>
           </motion.div>
+
+          {/* Shop Top Featured Banner */}
+          {shopBanners.length > 0 && searchQuery === "" && activeCategory === "all" && (
+            <div className="mb-8 flex flex-col gap-4">
+              {shopBanners.map((banner) => (
+                <div
+                  key={banner.id}
+                  onClick={() => {
+                    try {
+                      (supabase as any).rpc("increment_banner_click", { banner_id: banner.id }).catch(() => {});
+                    } catch {}
+                    if (banner.link_url?.startsWith("/")) {
+                      window.location.href = banner.link_url;
+                    }
+                  }}
+                  className="relative w-full h-44 sm:h-56 rounded-2xl overflow-hidden cursor-pointer shadow-md group border border-border"
+                >
+                  <img
+                    src={banner.image_url}
+                    alt={banner.title}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-transparent flex flex-col justify-center p-6 md:p-8">
+                    {banner.badge && (
+                      <span className="bg-primary text-primary-foreground text-[11px] font-bold px-2.5 py-0.5 rounded w-max mb-2 uppercase tracking-wide">
+                        {banner.badge}
+                      </span>
+                    )}
+                    <h3 className="text-xl md:text-3xl font-black text-white font-plus-jakarta max-w-lg">
+                      {banner.title}
+                    </h3>
+                    {banner.label && (
+                      <p className="text-xs md:text-sm text-white/90 mt-1 max-w-md">
+                        {banner.label}
+                      </p>
+                    )}
+                    <div className="mt-3">
+                      <span className="px-4 py-1.5 bg-white text-black rounded-full text-xs font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-colors inline-flex items-center gap-1.5">
+                        Shop Now <ChevronRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* New Arrivals Section — only when browsing all products with no search */}
           {activeCategory === "all" && searchQuery === "" && (

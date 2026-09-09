@@ -259,6 +259,10 @@ const Home = () => {
     retry: false,
   });
 
+  const heroBanners = useMemo(() => {
+    return marketingBanners.filter((b) => b.placement === "hero_carousel");
+  }, [marketingBanners]);
+
   const dealBanners = useMemo(() => {
     return marketingBanners.filter((b) => !b.placement || b.placement === "deal_cards");
   }, [marketingBanners]);
@@ -450,9 +454,10 @@ const Home = () => {
             {/* Right Image */}
             <div className="relative h-[300px] md:h-full min-h-[400px] rounded-2xl overflow-hidden order-1 md:order-2">
               <img 
-                src="/hero-image.jpg" 
-                alt="Spring Collection Model" 
-                className="absolute inset-0 w-full h-full object-cover object-top rounded-2xl"
+                src={heroBanners[0]?.image_url || "/hero-image.jpg"} 
+                alt={heroBanners[0]?.title || "Spring Collection Model"} 
+                className="absolute inset-0 w-full h-full object-cover object-top rounded-2xl cursor-pointer"
+                onClick={() => heroBanners[0] && handleAdClick(heroBanners[0].id, heroBanners[0].link_url)}
               />
             </div>
           </div>
@@ -497,7 +502,7 @@ const Home = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.08 }}
                     className="w-[260px] bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0 cursor-pointer"
-                    onClick={() => handleDealClick(deal.link_url)}
+                    onClick={() => handleAdClick(deal.id, deal.link_url)}
                   >
                     <div className="h-36 bg-secondary/50 overflow-hidden">
                       <img
@@ -528,37 +533,74 @@ const Home = () => {
           </section>
         )}
 
-        {/* Promotional Banner – Gift Cards */}
+        {/* Promotional Banner */}
         <section className="px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="relative w-full h-40 rounded-2xl overflow-hidden bg-primary/20"
-          >
-            {/* Decorative circles */}
-            <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-primary/40" />
-            <div className="absolute -right-2 bottom-0 w-20 h-20 rounded-full bg-primary/30" />
-            <div className="absolute right-4 top-4 opacity-30">
-              <Gift className="w-24 h-24 text-primary" />
-            </div>
-            <div className="relative z-10 p-5 flex flex-col justify-center h-full">
-              <h3 className="text-2xl font-bold text-foreground font-plus-jakarta">
-                Gift Cards
-              </h3>
-              <p className="text-sm text-foreground/80 mt-0.5">
-                Instant digital delivery for any occasion.
-              </p>
-              <Link to="/gift-cards" className="mt-3 self-start">
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  className="px-5 py-1.5 bg-foreground text-background rounded-full text-xs font-semibold hover:bg-foreground/90 transition-colors"
+          {promoBanners.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {promoBanners.map((promo) => (
+                <div
+                  key={promo.id}
+                  onClick={() => handleAdClick(promo.id, promo.link_url)}
+                  className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden cursor-pointer shadow-md group border border-border"
                 >
-                  Buy Now
-                </motion.button>
-              </Link>
+                  <img
+                    src={promo.image_url}
+                    alt={promo.title}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-transparent flex flex-col justify-center p-6 md:p-8">
+                    {promo.badge && (
+                      <span className="bg-primary text-primary-foreground text-[11px] font-bold px-2.5 py-0.5 rounded w-max mb-2 uppercase tracking-wide">
+                        {promo.badge}
+                      </span>
+                    )}
+                    <h3 className="text-xl md:text-3xl font-black text-white font-plus-jakarta max-w-lg">
+                      {promo.title}
+                    </h3>
+                    {promo.label && (
+                      <p className="text-xs md:text-sm text-white/90 mt-1 max-w-md">
+                        {promo.label}
+                      </p>
+                    )}
+                    <div className="mt-3">
+                      <span className="px-4 py-1.5 bg-white text-black rounded-full text-xs font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-colors inline-flex items-center gap-1.5">
+                        Shop Now <ChevronRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="relative w-full h-40 rounded-2xl overflow-hidden bg-primary/20"
+            >
+              <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-primary/40" />
+              <div className="absolute -right-2 bottom-0 w-20 h-20 rounded-full bg-primary/30" />
+              <div className="absolute right-4 top-4 opacity-30">
+                <Gift className="w-24 h-24 text-primary" />
+              </div>
+              <div className="relative z-10 p-5 flex flex-col justify-center h-full">
+                <h3 className="text-2xl font-bold text-foreground font-plus-jakarta">
+                  Gift Cards
+                </h3>
+                <p className="text-sm text-foreground/80 mt-0.5">
+                  Instant digital delivery for any occasion.
+                </p>
+                <Link to="/gift-cards" className="mt-3 self-start">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    className="px-5 py-1.5 bg-foreground text-background rounded-full text-xs font-semibold hover:bg-foreground/90 transition-colors"
+                  >
+                    Buy Now
+                  </motion.button>
+                </Link>
+              </div>
+            </motion.div>
+          )}
         </section>
 
         {/* Browse by Category grid */}
