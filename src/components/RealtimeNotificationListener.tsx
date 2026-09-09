@@ -211,7 +211,7 @@ export const RealtimeNotificationListener: React.FC = () => {
       )
       .subscribe();
 
-    // 3. Channel for Seller Updates (if applicable)
+    // 3. Channel for Seller Updates (Account status)
     const sellerChannel = supabase
       .channel(`user-realtime-seller-${user.id}`)
       .on(
@@ -249,10 +249,148 @@ export const RealtimeNotificationListener: React.FC = () => {
       )
       .subscribe();
 
+    // 4. Channel for Seller New Order Sales Alerts
+    const sellerSalesChannel = supabase
+      .channel(`seller-realtime-sales-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "order_items",
+          filter: `seller_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const newItem = payload.new as {
+            id: string;
+            order_id: string;
+            product_id: string;
+            quantity: number;
+            seller_earnings?: number | null;
+          };
+          if (!newItem) return;
+
+          playNotificationSound();
+          if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+            navigator.vibrate([150, 80, 150]);
+          }
+
+          toast.success("New Sale Received! 💰", {
+            description: `You have a new order for ${newItem.quantity} item(s). Open Seller Dashboard to view pickup details.`,
+            icon: React.createElement(Store, { className: "w-5 h-5 text-emerald-500 shrink-0" }),
+            action: {
+              label: "View Sale",
+              onClick: () => navigate("/seller"),
+            },
+            duration: 10000,
+          });
+
+          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            try {
+              new Notification("New Sale Received! 💰", {
+                body: `You received a new order on Trades Point.`,
+                icon: "/favicon.ico",
+              });
+            } catch (e) {}
+          }
+        }
+      )
+      .subscribe();
+
+    // 5. Channel for Rider Delivery Assignments
+    const riderDeliveryChannel = supabase
+      .channel(`rider-realtime-deliveries-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `assigned_rider_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const oldOrder = payload.old as { assigned_rider_id?: string | null; status?: string };
+          const newOrder = payload.new as {
+            id: string;
+            assigned_rider_id?: string | null;
+            status: string;
+            shipping_city?: string;
+            shipping_town?: string;
+            tracking_code?: string;
+          };
+          if (!newOrder) return;
+
+          // If newly assigned or dispatch status updated
+          const isNewlyAssigned = oldOrder?.assigned_rider_id !== user.id && newOrder.assigned_rider_id === user.id;
+
+          if (isNewlyAssigned) {
+            playNotificationSound();
+            if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+              navigator.vibrate([200, 100, 200]);
+            }
+
+            const destination = [newOrder.shipping_town, newOrder.shipping_city].filter(Boolean).join(", ");
+            toast("New Delivery Assigned! 🚴", {
+              description: `You've been assigned order #${(newOrder.tracking_code || newOrder.id.substring(0, 8)).toUpperCase()}${destination ? ` to ${destination}` : ""}.`,
+              icon: React.createElement(Truck, { className: "w-5 h-5 text-emerald-500 shrink-0" }),
+              action: {
+                label: "Open Task",
+                onClick: () => navigate(`/rider/order/${newOrder.id}`),
+              },
+              duration: 12000,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // 6. Channel for Product Review Updates for Sellers
+    const productStatusChannel = supabase
+      .channel(`seller-product-status-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "products",
+          filter: `seller_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const oldProd = payload.old as { status?: string };
+          const newProd = payload.new as { id: string; name: string; status: string; rejection_reason?: string };
+          if (!newProd || oldProd?.status === newProd.status) return;
+
+          playNotificationSound();
+          if (newProd.status === "approved") {
+            toast.success("Product Approved! ✨", {
+              description: `"${newProd.name}" was approved and is now live on the storefront.`,
+              action: {
+                label: "View in Store",
+                onClick: () => navigate(`/product/${newProd.id}`),
+              },
+              duration: 8000,
+            });
+          } else if (newProd.status === "rejected") {
+            toast.error("Product Not Approved", {
+              description: `"${newProd.name}" was rejected${newProd.rejection_reason ? `: ${newProd.rejection_reason}` : "."}`,
+              action: {
+                label: "Fix in Dashboard",
+                onClick: () => navigate("/seller"),
+              },
+              duration: 9000,
+            });
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(notifChannel);
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(sellerChannel);
+      supabase.removeChannel(sellerSalesChannel);
+      supabase.removeChannel(riderDeliveryChannel);
+      supabase.removeChannel(productStatusChannel);
     };
   }, [user, navigate]);
 
