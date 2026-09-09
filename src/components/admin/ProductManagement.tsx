@@ -80,6 +80,7 @@ export const ProductManagement = () => {
     stock: "0",
     low_stock_threshold: "5",
     description: "",
+    sizes: "",
     features: "",
     materials_info: "",
     size_fit_info: "",
@@ -189,6 +190,7 @@ export const ProductManagement = () => {
             stock: parseInt(formData.stock),
             low_stock_threshold: parseInt(formData.low_stock_threshold),
             description: formData.description || null,
+            sizes: formData.sizes ? formData.sizes.split(",").map((s) => s.trim()).filter(Boolean) : [],
             features: formData.features.split("\n").map((s) => s.trim()).filter(Boolean),
             materials_info: formData.materials_info || null,
             size_fit_info: formData.size_fit_info || null,
@@ -213,6 +215,7 @@ export const ProductManagement = () => {
           stock: parseInt(formData.stock),
           low_stock_threshold: parseInt(formData.low_stock_threshold),
           description: formData.description || null,
+          sizes: formData.sizes ? formData.sizes.split(",").map((s) => s.trim()).filter(Boolean) : [],
           features: formData.features.split("\n").map((s) => s.trim()).filter(Boolean),
           materials_info: formData.materials_info || null,
           size_fit_info: formData.size_fit_info || null,
@@ -268,6 +271,7 @@ export const ProductManagement = () => {
       stock: product.stock.toString(),
       low_stock_threshold: product.low_stock_threshold.toString(),
       description: product.description || "",
+      sizes: ((product as any).sizes || []).join(", "),
       features: ((product as any).features || []).join("\n"),
       materials_info: (product as any).materials_info || "",
       size_fit_info: (product as any).size_fit_info || "",
@@ -463,7 +467,7 @@ export const ProductManagement = () => {
 
   const resetForm = () => {
     setEditingProduct(null);
-    setFormData({ name: "", price: "", image: "", category: "", department: "fashion", stock: "0", low_stock_threshold: "5", description: "", features: "", materials_info: "", size_fit_info: "", shipping_returns_info: "", sale_price: "", sale_ends_at: "", colors: [] });
+    setFormData({ name: "", price: "", image: "", category: "", department: "fashion", stock: "0", low_stock_threshold: "5", description: "", sizes: "", features: "", materials_info: "", size_fit_info: "", shipping_returns_info: "", sale_price: "", sale_ends_at: "", colors: [] });
     setFormErrors({});
     setGalleryItems([]);
   };
@@ -850,6 +854,21 @@ export const ProductManagement = () => {
                     className="min-h-[80px]"
                   />
                 </div>
+
+                {/* Sizes Field */}
+                <div className="border-t pt-4 mt-2">
+                  <Label htmlFor="sizes" className="flex items-center gap-2">Sizes (optional)</Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-2">
+                    Enter available sizes separated by commas (e.g., S, M, L, XL or 38, 40, 42).
+                  </p>
+                  <Input
+                    id="sizes"
+                    placeholder="S, M, L, XL"
+                    value={formData.sizes}
+                    onChange={(e) => setFormData({ ...formData, sizes: e.target.value })}
+                  />
+                </div>
+
                 <div className="border-t pt-4 mt-2 space-y-4">
                   <h4 className="text-sm font-semibold">Product information tabs</h4>
                   <div>
