@@ -1,6 +1,6 @@
 import { SEO } from "@/components/SEO";
 import { useState, useEffect, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Heart, ShoppingBag, 
@@ -50,6 +50,10 @@ const safeArray = (val: any): any[] => {
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlImage = searchParams.get("image");
+  const urlColor = searchParams.get("color");
+
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +93,7 @@ const ProductDetail = () => {
     setCurrentImageIndex(0);
     setQuantity(1);
     window.scrollTo(0, 0);
-  }, [id]);
+  }, [id, urlImage, urlColor]);
 
   const fetchProduct = async () => {
     try {
@@ -107,8 +111,22 @@ const ProductDetail = () => {
       
       const rawColors = safeArray(prod?.colors);
       if (rawColors.length > 0) {
-        const first = rawColors[0];
-        const colorName = typeof first === "string" ? first : first?.name;
+        let matchedColor = urlColor
+          ? rawColors.find((c: any) => (typeof c === "string" ? c : c?.name)?.toLowerCase() === urlColor.toLowerCase())
+          : null;
+
+        if (!matchedColor && urlImage) {
+          const urlFilename = urlImage.split("/").pop()?.split("?")[0]?.toLowerCase();
+          matchedColor = rawColors.find((c: any) => {
+            if (!c?.image) return false;
+            if (c.image === urlImage) return true;
+            if (urlFilename && c.image.toLowerCase().includes(urlFilename)) return true;
+            return false;
+          });
+        }
+
+        const chosen = matchedColor || rawColors[0];
+        const colorName = typeof chosen === "string" ? chosen : chosen?.name;
         if (colorName) setSelectedColor(colorName);
       }
 
@@ -156,15 +174,24 @@ const ProductDetail = () => {
   const productImages = useMemo(() => {
     if (!product) return [];
     const list: string[] = [];
-    if (product.image) list.push(product.image);
+
+    // Prioritize the URL image (e.g. Yellow shoes from the clicked banner)
+    if (urlImage && !list.includes(urlImage)) {
+      list.push(urlImage);
+    }
+
+    if (product.image && !list.includes(product.image)) list.push(product.image);
+
     rawImages.forEach((img) => {
       if (img && typeof img === "string" && !list.includes(img)) list.push(img);
     });
+
     colors.forEach((c) => {
       if (c.image && typeof c.image === "string" && !list.includes(c.image)) list.push(c.image);
     });
+
     return list.length > 0 ? list : [product.image || ""];
-  }, [product, rawImages, colors]);
+  }, [product, rawImages, colors, urlImage]);
 
   const features: string[] = useMemo(() => {
     if (!product) return [];

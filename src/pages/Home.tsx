@@ -63,9 +63,13 @@ interface Product {
   name: string;
   price: number;
   image: string;
+  images?: string[];
   category?: string;
+  department?: string;
   sale_price?: number | null;
   sale_ends_at?: string | null;
+  colors?: any;
+  status?: string;
 }
 
 // ─── Static category icon map ──────────────────────────────────────────────────
@@ -187,16 +191,16 @@ const Home = () => {
       if (pinnedIds.length > 0) {
         const { data: pinnedData } = await supabase
           .from("products")
-          .select("id, name, price, image, category, department, sale_price, sale_ends_at, colors, status")
+          .select("id, name, price, image, images, category, department, sale_price, sale_ends_at, colors, status")
           .in("id", pinnedIds);
         if (pinnedData) {
-          pinnedItems = pinnedData;
+          pinnedItems = pinnedData as any;
         }
       }
 
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price, image, category, department, sale_price, sale_ends_at, colors, status")
+        .select("id, name, price, image, images, category, department, sale_price, sale_ends_at, colors, status")
         .order("created_at", { ascending: false })
         .limit(36);
       if (error) throw error;
@@ -204,7 +208,7 @@ const Home = () => {
       const combined = [...pinnedItems];
       (data || []).forEach((item) => {
         if (!combined.some((p) => p.id === item.id)) {
-          combined.push(item);
+          combined.push(item as any);
         }
       });
 
@@ -271,13 +275,13 @@ const Home = () => {
     return marketingBanners.filter((b) => b.placement === "promo_banner");
   }, [marketingBanners]);
 
-  const handleAdClick = async (adId?: string, rawLink?: string, title?: string) => {
+  const handleAdClick = async (adId?: string, rawLink?: string, title?: string, imageUrl?: string) => {
     if (adId) {
       try {
         await (supabase as any).rpc("increment_banner_click", { banner_id: adId }).catch(() => {});
       } catch {}
     }
-    await handleDealClick(rawLink, title);
+    await handleDealClick(rawLink, title, imageUrl);
   };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -292,9 +296,10 @@ const Home = () => {
     if (searchQuery.trim()) navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
   };
 
-  const handleDealClick = async (rawLink?: string, title?: string) => {
+  const handleDealClick = async (rawLink?: string, title?: string, imageUrl?: string) => {
     const trimmedLink = (rawLink || "").trim();
     const trimmedTitle = (title || "").trim();
+    const trimmedImg = (imageUrl || "").trim();
 
     // 1. External URL
     if (trimmedLink.startsWith("http://") || trimmedLink.startsWith("https://")) {
@@ -302,67 +307,54 @@ const Home = () => {
       return;
     }
 
+    const imgQuery = trimmedImg ? `?image=${encodeURIComponent(trimmedImg)}` : "";
+
     // 2. Direct product URL: /product/<id> or /products/<id>
     if (/^\/products?\/[a-zA-Z0-9_-]+$/i.test(trimmedLink)) {
       const productId = trimmedLink.replace(/^\/products?\//i, "");
-      navigate(`/product/${productId}`);
+      navigate(`/product/${productId}${imgQuery}`);
       return;
     }
 
     // 3. Raw UUID in the link_url field
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedLink)) {
-      navigate(`/product/${trimmedLink}`);
+      navigate(`/product/${trimmedLink}${imgQuery}`);
       return;
     }
 
-    // 4. Match against product catalog by title or specific link term
-    const searchTarget =
-      trimmedTitle ||
-      (trimmedLink &&
-      trimmedLink !== "/department/home" &&
-      trimmedLink !== "/products" &&
-      !trimmedLink.startsWith("/")
-        ? trimmedLink
-        : "");
+    // 4. Match by Banner Image URL (Guarantees exact product match if the banner uses the product's image!)
+    if (trimmedImg) {
+      const bannerFilename = trimmedImg.split("/").pop()?.split("?")[0]?.toLowerCase();
 
-    if (searchTarget) {
-      const lower = searchTarget.toLowerCase();
+      const imgMatch = featuredProducts.find((p) => {
+        if (!p) return false;
+        if (p.image && p.image === trimmedImg) return true;
+        if (p.images && p.images.includes(trimmedImg)) return true;
+        if (bannerFilename && bannerFilename.length > 5) {
+          if (p.image && p.image.toLowerCase().includes(bannerFilename)) return true;
+          if (p.images && p.images.some((img) => img && img.toLowerCase().includes(bannerFilename))) return true;
+        }
+        return false;
+      });
 
-      // Check in-memory featured products first
-      const exactMatch = featuredProducts.find(
-        (p) => p.name.toLowerCase() === lower
-      );
-      if (exactMatch) {
-        navigate(`/product/${exactMatch.id}`);
+      if (imgMatch) {
+        navigate(`/product/${imgMatch.id}${imgQuery}`);
         return;
       }
 
-      const partialMatch = featuredProducts.find(
-        (p) =>
-          p.name.toLowerCase().includes(lower) ||
-          lower.includes(p.name.toLowerCase()) ||
-          p.category?.toLowerCase() === lower
-      );
-      if (partialMatch) {
-        navigate(`/product/${partialMatch.id}`);
-        return;
-      }
-
-      // Query database for matching product
+      // Query database by image URL
       try {
-        const { data: dbProducts } = await supabase
+        const { data: dbImgMatches } = await supabase
           .from("products")
-          .select("id, name")
-          .or(`name.ilike.%${searchTarget}%,category.ilike.%${searchTarget}%`)
+          .select("id, name, image, images")
+          .or(`image.eq.${trimmedImg},images.cs.{"${trimmedImg}"}`)
           .limit(1);
 
-        if (dbProducts && dbProducts.length > 0) {
-          navigate(`/product/${dbProducts[0].id}`);
+        if (dbImgMatches && dbImgMatches.length > 0) {
+          navigate(`/product/${dbImgMatches[0].id}${imgQuery}`);
           return;
         }
-      } catch (err) {
-        console.error("Error searching product for banner:", err);
-      }
+      } catch (err) {}
     }
 
     // 5. Section & category aliases
@@ -390,13 +382,68 @@ const Home = () => {
       return;
     }
 
-    // 7. If we have a title or keyword, redirect to search results for that exact query
+    // 7. Check by title/searchTarget -> ALWAYS navigate directly to the product details page
+    const searchTarget =
+      trimmedTitle ||
+      (trimmedLink &&
+      trimmedLink !== "/department/home" &&
+      trimmedLink !== "/products" &&
+      !trimmedLink.startsWith("/")
+        ? trimmedLink
+        : "");
+
     if (searchTarget) {
-      navigate(`/products?search=${encodeURIComponent(searchTarget)}`);
+      const lower = searchTarget.toLowerCase();
+
+      // Check matching products in memory
+      const matches = featuredProducts.filter(
+        (p) =>
+          p.name.toLowerCase() === lower ||
+          p.name.toLowerCase().includes(lower) ||
+          lower.includes(p.name.toLowerCase()) ||
+          p.category?.toLowerCase() === lower
+      );
+
+      if (matches.length > 0) {
+        // Prioritize shoes/fashion category match if available
+        const shoeMatch = matches.find(
+          (p) =>
+            p.category?.toLowerCase().includes("shoe") ||
+            p.category?.toLowerCase().includes("fashion")
+        );
+        const best = shoeMatch || matches[0];
+        navigate(`/product/${best.id}${imgQuery}`);
+        return;
+      }
+
+      // Check database for matching product
+      try {
+        const { data: dbProducts } = await supabase
+          .from("products")
+          .select("id, name, category, image")
+          .or(`name.ilike.%${searchTarget}%,category.ilike.%${searchTarget}%`)
+          .limit(10);
+
+        if (dbProducts && dbProducts.length > 0) {
+          const shoeMatch = dbProducts.find(
+            (p) =>
+              p.category?.toLowerCase().includes("shoe") ||
+              p.category?.toLowerCase().includes("fashion")
+          );
+          const best = shoeMatch || dbProducts[0];
+          navigate(`/product/${best.id}${imgQuery}`);
+          return;
+        }
+      } catch (err) {}
+    }
+
+    // 8. If featured products exist, open the first featured product as fallback
+    if (featuredProducts.length > 0) {
+      navigate(`/product/${featuredProducts[0].id}${imgQuery}`);
       return;
     }
 
-    // 8. Fallback
+    // 9. Fallback
     navigate("/department/home");
   };
 
@@ -512,7 +559,7 @@ const Home = () => {
                 src={heroBanners[0]?.image_url || "/hero-image.jpg"} 
                 alt={heroBanners[0]?.title || "Spring Collection Model"} 
                 className="absolute inset-0 w-full h-full object-cover object-top rounded-2xl cursor-pointer"
-                onClick={() => heroBanners[0] && handleAdClick(heroBanners[0].id, heroBanners[0].link_url, heroBanners[0].title)}
+                onClick={() => heroBanners[0] && handleAdClick(heroBanners[0].id, heroBanners[0].link_url, heroBanners[0].title, heroBanners[0].image_url)}
               />
             </div>
           </div>
@@ -557,7 +604,7 @@ const Home = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.08 }}
                     className="w-[260px] bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200 flex-shrink-0 cursor-pointer"
-                    onClick={() => handleAdClick(deal.id, deal.link_url, deal.title)}
+                    onClick={() => handleAdClick(deal.id, deal.link_url, deal.title, deal.image_url)}
                   >
                     <div className="h-36 bg-secondary/50 overflow-hidden">
                       <img
@@ -595,7 +642,7 @@ const Home = () => {
               {promoBanners.map((promo) => (
                 <div
                   key={promo.id}
-                  onClick={() => handleAdClick(promo.id, promo.link_url, promo.title)}
+                  onClick={() => handleAdClick(promo.id, promo.link_url, promo.title, promo.image_url)}
                   className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden cursor-pointer shadow-md group border border-border"
                 >
                   <img

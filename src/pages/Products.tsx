@@ -222,6 +222,7 @@ const Products = () => {
 
                     const link = (banner.link_url || "").trim();
                     const title = (banner.title || "").trim();
+                    const img = (banner.image_url || "").trim();
 
                     // Direct product link
                     if (/^\/products?\/[a-zA-Z0-9_-]+$/i.test(link)) {
@@ -229,22 +230,57 @@ const Products = () => {
                       return;
                     }
 
-                    // Try to match by title against products in the store
+                    // Raw UUID in link_url
+                    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(link)) {
+                      window.location.href = `/product/${link}`;
+                      return;
+                    }
+
+                    // 1. Match by Image
+                    if (img) {
+                      const filename = img.split("/").pop()?.split("?")[0];
+                      const matchedProd = products.find((p) => {
+                        if (p.image === img) return true;
+                        if (filename && filename.length > 5 && p.image?.includes(filename)) return true;
+                        return false;
+                      });
+                      if (matchedProd) {
+                        window.location.href = `/product/${matchedProd.id}`;
+                        return;
+                      }
+                    }
+
+                    // 2. Match by Title
                     if (title) {
+                      const matchedProd = products.find((p) =>
+                        p.name.toLowerCase().includes(title.toLowerCase()) ||
+                        title.toLowerCase().includes(p.name.toLowerCase()) ||
+                        p.category?.toLowerCase() === title.toLowerCase()
+                      );
+                      if (matchedProd) {
+                        window.location.href = `/product/${matchedProd.id}`;
+                        return;
+                      }
+
                       try {
-                        const { data: matched } = await supabase
+                        const { data: dbMatches } = await supabase
                           .from("products")
                           .select("id")
                           .or(`name.ilike.%${title}%,category.ilike.%${title}%`)
                           .limit(1);
-                        if (matched && matched.length > 0) {
-                          window.location.href = `/product/${matched[0].id}`;
+                        if (dbMatches && dbMatches.length > 0) {
+                          window.location.href = `/product/${dbMatches[0].id}`;
                           return;
                         }
                       } catch {}
                     }
 
-                    // Fallback
+                    // 3. Fallback to first available product
+                    if (products.length > 0) {
+                      window.location.href = `/product/${products[0].id}`;
+                      return;
+                    }
+
                     if (link.startsWith("/")) {
                       window.location.href = link;
                     }

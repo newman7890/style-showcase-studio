@@ -38,9 +38,20 @@ export const PLACEMENT_LABELS: Record<MarketingBanner["placement"], { name: stri
   shop_banner: { name: "Shop Top Banner", desc: "Featured banner at top of Shop page", color: "bg-amber-100 text-amber-800 border-amber-200" },
 };
 
+interface SimpleProduct {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  category?: string;
+}
+
 export const MarketingBannerManagement = () => {
   const { toast } = useToast();
   const [banners, setBanners] = useState<MarketingBanner[]>([]);
+  const [products, setProducts] = useState<SimpleProduct[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MarketingBanner | null>(null);
@@ -51,31 +62,49 @@ export const MarketingBannerManagement = () => {
   const [tableMissing, setTableMissing] = useState(false);
   const [activeTabFilter, setActiveTabFilter] = useState<string>("all");
 
-  const fetchBanners = async () => {
+  const fetchBannersAndProducts = async () => {
     setLoading(true);
     setTableMissing(false);
-    const { data, error } = await (supabase as any)
-      .from("marketing_banners")
-      .select("*")
-      .order("display_order", { ascending: true });
-    if (error) {
-      console.error("Error fetching banners:", error);
-      if (error.message?.includes("marketing_banners") || error.code === "PGRST204" || error.code === "42P01") {
-        setTableMissing(true);
+    try {
+      const [bannerRes, prodRes] = await Promise.all([
+        (supabase as any)
+          .from("marketing_banners")
+          .select("*")
+          .order("display_order", { ascending: true }),
+        supabase
+          .from("products")
+          .select("id, name, price, image, category")
+          .order("name", { ascending: true })
+      ]);
+
+      if (bannerRes.error) {
+        console.error("Error fetching banners:", bannerRes.error);
+        if (bannerRes.error.message?.includes("marketing_banners") || bannerRes.error.code === "PGRST204" || bannerRes.error.code === "42P01") {
+          setTableMissing(true);
+        }
+      } else {
+        setBanners(bannerRes.data || []);
       }
-    } else {
-      setBanners(data || []);
+
+      if (prodRes.data) {
+        setProducts(prodRes.data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
-    fetchBanners();
+    fetchBannersAndProducts();
   }, []);
 
   const resetForm = () => {
     setEditing(null);
     setForm(emptyForm);
+    setSelectedProductId("");
+    setProductSearch("");
     setImageFile(null);
     setImagePreview("");
   };
@@ -89,8 +118,52 @@ export const MarketingBannerManagement = () => {
       link_url: banner.link_url,
       placement: banner.placement || "deal_cards",
     });
+
+    if (banner.link_url?.startsWith("/product/")) {
+      const prodId = banner.link_url.replace("/product/", "");
+      setSelectedProductId(prodId);
+    } else {
+      setSelectedProductId("");
+    }
+
     setImagePreview(banner.image_url);
     setDialogOpen(true);
+  };
+
+  const handleSelectProduct = (prod: SimpleProduct) => {
+    setSelectedProductId(prod.id);
+    setForm((prev) => ({
+      ...prev,
+      link_url: `/product/${prod.id}`,
+      title: prev.title.trim() === "" ? prod.name : prev.title,
+    }));
+    if (!imagePreview && prod.image) {
+      setImagePreview(prod.image);
+    }
+    toast({
+      title: "Product Linked",
+      description: `Banner linked to "${prod.name}"`,
+    });
+  };
+
+  const handleQuickLinkProduct = async (bannerId: string, productId: string) => {
+    try {
+      const linkUrl = productId ? `/product/${productId}` : "/department/home";
+      const { error } = await (supabase as any)
+        .from("marketing_banners")
+        .update({ link_url: linkUrl })
+        .eq("id", bannerId);
+
+      if (error) throw error;
+      const matched = products.find((p) => p.id === productId);
+      toast({
+        title: "Link Updated",
+        description: matched ? `Linked to ${matched.name}` : "Link updated.",
+      });
+      fetchBannersAndProducts();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -279,13 +352,123 @@ export const MarketingBannerManagement = () => {
                 </div>
               </div>
 
+              {/* Link to Exact Product Selector */}
+              <div className="border border-purple-200 bg-purple-50/50 rounded-xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                    <LayoutGrid className="w-3.5 h-3.5 text-purple-600" />
+                    Link to Exact Product (Recommended)
+                  </Label>
+                  {selectedProductId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedProductId("");
+                        setForm((prev) => ({ ...prev, link_url: "/department/home" }));
+                      }}
+                      className="text-[10px] text-purple-700 hover:text-purple-900 underline font-medium"
+                    >
+                      Clear Product Link
+                    </button>
+                  )}
+                </div>
+
+                {selectedProductId ? (
+                  (() => {
+                    const linkedProd = products.find((p) => p.id === selectedProductId);
+                    return (
+                      <div className="flex items-center gap-3 bg-white p-2.5 rounded-lg border border-purple-200 shadow-sm">
+                        {linkedProd?.image ? (
+                          <img
+                            src={linkedProd.image}
+                            alt={linkedProd.name}
+                            className="w-12 h-12 object-cover rounded-md border"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center text-xs text-muted-foreground">
+                            No img
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-gray-900 truncate">
+                            {linkedProd?.name || "Selected Product"}
+                          </p>
+                          <p className="text-[11px] text-purple-700 font-semibold">
+                            GH₵{linkedProd?.price?.toFixed(2) || "0.00"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            /product/{selectedProductId}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                          Linked ✓
+                        </span>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Search store products to link..."
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      className="h-8 text-xs bg-white"
+                    />
+                    <div className="max-h-36 overflow-y-auto space-y-1 bg-white rounded-lg border p-1">
+                      {products
+                        .filter(
+                          (p) =>
+                            !productSearch.trim() ||
+                            p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                            p.category?.toLowerCase().includes(productSearch.toLowerCase())
+                        )
+                        .slice(0, 8)
+                        .map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleSelectProduct(p)}
+                            className="w-full text-left flex items-center gap-2 p-1.5 rounded hover:bg-purple-50 transition-colors text-xs group"
+                          >
+                            {p.image ? (
+                              <img
+                                src={p.image}
+                                alt={p.name}
+                                className="w-7 h-7 object-cover rounded border shrink-0"
+                              />
+                            ) : (
+                              <div className="w-7 h-7 bg-gray-100 rounded border shrink-0" />
+                            )}
+                            <div className="flex-1 truncate">
+                              <span className="font-medium text-gray-800 group-hover:text-purple-900 truncate block">
+                                {p.name}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                GH₵{p.price?.toFixed(2)}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-purple-600 opacity-0 group-hover:opacity-100 font-bold">
+                              Select
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <Label htmlFor="banner-link">Target Destination Link URL</Label>
                 <Input
                   id="banner-link"
                   value={form.link_url}
-                  onChange={(e) => setForm({ ...form, link_url: e.target.value })}
-                  placeholder="/department/home or /art or /product/123"
+                  onChange={(e) => {
+                    setForm({ ...form, link_url: e.target.value });
+                    if (!e.target.value.startsWith("/product/")) {
+                      setSelectedProductId("");
+                    }
+                  }}
+                  placeholder="/product/<id> or /department/home or /art"
                 />
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   <span className="text-[10px] text-muted-foreground self-center mr-1">Quick links:</span>
@@ -298,7 +481,10 @@ export const MarketingBannerManagement = () => {
                     <button
                       key={preset.url}
                       type="button"
-                      onClick={() => setForm({ ...form, link_url: preset.url })}
+                      onClick={() => {
+                        setSelectedProductId("");
+                        setForm({ ...form, link_url: preset.url });
+                      }}
                       className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
                         form.link_url === preset.url
                           ? "bg-purple-100 border-purple-300 text-purple-800 font-semibold"
@@ -481,9 +667,22 @@ CREATE POLICY "Admins can manage marketing banners"
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                    <ExternalLink className="w-3 h-3" /> {banner.link_url}
-                  </p>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                    {banner.link_url?.startsWith("/product/") ? (
+                      (() => {
+                        const pId = banner.link_url.replace("/product/", "");
+                        const prod = products.find((p) => p.id === pId);
+                        return (
+                          <span className="font-semibold text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded text-[11px] truncate">
+                            🛍️ {prod?.name || `Product: ${pId}`}
+                          </span>
+                        );
+                      })()
+                    ) : (
+                      <span className="truncate">{banner.link_url}</span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1.5 pt-1">
                     <Button
                       variant="outline"
