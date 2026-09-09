@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { ShoppingBag, Plus, Minus, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { useCart } from "@/hooks/useCart";
+import { useCart, getCartItemImage } from "@/hooks/useCart";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Cart = () => {
