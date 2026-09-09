@@ -183,14 +183,14 @@ export const MarketingBannerManagement = () => {
       toast({ title: "Error", description: "Title is required.", variant: "destructive" });
       return;
     }
-    if (!editing && !imageFile) {
+    if (!imageFile && !imagePreview && !editing?.image_url) {
       toast({ title: "Error", description: "Please select an ad banner image.", variant: "destructive" });
       return;
     }
 
     setSubmitting(true);
     try {
-      let imageUrl = editing?.image_url || "";
+      let imageUrl = imagePreview || editing?.image_url || "";
 
       if (imageFile) {
         const ext = imageFile.name.split(".").pop();
@@ -200,6 +200,12 @@ export const MarketingBannerManagement = () => {
           .upload(path, imageFile);
         if (uploadError) throw uploadError;
         imageUrl = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+      }
+
+      if (!imageUrl) {
+        toast({ title: "Error", description: "Please select an ad banner image.", variant: "destructive" });
+        setSubmitting(false);
+        return;
       }
 
       const payload = {
