@@ -55,6 +55,10 @@ interface RiderProfile {
   access_code: string;
   status: string;
   created_at: string;
+  is_online?: boolean;
+  last_seen_at?: string | null;
+  current_lat?: number | null;
+  current_lng?: number | null;
 }
 
 interface SupportTicket {
@@ -98,6 +102,7 @@ export const RiderManagement = () => {
   const [accessCodes, setAccessCodes] = useState<AccessCode[]>([]);
   const [riders, setRiders] = useState<RiderProfile[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [activeOrdersByRider, setActiveOrdersByRider] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [ticketStatusFilter, setTicketStatusFilter] = useState("all");
@@ -128,14 +133,29 @@ export const RiderManagement = () => {
   const fetchData = async (isInitial = false) => {
     if (isInitial) setLoading(true);
     try {
-      const [codesRes, ridersRes, ticketsRes] = await Promise.all([
+      const [codesRes, ridersRes, ticketsRes, activeOrdersRes] = await Promise.all([
         supabase.from("rider_access_codes" as any).select("*").order("created_at", { ascending: false }),
         supabase.from("rider_profiles" as any).select("*").order("created_at", { ascending: false }),
         supabase.from("rider_support_tickets" as any).select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("orders" as any)
+          .select("assigned_rider_id, status")
+          .not("assigned_rider_id", "is", null)
+          .in("status", ["confirmed", "processing", "shipped"]),
       ]);
       if (codesRes.data) setAccessCodes(codesRes.data as any);
       const riderList = (ridersRes.data as unknown as RiderProfile[]) || [];
       setRiders(riderList);
+
+      const activeMap: Record<string, number> = {};
+      if (activeOrdersRes.data) {
+        (activeOrdersRes.data as any[]).forEach((o) => {
+          if (o.assigned_rider_id) {
+            activeMap[o.assigned_rider_id] = (activeMap[o.assigned_rider_id] || 0) + 1;
+          }
+        });
+      }
+      setActiveOrdersByRider(activeMap);
 
       if (ticketsRes.data) {
         const enrichedTickets = (ticketsRes.data as any[]).map((t) => {
@@ -153,6 +173,55 @@ export const RiderManagement = () => {
     } finally {
       if (isInitial) setLoading(false);
     }
+  };
+
+  const getRiderPresence = (rider: RiderProfile) => {
+    const activeCount = activeOrdersByRider[rider.user_id] || 0;
+    if (rider.status === "suspended") {
+      return {
+        status: "suspended",
+        label: "Suspended",
+        badgeClass: "bg-red-100 text-red-700 border-red-200",
+        dotClass: "bg-red-500",
+        activeCount,
+      };
+    }
+    if (activeCount > 0) {
+      return {
+        status: "busy",
+        label: `On Delivery (${activeCount} active)`,
+        badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
+        dotClass: "bg-amber-500 animate-pulse",
+        activeCount,
+      };
+    }
+    if (rider.is_online) {
+      return {
+        status: "online",
+        label: "Online (Available)",
+        badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        dotClass: "bg-emerald-500 animate-pulse",
+        activeCount: 0,
+      };
+    }
+    return {
+      status: "offline",
+      label: "Offline",
+      badgeClass: "bg-gray-100 text-gray-700 border-gray-200",
+      dotClass: "bg-gray-400",
+      activeCount: 0,
+    };
+  };
+
+  const formatLastSeen = (timestamp: string | null | undefined) => {
+    if (!timestamp) return "Never";
+    const diffMs = Date.now() - new Date(timestamp).getTime();
+    const diffMins = Math.floor(diffMs / (60 * 1000));
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
   };
 
   const handleGenerateCode = async (e: React.FormEvent) => {
@@ -337,11 +406,51 @@ export const RiderManagement = () => {
 
         {/* ─── TAB 1: REGISTERED RIDERS DIRECTORY ─────────────────────────────────── */}
         <TabsContent value="riders" className="space-y-6 mt-6">
+          {/* Live Status Metric Ribbon */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 bg-emerald-50/80 border border-emerald-200/80 rounded-xl flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider block">Online (Available)</span>
+                <span className="text-xl font-bold text-emerald-700">
+                  {riders.filter((r) => r.status === "active" && r.is_online && (activeOrdersByRider[r.user_id] || 0) === 0).length}
+                </span>
+              </div>
+              <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-100" />
+            </div>
+            <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider block">On Delivery (Busy)</span>
+                <span className="text-xl font-bold text-amber-700">
+                  {riders.filter((r) => r.status === "active" && (activeOrdersByRider[r.user_id] || 0) > 0).length}
+                </span>
+              </div>
+              <div className="w-3.5 h-3.5 rounded-full bg-amber-500 ring-4 ring-amber-100" />
+            </div>
+            <div className="p-3 bg-gray-50/80 border border-gray-200 rounded-xl flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider block">Offline</span>
+                <span className="text-xl font-bold text-gray-700">
+                  {riders.filter((r) => r.status === "active" && !r.is_online && (activeOrdersByRider[r.user_id] || 0) === 0).length}
+                </span>
+              </div>
+              <div className="w-3.5 h-3.5 rounded-full bg-gray-400" />
+            </div>
+            <div className="p-3 bg-red-50/80 border border-red-200 rounded-xl flex items-center justify-between shadow-sm">
+              <div>
+                <span className="text-[11px] font-semibold text-red-700 uppercase tracking-wider block">Suspended</span>
+                <span className="text-xl font-bold text-red-600">
+                  {riders.filter((r) => r.status === "suspended").length}
+                </span>
+              </div>
+              <div className="w-3.5 h-3.5 rounded-full bg-red-500" />
+            </div>
+          </div>
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h2 className="text-xl font-semibold">Delivery Riders Directory</h2>
               <p className="text-xs text-muted-foreground">
-                Click any rider to view their profile, assigned packages, and completed delivery history.
+                Real-time rider tracking, availability status, active packages, and delivery performance.
               </p>
             </div>
             <div className="relative w-full sm:w-64">
@@ -363,53 +472,68 @@ export const RiderManagement = () => {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredRiders.map((rider) => (
-                <Card
-                  key={rider.id}
-                  onClick={() => handleOpenRiderDetails(rider)}
-                  className="cursor-pointer hover:border-primary/50 transition-all hover:shadow-md group relative overflow-hidden"
-                >
-                  <CardContent className="pt-5 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base group-hover:scale-105 transition-transform">
-                          <Bike className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm text-gray-900 group-hover:text-primary transition-colors">
-                            {rider.full_name}
-                          </h3>
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Phone className="w-3 h-3 text-emerald-600" />
-                            <span>{rider.phone_number}</span>
+              {filteredRiders.map((rider) => {
+                const presence = getRiderPresence(rider);
+                return (
+                  <Card
+                    key={rider.id}
+                    onClick={() => handleOpenRiderDetails(rider)}
+                    className="cursor-pointer hover:border-primary/50 transition-all hover:shadow-md group relative overflow-hidden"
+                  >
+                    <CardContent className="pt-5 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="w-11 h-11 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base group-hover:scale-105 transition-transform">
+                              <Bike className="w-5 h-5" />
+                            </div>
+                            <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${presence.dotClass}`} />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-sm text-gray-900 group-hover:text-primary transition-colors">
+                              {rider.full_name}
+                            </h3>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Phone className="w-3 h-3 text-emerald-600" />
+                              <span>{rider.phone_number}</span>
+                            </div>
                           </div>
                         </div>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-semibold border ${presence.badgeClass}`}
+                        >
+                          {presence.label}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant={rider.status === "active" ? "default" : "destructive"}
-                        className="text-[10px]"
-                      >
-                        {rider.status}
-                      </Badge>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t text-xs text-gray-600">
-                      <div>
-                        <span className="text-muted-foreground block text-[10px]">Access Code</span>
-                        <span className="font-mono font-medium text-gray-900">{rider.access_code}</span>
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t text-xs text-gray-600">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Access Code</span>
+                          <span className="font-mono font-medium text-gray-900">{rider.access_code}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Vehicle</span>
+                          <span className="font-medium text-gray-900">{rider.vehicle_type}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Last Seen</span>
+                          <span className="font-medium text-gray-700">{formatLastSeen(rider.last_seen_at)}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[10px]">Vehicle</span>
-                        <span className="font-medium text-gray-900">{rider.vehicle_type}</span>
-                      </div>
-                    </div>
 
-                    <div className="text-[11px] text-primary font-semibold pt-1 flex items-center gap-1">
-                      <span>View Delivery History & Packages →</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="text-[11px] text-primary font-semibold pt-1 flex items-center justify-between">
+                        <span>View Delivery History & Packages →</span>
+                        {presence.activeCount > 0 && (
+                          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                            {presence.activeCount} in transit
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -616,47 +740,59 @@ export const RiderManagement = () => {
       {/* ─── RIDER PROFILE & DELIVERIES HISTORY MODAL DIALOG ────────────────────── */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          {selectedRider && (
-            <div className="space-y-6 pt-2">
-              {/* Header Profile Info */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-secondary/30 p-4 rounded-xl border">
-                <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xl">
-                    <Bike className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">{selectedRider.full_name}</h2>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                        <a href={`tel:${selectedRider.phone_number}`} className="font-medium text-emerald-700 hover:underline">
-                          {selectedRider.phone_number}
-                        </a>
-                      </span>
-                      <span>·</span>
-                      <span className="font-mono bg-background px-2 py-0.5 rounded border">
-                        Code: {selectedRider.access_code}
-                      </span>
-                      <span>·</span>
-                      <span>Vehicle: {selectedRider.vehicle_type}</span>
+          {selectedRider && (() => {
+            const presence = getRiderPresence(selectedRider);
+            return (
+              <div className="space-y-6 pt-2">
+                {/* Header Profile Info */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-secondary/30 p-4 rounded-xl border">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="w-14 h-14 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xl">
+                        <Bike className="w-7 h-7" />
+                      </div>
+                      <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${presence.dotClass}`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-bold text-gray-900">{selectedRider.full_name}</h2>
+                        <Badge variant="outline" className={`text-[10px] font-semibold border ${presence.badgeClass}`}>
+                          {presence.label}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                          <a href={`tel:${selectedRider.phone_number}`} className="font-medium text-emerald-700 hover:underline">
+                            {selectedRider.phone_number}
+                          </a>
+                        </span>
+                        <span>·</span>
+                        <span className="font-mono bg-background px-2 py-0.5 rounded border">
+                          Code: {selectedRider.access_code}
+                        </span>
+                        <span>·</span>
+                        <span>Vehicle: {selectedRider.vehicle_type}</span>
+                        <span>·</span>
+                        <span className="text-gray-700 font-medium">Last Active: {formatLastSeen(selectedRider.last_seen_at)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <Badge variant={selectedRider.status === "active" ? "default" : "destructive"}>
-                    {selectedRider.status}
-                  </Badge>
-                  <Button
-                    size="sm"
-                    variant={selectedRider.status === "active" ? "outline" : "default"}
-                    onClick={() => toggleRiderStatus(selectedRider.id, selectedRider.status)}
-                    className="text-xs"
-                  >
-                    {selectedRider.status === "active" ? "Suspend Rider" : "Activate Rider"}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={selectedRider.status === "active" ? "default" : "destructive"}>
+                      Account: {selectedRider.status}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant={selectedRider.status === "active" ? "outline" : "default"}
+                      onClick={() => toggleRiderStatus(selectedRider.id, selectedRider.status)}
+                      className="text-xs"
+                    >
+                      {selectedRider.status === "active" ? "Suspend Rider" : "Activate Rider"}
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
               {/* Performance Stats Cards */}
               <div className="grid grid-cols-3 gap-3">
@@ -784,7 +920,8 @@ export const RiderManagement = () => {
                 )}
               </div>
             </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

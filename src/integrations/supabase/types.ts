@@ -860,6 +860,10 @@ export type Database = {
           updated_at: string | null
           user_id: string
           vehicle_type: string | null
+          is_online: boolean
+          last_seen_at: string | null
+          current_lat: number | null
+          current_lng: number | null
         }
         Insert: {
           access_code: string
@@ -872,6 +876,10 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           vehicle_type?: string | null
+          is_online?: boolean
+          last_seen_at?: string | null
+          current_lat?: number | null
+          current_lng?: number | null
         }
         Update: {
           access_code?: string
@@ -884,6 +892,10 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           vehicle_type?: string | null
+          is_online?: boolean
+          last_seen_at?: string | null
+          current_lat?: number | null
+          current_lng?: number | null
         }
         Relationships: []
       }

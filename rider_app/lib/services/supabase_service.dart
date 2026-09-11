@@ -127,6 +127,68 @@ class SupabaseService {
     }
   }
 
+  // Fetch full rider profile including online status
+  static Future<Map<String, dynamic>?> fetchRiderProfile(String userId) async {
+    try {
+      final profile = await client
+          .from('rider_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+      return profile != null ? Map<String, dynamic>.from(profile) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Update rider online/offline availability status
+  static Future<void> setRiderOnlineStatus(bool isOnline) async {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      // Attempt via RPC first
+      await client.rpc('update_rider_presence', params: {
+        '_is_online': isOnline,
+      });
+    } catch (_) {
+      // Fallback to direct table update
+      try {
+        await client
+            .from('rider_profiles')
+            .update({
+              'is_online': isOnline,
+              'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('user_id', userId);
+      } catch (e) {
+        // Ignore or rethrow
+      }
+    }
+  }
+
+  // Heartbeat ping while rider is active in the app
+  static Future<void> updatePresenceHeartbeat({double? lat, double? lng}) async {
+    final userId = currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final updateData = <String, dynamic>{
+        'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      if (lat != null) updateData['current_lat'] = lat;
+      if (lng != null) updateData['current_lng'] = lng;
+
+      await client
+          .from('rider_profiles')
+          .update(updateData)
+          .eq('user_id', userId);
+    } catch (_) {
+      // Heartbeat silently fails if offline
+    }
+  }
+
   // Claim an unassigned order atomically via RPC
   static Future<void> claimOrder(String orderId) async {
     await client.rpc('claim_order_by_rider', params: {'_order_id': orderId});

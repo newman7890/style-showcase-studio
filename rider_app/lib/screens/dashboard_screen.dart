@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../services/supabase_service.dart';
@@ -13,8 +14,12 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> _orders = [];
+  Map<String, dynamic>? _profile;
   bool _loading = true;
   bool _refreshing = false;
+  bool _isOnline = false;
+  bool _togglingOnline = false;
+  Timer? _heartbeatTimer;
   String _filter = 'available'; // available | my_orders | delivered | all
   int _activeTab = 0; // 0 = orders, 1 = profile
 
@@ -29,6 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _fetchProfile();
     _fetchOrders();
     // Listen for realtime updates and refetch properly filtered orders
     SupabaseService.ordersStream().listen((_) {
@@ -36,6 +42,83 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _fetchOrders();
       }
     });
+
+    // Periodic heartbeat to keep rider presence fresh while app is open
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (_isOnline) {
+        SupabaseService.updatePresenceHeartbeat();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _heartbeatTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchProfile() async {
+    try {
+      final user = SupabaseService.currentUser;
+      if (user != null) {
+        final profile = await SupabaseService.fetchRiderProfile(user.id);
+        if (mounted && profile != null) {
+          setState(() {
+            _profile = profile;
+            _isOnline = profile['is_online'] == true;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleOnlineStatus(bool targetOnline) async {
+    if (_togglingOnline) return;
+    setState(() => _togglingOnline = true);
+
+    try {
+      await SupabaseService.setRiderOnlineStatus(targetOnline);
+      if (mounted) {
+        setState(() {
+          _isOnline = targetOnline;
+          if (_profile != null) _profile!['is_online'] = targetOnline;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  targetOnline ? LucideIcons.checkCircle2 : LucideIcons.moon,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    targetOnline
+                        ? 'You are now ONLINE & ready for deliveries! 🚴🟢'
+                        : 'You are now OFFLINE. Deliveries paused. ⚪',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: targetOnline ? const Color(0xFF16A34A) : const Color(0xFF4B5563),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e'), backgroundColor: Colors.red.shade700),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _togglingOnline = false);
+    }
   }
 
   Future<void> _fetchOrders() async {
@@ -75,10 +158,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _handleRefresh() {
     setState(() => _refreshing = true);
+    _fetchProfile();
     _fetchOrders();
   }
 
   Future<void> _handleLogout() async {
+    // When logging out, set offline automatically
+    try {
+      await SupabaseService.setRiderOnlineStatus(false);
+    } catch (_) {}
     await SupabaseService.signOut();
     if (mounted) {
       Navigator.of(context).pushReplacementNamed('/login');
@@ -157,6 +245,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               _buildHeader(),
               if (_activeTab == 0) ...[
+                if (!_isOnline) _buildOfflineBanner(),
                 _buildStatsRow(),
                 _buildFilterPills(),
                 Expanded(child: _buildOrdersList()),
@@ -169,8 +258,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
-
 
   Widget _buildHeader() {
     final email = SupabaseService.currentUser?.email ?? '';
@@ -200,10 +287,120 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
+          // Online / Offline interactive toggle chip
+          GestureDetector(
+            onTap: _togglingOnline ? null : () => _toggleOnlineStatus(!_isOnline),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: _isOnline
+                    ? const Color(0xFF16A34A).withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isOnline
+                      ? const Color(0xFF22C55E).withValues(alpha: 0.6)
+                      : Colors.white.withValues(alpha: 0.15),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_togglingOnline)
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  else ...[
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isOnline ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF),
+                        boxShadow: _isOnline
+                            ? [const BoxShadow(color: Color(0xFF22C55E), blurRadius: 6, spreadRadius: 1)]
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isOnline ? 'ONLINE' : 'OFFLINE',
+                      style: TextStyle(
+                        color: _isOnline ? const Color(0xFF4ADE80) : const Color(0xFF9CA3AF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
           _buildHeaderButton(
             icon: LucideIcons.refreshCw,
             onTap: _handleRefresh,
             spinning: _refreshing,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfflineBanner() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F2937),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(LucideIcons.moon, size: 16, color: Color(0xFFF59E0B)),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'You are currently Offline',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Turn Online to receive & claim deliveries',
+                  style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _togglingOnline ? null : () => _toggleOnlineStatus(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: Size.zero,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: _togglingOnline
+                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Go Online', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
           ),
         ],
       ),
@@ -495,10 +692,92 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildProfileTab() {
     final email = SupabaseService.currentUser?.email ?? '';
+    final fullName = _profile?['full_name'] as String? ?? 'Delivery Rider';
+    final phone = _profile?['phone_number'] as String? ?? 'N/A';
+    final vehicle = _profile?['vehicle_type'] as String? ?? 'Motorcycle / Bike';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
+          // Availability Toggle Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _isOnline
+                    ? const Color(0xFF22C55E).withValues(alpha: 0.3)
+                    : Colors.white.withValues(alpha: 0.05),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _isOnline
+                        ? const Color(0xFF22C55E).withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _isOnline ? LucideIcons.bike : LucideIcons.moon,
+                    color: _isOnline ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            _isOnline ? 'Online (Ready)' : 'Offline (Off-Duty)',
+                            style: TextStyle(
+                              color: _isOnline ? const Color(0xFF4ADE80) : Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _isOnline ? const Color(0xFF22C55E) : const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _isOnline
+                            ? 'You are active and can receive orders.'
+                            : 'Toggle on to accept delivery requests.',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _isOnline,
+                  activeThumbColor: const Color(0xFF22C55E),
+                  activeTrackColor: const Color(0xFF16A34A).withValues(alpha: 0.4),
+                  inactiveThumbColor: const Color(0xFF9CA3AF),
+                  inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                  onChanged: _togglingOnline ? null : (v) => _toggleOnlineStatus(v),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Stats summary
           Row(
             children: [
@@ -518,7 +797,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: Column(
               children: [
+                _buildInfoRow('Name', fullName),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
                 _buildInfoRow('Role', 'Delivery Rider'),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
+                _buildInfoRow('Phone', phone),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
+                _buildInfoRow('Vehicle', vehicle),
                 Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
                 _buildInfoRow('Email', email, isSmall: true),
                 Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),

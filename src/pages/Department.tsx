@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowRight, Search, Truck, ShieldCheck, RotateCcw, Headphones, 
   Award, Heart, Package, Clock, SlidersHorizontal, X, LayoutGrid, 
-  Rows3, Sparkles 
+  Rows3, Sparkles, ChevronRight 
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
@@ -152,6 +152,7 @@ const Department = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [shopBanners, setShopBanners] = useState<any[]>([]);
 
   // Shop filter state
   const [searchQuery, setSearchQuery] = useState("");

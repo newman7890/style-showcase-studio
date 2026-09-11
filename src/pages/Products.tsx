@@ -62,10 +62,15 @@ const Products = () => {
       const [prodRes, catRes, bannerRes] = await Promise.all([
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("categories").select("name, slug").eq("is_active", true).order("display_order", { ascending: true }),
-        (supabase as any).from("marketing_banners").select("*").eq("is_active", true).eq("placement", "shop_banner").order("display_order", { ascending: true }),
+        supabase.from("marketing_banners").select("*").eq("is_active", true).eq("placement", "shop_banner").order("display_order", { ascending: true }),
       ]);
 
-      if (bannerRes?.data) setShopBanners(bannerRes.data);
+      console.log("[Products] Shop banner query result:", { data: bannerRes?.data, error: (bannerRes as any)?.error });
+      if (bannerRes?.data && bannerRes.data.length > 0) {
+        setShopBanners(bannerRes.data);
+      } else if ((bannerRes as any)?.error) {
+        console.error("[Products] Error fetching shop banners:", (bannerRes as any).error);
+      }
 
       let loadedCats = catRes.data || [];
 
@@ -210,7 +215,7 @@ const Products = () => {
           </motion.div>
 
           {/* Shop Top Featured Banner */}
-          {shopBanners.length > 0 && searchQuery === "" && activeCategory === "all" && (
+          {shopBanners.length > 0 && (
             <div className="mb-8 flex flex-col gap-4">
               {shopBanners.map((banner) => (
                 <div
@@ -223,16 +228,17 @@ const Products = () => {
                     const link = (banner.link_url || "").trim();
                     const title = (banner.title || "").trim();
                     const img = (banner.image_url || "").trim();
+                    const imgQuery = img ? `?image=${encodeURIComponent(img)}` : "";
 
                     // Direct product link
                     if (/^\/products?\/[a-zA-Z0-9_-]+$/i.test(link)) {
-                      window.location.href = `/product/${link.replace(/^\/products?\//i, "")}`;
+                      window.location.href = `/product/${link.replace(/^\/products?\//i, "")}${imgQuery}`;
                       return;
                     }
 
                     // Raw UUID in link_url
                     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(link)) {
-                      window.location.href = `/product/${link}`;
+                      window.location.href = `/product/${link}${imgQuery}`;
                       return;
                     }
 
@@ -245,7 +251,7 @@ const Products = () => {
                         return false;
                       });
                       if (matchedProd) {
-                        window.location.href = `/product/${matchedProd.id}`;
+                        window.location.href = `/product/${matchedProd.id}${imgQuery}`;
                         return;
                       }
                     }
@@ -258,7 +264,7 @@ const Products = () => {
                         p.category?.toLowerCase() === title.toLowerCase()
                       );
                       if (matchedProd) {
-                        window.location.href = `/product/${matchedProd.id}`;
+                        window.location.href = `/product/${matchedProd.id}${imgQuery}`;
                         return;
                       }
 
@@ -269,7 +275,7 @@ const Products = () => {
                           .or(`name.ilike.%${title}%,category.ilike.%${title}%`)
                           .limit(1);
                         if (dbMatches && dbMatches.length > 0) {
-                          window.location.href = `/product/${dbMatches[0].id}`;
+                          window.location.href = `/product/${dbMatches[0].id}${imgQuery}`;
                           return;
                         }
                       } catch {}
@@ -277,7 +283,7 @@ const Products = () => {
 
                     // 3. Fallback to first available product
                     if (products.length > 0) {
-                      window.location.href = `/product/${products[0].id}`;
+                      window.location.href = `/product/${products[0].id}${imgQuery}`;
                       return;
                     }
 
