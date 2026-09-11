@@ -74,41 +74,54 @@ BEGIN
     RAISE EXCEPTION 'Authentication required';
   END IF;
 
-  -- Upsert presence row atomically
-  INSERT INTO public.rider_profiles (
-    user_id,
-    full_name,
-    phone_number,
-    vehicle_type,
-    access_code,
-    status,
-    is_online,
-    last_seen_at,
-    current_lat,
-    current_lng,
-    updated_at
-  )
-  VALUES (
-    _rider_id,
-    'Rider',
-    '',
-    'Motorcycle',
-    'ONLINE',
-    'active',
-    _is_online,
-    now(),
-    _lat,
-    _lng,
-    now()
-  )
-  ON CONFLICT (user_id) DO UPDATE
+  -- 1. Try to update existing profile first
+  UPDATE public.rider_profiles
   SET
-    is_online = EXCLUDED.is_online,
+    is_online = _is_online,
     last_seen_at = now(),
-    current_lat = COALESCE(EXCLUDED.current_lat, rider_profiles.current_lat),
-    current_lng = COALESCE(EXCLUDED.current_lng, rider_profiles.current_lng),
+    current_lat = COALESCE(_lat, current_lat),
+    current_lng = COALESCE(_lng, current_lng),
     updated_at = now()
+  WHERE user_id = _rider_id
   RETURNING * INTO _updated_row;
+
+  -- 2. If profile does not exist yet, provision one with unique access code
+  IF NOT FOUND THEN
+    INSERT INTO public.rider_profiles (
+      user_id,
+      full_name,
+      phone_number,
+      vehicle_type,
+      access_code,
+      status,
+      is_online,
+      last_seen_at,
+      current_lat,
+      current_lng,
+      updated_at
+    )
+    VALUES (
+      _rider_id,
+      'Rider',
+      '',
+      'Motorcycle',
+      'RIDER-' || substring(_rider_id::text, 1, 8),
+      'active',
+      _is_online,
+      now(),
+      _lat,
+      _lng,
+      now()
+    )
+    ON CONFLICT (user_id) DO UPDATE
+    SET
+      is_online = _is_online,
+      last_seen_at = now(),
+      current_lat = COALESCE(_lat, rider_profiles.current_lat),
+      current_lng = COALESCE(_lng, rider_profiles.current_lng),
+      updated_at = now()
+    RETURNING * INTO _updated_row;
+  END IF;
 
   RETURN jsonb_build_object(
     'success', true,

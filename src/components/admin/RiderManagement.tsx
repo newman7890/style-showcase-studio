@@ -233,14 +233,21 @@ export const RiderManagement = () => {
   const isRiderOnline = (rider: RiderProfile): boolean => {
     if (!rider) return false;
     const val = (rider as any).is_online;
-    if (val === true || val === "true" || val === 1) return true;
+    if (val === true || val === "true" || val === 1 || val === "1") return true;
     
-    // Heartbeat check: active in app within the last 5 minutes
-    if (rider.last_seen_at && val !== false && val !== "false") {
+    // Heartbeat check: active in app within the last 5 minutes (unless explicitly set to false)
+    if (rider.last_seen_at && val !== false && val !== "false" && val !== 0 && val !== "0") {
       const diffMs = Date.now() - new Date(rider.last_seen_at).getTime();
       if (diffMs < 5 * 60 * 1000) return true;
     }
     return false;
+  };
+
+  const getActiveOrdersCount = (rider: RiderProfile): number => {
+    if (!rider) return 0;
+    const byUserId = rider.user_id ? (activeOrdersByRider[rider.user_id] || 0) : 0;
+    const byId = rider.id && rider.id !== rider.user_id ? (activeOrdersByRider[rider.id] || 0) : 0;
+    return byUserId + byId;
   };
 
   const toggleRiderOnlineStatus = async (riderId: string, currentOnline: boolean, e?: React.MouseEvent) => {
@@ -254,7 +261,7 @@ export const RiderManagement = () => {
           last_seen_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as any)
-        .eq("id", riderId);
+        .or(`id.eq.${riderId},user_id.eq.${riderId}`);
 
       if (error) throw error;
       toast({
@@ -268,7 +275,7 @@ export const RiderManagement = () => {
   };
 
   const getRiderPresence = (rider: RiderProfile) => {
-    const activeCount = activeOrdersByRider[rider.user_id] || 0;
+    const activeCount = getActiveOrdersCount(rider);
     if (rider.status === "suspended") {
       return {
         status: "suspended",
@@ -512,7 +519,7 @@ export const RiderManagement = () => {
               <div>
                 <span className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider block">Online (Available)</span>
                 <span className="text-xl font-bold text-emerald-700">
-                  {riders.filter((r) => r.status !== "suspended" && isRiderOnline(r) && (activeOrdersByRider[r.user_id] || 0) === 0).length}
+                  {riders.filter((r) => r.status !== "suspended" && isRiderOnline(r) && getActiveOrdersCount(r) === 0).length}
                 </span>
               </div>
               <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-100" />
@@ -521,7 +528,7 @@ export const RiderManagement = () => {
               <div>
                 <span className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider block">On Delivery (Busy)</span>
                 <span className="text-xl font-bold text-amber-700">
-                  {riders.filter((r) => r.status !== "suspended" && (activeOrdersByRider[r.user_id] || 0) > 0).length}
+                  {riders.filter((r) => r.status !== "suspended" && getActiveOrdersCount(r) > 0).length}
                 </span>
               </div>
               <div className="w-3.5 h-3.5 rounded-full bg-amber-500 ring-4 ring-amber-100" />
@@ -530,7 +537,7 @@ export const RiderManagement = () => {
               <div>
                 <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider block">Offline</span>
                 <span className="text-xl font-bold text-gray-700">
-                  {riders.filter((r) => r.status !== "suspended" && !isRiderOnline(r) && (activeOrdersByRider[r.user_id] || 0) === 0).length}
+                  {riders.filter((r) => r.status !== "suspended" && !isRiderOnline(r) && getActiveOrdersCount(r) === 0).length}
                 </span>
               </div>
               <div className="w-3.5 h-3.5 rounded-full bg-gray-400" />

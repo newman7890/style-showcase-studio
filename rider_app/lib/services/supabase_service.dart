@@ -192,7 +192,27 @@ class SupabaseService {
     final vehicle = (metadata['vehicle_type'] as String?) ?? 'Motorcycle';
 
     dynamic lastError;
-    // 1. Attempt via update_rider_presence RPC first
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    // 1. Direct update on existing profile row
+    try {
+      final updated = await client
+          .from('rider_profiles')
+          .update({
+            'is_online': isOnline,
+            'last_seen_at': nowIso,
+            'updated_at': nowIso,
+          })
+          .eq('user_id', userId)
+          .select();
+      if (updated.isNotEmpty) {
+        return;
+      }
+    } catch (e) {
+      lastError = e;
+    }
+
+    // 2. Attempt via update_rider_presence RPC
     try {
       await client.rpc('update_rider_presence', params: {
         '_is_online': isOnline,
@@ -202,8 +222,9 @@ class SupabaseService {
       lastError = e;
     }
 
-    // 2. Fallback to direct table upsert with ALL required columns
+    // 3. Fallback to direct table upsert with ALL required columns
     try {
+      final uniqueAccessCode = 'RIDER-${userId.replaceAll('-', '').substring(0, 6).toUpperCase()}';
       await client
           .from('rider_profiles')
           .upsert({
@@ -211,11 +232,11 @@ class SupabaseService {
             'full_name': fullName,
             'phone_number': phone,
             'vehicle_type': vehicle,
-            'access_code': 'RIDER-${userId.substring(0, 4).toUpperCase()}',
+            'access_code': uniqueAccessCode,
             'status': 'active',
             'is_online': isOnline,
-            'last_seen_at': DateTime.now().toUtc().toIso8601String(),
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
+            'last_seen_at': nowIso,
+            'updated_at': nowIso,
           }, onConflict: 'user_id');
       return;
     } catch (e) {
