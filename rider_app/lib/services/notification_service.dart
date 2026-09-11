@@ -22,8 +22,11 @@ class NotificationService {
   // Check for newly available orders and notify rider
   static Future<void> checkForNewDeliveries(
     BuildContext context,
-    List<Map<String, dynamic>> orders,
-  ) async {
+    List<Map<String, dynamic>> orders, {
+    bool isOnline = true,
+  }) async {
+    if (!isOnline) return;
+
     final availableOrders = orders.where((o) {
       final status = (o['status'] as String? ?? '').toLowerCase();
       final paymentStatus = (o['payment_status'] as String? ?? '').toLowerCase();

@@ -143,7 +143,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final data = await SupabaseService.fetchOrders();
       if (mounted) {
         setState(() => _orders = data);
-        NotificationService.checkForNewDeliveries(context, data);
+        NotificationService.checkForNewDeliveries(context, data, isOnline: _isOnline);
       }
     } catch (e) {
       if (mounted) {

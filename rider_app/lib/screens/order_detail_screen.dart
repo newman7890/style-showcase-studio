@@ -1354,6 +1354,60 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Future<void> _handleClaimOrder() async {
     if (_order == null) return;
+
+    // Check if rider is online before claiming
+    final user = SupabaseService.currentUser;
+    if (user != null) {
+      final profile = await SupabaseService.fetchRiderProfile(user.id);
+      final isOnline = profile?['is_online'] == true;
+      if (!isOnline && mounted) {
+        final shouldGoOnline = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1F2937),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(LucideIcons.bike, color: AppTheme.primary, size: 22),
+                SizedBox(width: 8),
+                Text('Go Online to Claim', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: const Text(
+              'You are currently offline. You must switch to Online mode to claim deliveries.',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Go Online & Claim 🚴', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldGoOnline != true) return;
+        try {
+          await SupabaseService.setRiderOnlineStatus(true);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Could not switch to online: $e'), backgroundColor: Colors.red.shade700),
+            );
+          }
+          return;
+        }
+      }
+    }
+
     setState(() => _updating = true);
     try {
       await SupabaseService.claimOrder(_order!['id']);

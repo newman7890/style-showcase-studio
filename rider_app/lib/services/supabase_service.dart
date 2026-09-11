@@ -144,28 +144,36 @@ class SupabaseService {
   // Update rider online/offline availability status
   static Future<void> setRiderOnlineStatus(bool isOnline) async {
     final userId = currentUser?.id;
-    if (userId == null) return;
+    if (userId == null) throw Exception('No authenticated rider found.');
 
+    dynamic lastError;
+    // 1. Attempt via update_rider_presence RPC first
     try {
-      // Attempt via RPC first
       await client.rpc('update_rider_presence', params: {
         '_is_online': isOnline,
       });
-    } catch (_) {
-      // Fallback to direct table update
-      try {
-        await client
-            .from('rider_profiles')
-            .update({
-              'is_online': isOnline,
-              'last_seen_at': DateTime.now().toUtc().toIso8601String(),
-              'updated_at': DateTime.now().toUtc().toIso8601String(),
-            })
-            .eq('user_id', userId);
-      } catch (e) {
-        // Ignore or rethrow
-      }
+      return;
+    } catch (e) {
+      lastError = e;
     }
+
+    // 2. Fallback to direct table upsert / update
+    try {
+      await client
+          .from('rider_profiles')
+          .upsert({
+            'user_id': userId,
+            'is_online': isOnline,
+            'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          }, onConflict: 'user_id');
+      return;
+    } catch (e) {
+      lastError = e;
+    }
+
+    // Rethrow clear actionable error if database update could not be completed
+    throw Exception('Database update failed ($lastError). Please verify the rider_online_offline_status SQL migration has been executed in Supabase.');
   }
 
   // Heartbeat ping while rider is active in the app
