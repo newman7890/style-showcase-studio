@@ -225,8 +225,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final errStr = e.toString();
+        final displayMsg = errStr.contains('SocketException') || errStr.contains('Failed host lookup')
+            ? 'Network connection error. Please check your internet connection and pull to refresh.'
+            : 'Error fetching orders: $e';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
+          SnackBar(content: Text(displayMsg), backgroundColor: Colors.red.shade700),
         );
       }
     } finally {

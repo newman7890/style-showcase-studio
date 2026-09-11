@@ -96,9 +96,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       });
     } catch (e) {
       if (mounted) {
+        final errStr = e.toString();
+        final displayMsg = errStr.contains('SocketException') || errStr.contains('Failed host lookup')
+            ? 'Network connection error. Please check your internet connection.'
+            : 'Error loading order details: $e';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(displayMsg),
             backgroundColor: Colors.red.shade700,
           ),
         );
