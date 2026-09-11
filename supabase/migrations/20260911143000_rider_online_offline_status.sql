@@ -10,13 +10,22 @@ ADD COLUMN IF NOT EXISTS current_lng DOUBLE PRECISION;
 -- 2. Relax strict not-null constraints that could block upserting profiles
 ALTER TABLE public.rider_profiles ALTER COLUMN phone_number DROP NOT NULL;
 ALTER TABLE public.rider_profiles ALTER COLUMN access_code DROP NOT NULL;
+ALTER TABLE public.rider_profiles ALTER COLUMN status SET DEFAULT 'active';
 
 -- 3. Create indexes for fast status and presence queries
 CREATE INDEX IF NOT EXISTS idx_rider_profiles_is_online ON public.rider_profiles(is_online);
 CREATE INDEX IF NOT EXISTS idx_rider_profiles_last_seen_at ON public.rider_profiles(last_seen_at);
 CREATE INDEX IF NOT EXISTS idx_rider_profiles_status ON public.rider_profiles(status);
 
--- 4. Ensure RLS policies allow riders to view and update their own profile presence
+-- 4. Ensure RLS policies allow reading and updating presence without restrictions
+DROP POLICY IF EXISTS "Riders can view own profile" ON public.rider_profiles;
+DROP POLICY IF EXISTS "Authenticated users can view rider profiles" ON public.rider_profiles;
+CREATE POLICY "Authenticated users can view rider profiles"
+  ON public.rider_profiles
+  FOR SELECT
+  TO authenticated
+  USING (true);
+
 DROP POLICY IF EXISTS "Riders can update their own profile" ON public.rider_profiles;
 CREATE POLICY "Riders can update their own profile"
   ON public.rider_profiles
@@ -32,7 +41,21 @@ CREATE POLICY "Riders can insert their own profile"
   TO authenticated
   WITH CHECK (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
 
--- 5. RPC for updating rider presence atomically
+-- 5. Add rider_profiles to Supabase Realtime publication
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'rider_profiles'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.rider_profiles;
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN
+    NULL;
+END $$;
+
+-- 6. RPC for updating rider presence atomically
 CREATE OR REPLACE FUNCTION public.update_rider_presence(
   _is_online BOOLEAN,
   _lat DOUBLE PRECISION DEFAULT NULL,
@@ -99,7 +122,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.update_rider_presence(BOOLEAN, DOUBLE PRECISION, DOUBLE PRECISION) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.update_rider_presence(BOOLEAN, DOUBLE PRECISION, DOUBLE PRECISION) TO anon;
 
--- 6. Enforce suspension check strictly on rider profile status
+-- 7. Enforce suspension check strictly on rider profile status
 CREATE OR REPLACE FUNCTION public.is_rider_suspended(_rider_id UUID)
 RETURNS BOOLEAN
 LANGUAGE plpgsql

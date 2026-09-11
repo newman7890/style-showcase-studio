@@ -210,9 +210,39 @@ export const RiderManagement = () => {
 
   const isRiderOnline = (rider: RiderProfile): boolean => {
     if (!rider) return false;
-    // Check direct boolean or string or numeric presence
     const val = (rider as any).is_online;
-    return val === true || val === "true" || val === 1;
+    if (val === true || val === "true" || val === 1) return true;
+    
+    // Heartbeat check: active in app within the last 5 minutes
+    if (rider.last_seen_at && val !== false && val !== "false") {
+      const diffMs = Date.now() - new Date(rider.last_seen_at).getTime();
+      if (diffMs < 5 * 60 * 1000) return true;
+    }
+    return false;
+  };
+
+  const toggleRiderOnlineStatus = async (riderId: string, currentOnline: boolean, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const nextOnline = !currentOnline;
+    try {
+      const { error } = await supabase
+        .from("rider_profiles" as any)
+        .update({
+          is_online: nextOnline,
+          last_seen_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", riderId);
+
+      if (error) throw error;
+      toast({
+        title: nextOnline ? "Rider Set to Online 🟢" : "Rider Set to Offline ⚪",
+        description: `Status updated successfully.`,
+      });
+      fetchData(false);
+    } catch (err: any) {
+      toast({ title: "Failed to update presence", description: err.message, variant: "destructive" });
+    }
   };
 
   const getRiderPresence = (rider: RiderProfile) => {
@@ -460,7 +490,7 @@ export const RiderManagement = () => {
               <div>
                 <span className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider block">Online (Available)</span>
                 <span className="text-xl font-bold text-emerald-700">
-                  {riders.filter((r) => r.status === "active" && isRiderOnline(r) && (activeOrdersByRider[r.user_id] || 0) === 0).length}
+                  {riders.filter((r) => r.status !== "suspended" && isRiderOnline(r) && (activeOrdersByRider[r.user_id] || 0) === 0).length}
                 </span>
               </div>
               <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-100" />
@@ -469,7 +499,7 @@ export const RiderManagement = () => {
               <div>
                 <span className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider block">On Delivery (Busy)</span>
                 <span className="text-xl font-bold text-amber-700">
-                  {riders.filter((r) => r.status === "active" && (activeOrdersByRider[r.user_id] || 0) > 0).length}
+                  {riders.filter((r) => r.status !== "suspended" && (activeOrdersByRider[r.user_id] || 0) > 0).length}
                 </span>
               </div>
               <div className="w-3.5 h-3.5 rounded-full bg-amber-500 ring-4 ring-amber-100" />
@@ -478,7 +508,7 @@ export const RiderManagement = () => {
               <div>
                 <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider block">Offline</span>
                 <span className="text-xl font-bold text-gray-700">
-                  {riders.filter((r) => r.status === "active" && !isRiderOnline(r) && (activeOrdersByRider[r.user_id] || 0) === 0).length}
+                  {riders.filter((r) => r.status !== "suspended" && !isRiderOnline(r) && (activeOrdersByRider[r.user_id] || 0) === 0).length}
                 </span>
               </div>
               <div className="w-3.5 h-3.5 rounded-full bg-gray-400" />
@@ -843,6 +873,15 @@ export const RiderManagement = () => {
                     <Badge variant={selectedRider.status === "active" ? "default" : "destructive"}>
                       Account: {selectedRider.status}
                     </Badge>
+                    <Button
+                      size="sm"
+                      variant={isRiderOnline(selectedRider) ? "secondary" : "outline"}
+                      onClick={(e) => toggleRiderOnlineStatus(selectedRider.id, isRiderOnline(selectedRider), e)}
+                      className="text-xs gap-1.5"
+                    >
+                      <span className={`w-2 h-2 rounded-full ${isRiderOnline(selectedRider) ? "bg-emerald-500" : "bg-gray-400"}`} />
+                      {isRiderOnline(selectedRider) ? "Set Offline" : "Set Online"}
+                    </Button>
                     <Button
                       size="sm"
                       variant={selectedRider.status === "active" ? "outline" : "default"}
