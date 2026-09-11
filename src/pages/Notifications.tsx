@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ChevronLeft, Loader2, Bell, Package, Tag, CheckCheck, 
-  Trash2, ShieldCheck, Sparkles, SlidersHorizontal, ArrowRight 
+  Trash2, ShieldCheck, Sparkles, SlidersHorizontal, ArrowRight,
+  CreditCard, User, MapPin, Store, Truck
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -151,9 +152,17 @@ const Notifications = () => {
       );
     }
 
-    // Navigate to order details if linked to an order
+    // Navigate based on notification context
     if (notification.order_id) {
       navigate(`/orders`);
+    } else if (notification.type === "seller_status" || notification.type === "product_status") {
+      navigate(`/seller`);
+    } else if (notification.type === "profile_update") {
+      navigate(`/profile/personal`);
+    } else if (notification.type === "address_update") {
+      navigate(`/profile/address`);
+    } else if (notification.type === "security") {
+      navigate(`/settings/password`);
     }
   };
 
@@ -208,13 +217,34 @@ const Notifications = () => {
   ];
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
+    switch (type?.toLowerCase()) {
       case "order_status":
       case "order":
+      case "order_update":
         return <Package className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />;
+      case "payment":
+      case "payment_status":
+        return <CreditCard className="w-5 h-5 text-blue-500" />;
+      case "seller_status":
+      case "seller":
+        return <Store className="w-5 h-5 text-indigo-500" />;
+      case "product_status":
+      case "product":
+        return <Sparkles className="w-5 h-5 text-purple-500" />;
+      case "profile_update":
+      case "user":
+        return <User className="w-5 h-5 text-cyan-500" />;
+      case "address_update":
+      case "address":
+        return <MapPin className="w-5 h-5 text-amber-500" />;
+      case "security":
+        return <ShieldCheck className="w-5 h-5 text-rose-500" />;
+      case "rider":
+      case "delivery":
+        return <Truck className="w-5 h-5 text-emerald-500" />;
       case "promotion":
       case "promo":
-        return <Tag className="w-5 h-5 text-amber-500" />;
+        return <Tag className="w-5 h-5 text-pink-500" />;
       default:
         return <Bell className="w-5 h-5 text-primary" />;
     }

@@ -176,6 +176,24 @@ export const RiderManagement = () => {
           .in("status", ["confirmed", "processing", "shipped"]),
         supabase.from("user_roles" as any).select("user_id, role").eq("role", "rider"),
       ]);
+      // Debug: log raw rider_profiles response
+      console.log("[RiderMgmt] rider_profiles response:", {
+        data: ridersRes.data,
+        error: ridersRes.error,
+        count: ridersRes.data?.length,
+        sample: ridersRes.data?.[0] ? { 
+          id: (ridersRes.data[0] as any).id, 
+          is_online: (ridersRes.data[0] as any).is_online,
+          status: (ridersRes.data[0] as any).status,
+          last_seen_at: (ridersRes.data[0] as any).last_seen_at,
+          has_is_online_key: 'is_online' in (ridersRes.data[0] as any),
+        } : "no data",
+      });
+      console.log("[RiderMgmt] user_roles response:", {
+        data: rolesRes.data,
+        error: rolesRes.error,
+      });
+
       if (codesRes.data) setAccessCodes(codesRes.data as any);
       const riderList: RiderProfile[] = [...((ridersRes.data as unknown as RiderProfile[]) || [])];
 
@@ -233,13 +251,22 @@ export const RiderManagement = () => {
   const isRiderOnline = (rider: RiderProfile): boolean => {
     if (!rider) return false;
     const val = (rider as any).is_online;
-    if (val === true || val === "true" || val === 1 || val === "1") return true;
+    const result = val === true || val === "true" || val === 1 || val === "1";
+    
+    if (result) {
+      console.log(`[RiderMgmt] isRiderOnline(${rider.full_name}): TRUE (is_online=${val})`);
+      return true;
+    }
     
     // Heartbeat check: active in app within the last 5 minutes (unless explicitly set to false)
     if (rider.last_seen_at && val !== false && val !== "false" && val !== 0 && val !== "0") {
       const diffMs = Date.now() - new Date(rider.last_seen_at).getTime();
-      if (diffMs < 5 * 60 * 1000) return true;
+      if (diffMs < 5 * 60 * 1000) {
+        console.log(`[RiderMgmt] isRiderOnline(${rider.full_name}): TRUE (heartbeat, last_seen ${Math.floor(diffMs/1000)}s ago, val=${val})`);
+        return true;
+      }
     }
+    console.log(`[RiderMgmt] isRiderOnline(${rider.full_name}): FALSE (is_online=${val}, last_seen_at=${rider.last_seen_at})`);
     return false;
   };
 
@@ -275,22 +302,52 @@ export const RiderManagement = () => {
     }
 
     try {
-      const { error } = await supabase
+      console.log(`[RiderMgmt] Toggling rider ${riderId} to is_online=${nextOnline}`);
+      
+      // First try a direct update
+      const { data: updateData, error: updateError } = await supabase
         .from("rider_profiles" as any)
         .update({
           is_online: nextOnline,
           last_seen_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as any)
-        .or(`id.eq.${riderId},user_id.eq.${riderId}`);
+        .or(`id.eq.${riderId},user_id.eq.${riderId}`)
+        .select();
 
-      if (error) throw error;
+      console.log(`[RiderMgmt] Update result:`, { data: updateData, error: updateError, rowsAffected: updateData?.length });
+
+      // If update matched zero rows, this rider has no rider_profiles row yet — upsert one
+      if (!updateError && (!updateData || updateData.length === 0)) {
+        console.log(`[RiderMgmt] No rider_profiles row found for ${riderId}, upserting...`);
+        const { data: upsertData, error: upsertError } = await supabase
+          .from("rider_profiles" as any)
+          .upsert({
+            user_id: riderId,
+            full_name: riders.find((r) => r.id === riderId || r.user_id === riderId)?.full_name || "Delivery Rider",
+            phone_number: riders.find((r) => r.id === riderId || r.user_id === riderId)?.phone_number || "",
+            vehicle_type: "Motorcycle",
+            access_code: `RIDER-${riderId.slice(0, 6).toUpperCase()}`,
+            status: "active",
+            is_online: nextOnline,
+            last_seen_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as any, { onConflict: "user_id" })
+          .select();
+        console.log(`[RiderMgmt] Upsert result:`, { data: upsertData, error: upsertError });
+        if (upsertError) throw upsertError;
+      } else if (updateError) {
+        throw updateError;
+      }
+
       toast({
         title: nextOnline ? "Rider Set to Online 🟢" : "Rider Set to Offline ⚪",
         description: `Status updated successfully.`,
       });
-      fetchData(false);
+      // Delay fetchData to allow the DB write to propagate before re-fetching
+      setTimeout(() => fetchData(false), 1500);
     } catch (err: any) {
+      console.error(`[RiderMgmt] Toggle error:`, err);
       toast({ title: "Failed to update presence", description: err.message, variant: "destructive" });
       fetchData(false);
     }
