@@ -253,6 +253,27 @@ export const RiderManagement = () => {
   const toggleRiderOnlineStatus = async (riderId: string, currentOnline: boolean, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const nextOnline = !currentOnline;
+    
+    // Optimistic state update immediately
+    setRiders((prev) =>
+      prev.map((r) =>
+        r.id === riderId || r.user_id === riderId
+          ? { ...r, is_online: nextOnline, last_seen_at: new Date().toISOString() }
+          : r
+      )
+    );
+    if (selectedRider && (selectedRider.id === riderId || selectedRider.user_id === riderId)) {
+      setSelectedRider((prev) =>
+        prev
+          ? {
+              ...prev,
+              is_online: nextOnline,
+              last_seen_at: new Date().toISOString(),
+            }
+          : null
+      );
+    }
+
     try {
       const { error } = await supabase
         .from("rider_profiles" as any)
@@ -271,6 +292,68 @@ export const RiderManagement = () => {
       fetchData(false);
     } catch (err: any) {
       toast({ title: "Failed to update presence", description: err.message, variant: "destructive" });
+      fetchData(false);
+    }
+  };
+
+  const toggleRiderStatus = async (riderId: string, currentStatus: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const nextStatus = currentStatus === "active" ? "suspended" : "active";
+
+    // Optimistic update
+    setRiders((prev) =>
+      prev.map((r) =>
+        r.id === riderId || r.user_id === riderId
+          ? { ...r, status: nextStatus, is_online: nextStatus === "suspended" ? false : r.is_online }
+          : r
+      )
+    );
+    if (selectedRider && (selectedRider.id === riderId || selectedRider.user_id === riderId)) {
+      setSelectedRider((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: nextStatus,
+              is_online: nextStatus === "suspended" ? false : prev.is_online,
+            }
+          : null
+      );
+    }
+
+    try {
+      const updatePayload: Record<string, any> = {
+        status: nextStatus,
+        updated_at: new Date().toISOString(),
+      };
+      if (nextStatus === "suspended") {
+        updatePayload.is_online = false;
+      }
+
+      const { error } = await supabase
+        .from("rider_profiles" as any)
+        .update(updatePayload as any)
+        .or(`id.eq.${riderId},user_id.eq.${riderId}`);
+
+      if (error) throw error;
+
+      // Find the user_id to notify
+      const matchedRider = riders.find((r) => r.id === riderId || r.user_id === riderId);
+      if (matchedRider?.user_id) {
+        createNotification({
+          userId: matchedRider.user_id,
+          title: nextStatus === "active" ? "Rider Account Activated 🚴" : "Rider Account Suspended ⚠️",
+          message: nextStatus === "active"
+            ? "Your rider dispatch account has been activated. You can now accept deliveries."
+            : "Your rider dispatch account has been suspended. Please contact admin for assistance.",
+          type: "general",
+        });
+      }
+
+      toast({ title: `Rider ${nextStatus}`, description: `Rider status updated to ${nextStatus}.` });
+      fetchData(false);
+    } catch (err: any) {
+      toast({ title: "Error updating status", description: err.message, variant: "destructive" });
+      fetchData(false);
     }
   };
 
@@ -383,44 +466,6 @@ export const RiderManagement = () => {
     }
   };
 
-  const toggleRiderStatus = async (riderId: string, currentStatus: string) => {
-    const nextStatus = currentStatus === "active" ? "suspended" : "active";
-    try {
-      const updatePayload: Record<string, any> = {
-        status: nextStatus,
-        updated_at: new Date().toISOString(),
-      };
-      if (nextStatus === "suspended") {
-        updatePayload.is_online = false;
-      }
-
-      const { error } = await supabase
-        .from("rider_profiles" as any)
-        .update(updatePayload as any)
-        .eq("id", riderId);
-      if (error) throw error;
-
-      const targetRider = riders.find((r) => r.id === riderId) || (selectedRider?.id === riderId ? selectedRider : null);
-      if (targetRider?.user_id) {
-        createNotification({
-          userId: targetRider.user_id,
-          title: nextStatus === "active" ? "Rider Account Activated 🚴" : "Rider Account Suspended ⚠️",
-          message: nextStatus === "active"
-            ? "Your rider dispatch account has been activated. You can now accept deliveries."
-            : "Your rider dispatch account has been suspended. Please contact admin for assistance.",
-          type: "general",
-        });
-      }
-
-      toast({ title: `Rider ${nextStatus}`, description: `Rider status updated to ${nextStatus}.` });
-      if (selectedRider && selectedRider.id === riderId) {
-        setSelectedRider({ ...selectedRider, status: nextStatus });
-      }
-      fetchData();
-    } catch (err: any) {
-      toast({ title: "Error updating status", description: err.message, variant: "destructive" });
-    }
-  };
 
   const handleOpenTicketDetails = (ticket: SupportTicket) => {
     setSelectedTicket(ticket);
@@ -641,13 +686,31 @@ export const RiderManagement = () => {
                         </div>
                       </div>
 
-                      <div className="text-[11px] text-primary font-semibold pt-1 flex items-center justify-between">
-                        <span>View Delivery History & Packages →</span>
-                        {presence.activeCount > 0 && (
-                          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                            {presence.activeCount} in transit
-                          </span>
-                        )}
+                      <div className="pt-2 border-t flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={isRiderOnline(rider) ? "secondary" : "outline"}
+                            onClick={(e) => toggleRiderOnlineStatus(rider.id, isRiderOnline(rider), e)}
+                            className="h-7 text-[11px] px-2 gap-1 rounded-md"
+                          >
+                            <span className={`w-2 h-2 rounded-full ${isRiderOnline(rider) ? "bg-emerald-500" : "bg-gray-400"}`} />
+                            {isRiderOnline(rider) ? "Set Offline" : "Set Online"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={rider.status === "active" ? "ghost" : "destructive"}
+                            onClick={(e) => toggleRiderStatus(rider.id, rider.status, e)}
+                            className="h-7 text-[11px] px-2 rounded-md"
+                          >
+                            {rider.status === "active" ? "Suspend" : "Activate"}
+                          </Button>
+                        </div>
+                        <span className="text-[11px] text-primary font-semibold hover:underline">
+                          Details →
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
