@@ -141,10 +141,10 @@ class SupabaseService {
 
       // Auto-provision profile row if user has rider role or logged in
       final user = currentUser;
-      final metadata = user?.user_metadata ?? {};
+      final metadata = user?.userMetadata ?? {};
       final fullName = (metadata['full_name'] as String?)?.isNotEmpty == true
           ? metadata['full_name'] as String
-          : user?.email?.split('@')[0] ?? 'Rider';
+          : (user?.email != null ? user!.email!.split('@')[0] : 'Rider');
       final phone = (metadata['phone_number'] as String?) ?? (metadata['phone'] as String?) ?? '';
       final vehicle = (metadata['vehicle_type'] as String?) ?? 'Motorcycle';
 
@@ -184,10 +184,10 @@ class SupabaseService {
     final userId = user?.id;
     if (userId == null) throw Exception('No authenticated rider found.');
 
-    final metadata = user.user_metadata ?? {};
+    final metadata = user?.userMetadata ?? {};
     final fullName = (metadata['full_name'] as String?)?.isNotEmpty == true
         ? metadata['full_name'] as String
-        : user.email?.split('@')[0] ?? 'Rider';
+        : (user?.email != null ? user!.email!.split('@')[0] : 'Rider');
     final phone = (metadata['phone_number'] as String?) ?? (metadata['phone'] as String?) ?? '';
     final vehicle = (metadata['vehicle_type'] as String?) ?? 'Motorcycle';
 
