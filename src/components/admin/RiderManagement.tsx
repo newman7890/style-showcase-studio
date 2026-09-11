@@ -33,6 +33,7 @@ import {
   MessageSquare,
   AlertCircle,
   Send,
+  RefreshCw,
 } from "lucide-react";
 import { createNotification } from "@/services/notificationService";
 
@@ -104,6 +105,7 @@ export const RiderManagement = () => {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [activeOrdersByRider, setActiveOrdersByRider] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [ticketStatusFilter, setTicketStatusFilter] = useState("all");
 
@@ -128,10 +130,40 @@ export const RiderManagement = () => {
 
   useEffect(() => {
     fetchData(true);
+
+    // Realtime channel for live rider profile status changes
+    const channel = supabase
+      .channel("admin-rider-management-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rider_profiles" },
+        () => {
+          fetchData(false);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          fetchData(false);
+        }
+      )
+      .subscribe();
+
+    // Automatic polling interval to refresh presence and heartbeats
+    const interval = setInterval(() => {
+      fetchData(false);
+    }, 10000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, []);
 
   const fetchData = async (isInitial = false) => {
     if (isInitial) setLoading(true);
+    else setRefreshing(true);
     try {
       const [codesRes, ridersRes, ticketsRes, activeOrdersRes] = await Promise.all([
         supabase.from("rider_access_codes" as any).select("*").order("created_at", { ascending: false }),
@@ -172,7 +204,15 @@ export const RiderManagement = () => {
       toast({ title: "Error loading rider data", description: err.message, variant: "destructive" });
     } finally {
       if (isInitial) setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const isRiderOnline = (rider: RiderProfile): boolean => {
+    if (!rider) return false;
+    // Check direct boolean or string or numeric presence
+    const val = (rider as any).is_online;
+    return val === true || val === "true" || val === 1;
   };
 
   const getRiderPresence = (rider: RiderProfile) => {
@@ -195,7 +235,7 @@ export const RiderManagement = () => {
         activeCount,
       };
     }
-    if (rider.is_online) {
+    if (isRiderOnline(rider)) {
       return {
         status: "online",
         label: "Online (Available)",
@@ -412,7 +452,7 @@ export const RiderManagement = () => {
               <div>
                 <span className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider block">Online (Available)</span>
                 <span className="text-xl font-bold text-emerald-700">
-                  {riders.filter((r) => r.status === "active" && r.is_online && (activeOrdersByRider[r.user_id] || 0) === 0).length}
+                  {riders.filter((r) => r.status === "active" && isRiderOnline(r) && (activeOrdersByRider[r.user_id] || 0) === 0).length}
                 </span>
               </div>
               <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-100" />
@@ -430,7 +470,7 @@ export const RiderManagement = () => {
               <div>
                 <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider block">Offline</span>
                 <span className="text-xl font-bold text-gray-700">
-                  {riders.filter((r) => r.status === "active" && !r.is_online && (activeOrdersByRider[r.user_id] || 0) === 0).length}
+                  {riders.filter((r) => r.status === "active" && !isRiderOnline(r) && (activeOrdersByRider[r.user_id] || 0) === 0).length}
                 </span>
               </div>
               <div className="w-3.5 h-3.5 rounded-full bg-gray-400" />
@@ -453,14 +493,26 @@ export const RiderManagement = () => {
                 Real-time rider tracking, availability status, active packages, and delivery performance.
               </p>
             </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search rider, phone, code..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 text-xs"
-              />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchData(false)}
+                disabled={refreshing}
+                className="gap-1.5 text-xs h-9 shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-primary" : ""}`} />
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </Button>
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search rider, phone, code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 text-xs"
+                />
+              </div>
             </div>
           </div>
 
