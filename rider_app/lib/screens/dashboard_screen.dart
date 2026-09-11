@@ -20,6 +20,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isOnline = false;
   bool _togglingOnline = false;
   Timer? _heartbeatTimer;
+  StreamSubscription? _ordersSubscription;
+  StreamSubscription? _profileSubscription;
   String _filter = 'available'; // available | my_orders | delivered | all
   int _activeTab = 0; // 0 = orders, 1 = profile
 
@@ -36,8 +38,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _fetchProfile();
     _fetchOrders();
+
+    final user = SupabaseService.currentUser;
+    if (user != null) {
+      // Real-time listener for rider profile status changes (e.g. admin suspension)
+      _profileSubscription = SupabaseService.riderProfileStream(user.id).listen((rows) {
+        if (!mounted || rows.isEmpty) return;
+        final profile = rows.first;
+        final status = (profile['status'] as String? ?? 'active').toLowerCase();
+        if (status == 'suspended') {
+          _handleSuspensionKickout();
+        } else {
+          setState(() {
+            _profile = profile;
+            if (profile.containsKey('is_online') && profile['is_online'] != null) {
+              _isOnline = profile['is_online'] == true;
+            }
+          });
+        }
+      });
+    }
+
     // Listen for realtime updates and refetch properly filtered orders
-    SupabaseService.ordersStream().listen((_) {
+    _ordersSubscription = SupabaseService.ordersStream().listen((_) {
       if (mounted) {
         _fetchOrders();
       }
@@ -54,18 +77,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _heartbeatTimer?.cancel();
+    _ordersSubscription?.cancel();
+    _profileSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _handleSuspensionKickout() async {
+    _heartbeatTimer?.cancel();
+    _ordersSubscription?.cancel();
+    _profileSubscription?.cancel();
+
+    try {
+      await SupabaseService.signOut();
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(LucideIcons.shieldAlert, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'ACCOUNT SUSPENDED: Your rider account has been suspended by an Administrator.',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red.shade800,
+        duration: const Duration(seconds: 8),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _fetchProfile() async {
     try {
       final user = SupabaseService.currentUser;
       if (user != null) {
+        final isSuspended = await SupabaseService.isRiderSuspended(user.id);
+        if (isSuspended && mounted) {
+          _handleSuspensionKickout();
+          return;
+        }
+
         final profile = await SupabaseService.fetchRiderProfile(user.id);
         if (mounted && profile != null) {
+          if (profile['status'] == 'suspended') {
+            _handleSuspensionKickout();
+            return;
+          }
           setState(() {
             _profile = profile;
-            _isOnline = profile['is_online'] == true;
+            if (profile.containsKey('is_online') && profile['is_online'] != null) {
+              _isOnline = profile['is_online'] == true;
+            }
           });
         }
       }
@@ -127,15 +197,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (user != null) {
         final isSuspended = await SupabaseService.isRiderSuspended(user.id);
         if (isSuspended && mounted) {
-          await SupabaseService.signOut();
-          if (!mounted) return;
-          Navigator.of(context).pushReplacementNamed('/login');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Account Suspended: Your rider account has been suspended by an Administrator.'),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
+          _handleSuspensionKickout();
           return;
         }
       }

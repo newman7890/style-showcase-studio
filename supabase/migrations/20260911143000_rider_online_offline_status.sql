@@ -1,4 +1,4 @@
--- Add online/offline availability and presence tracking to rider_profiles
+-- Add online/offline availability, presence tracking, and strict suspension enforcement to rider_profiles
 
 -- 1. Add columns to rider_profiles safely
 ALTER TABLE public.rider_profiles
@@ -14,6 +14,7 @@ ALTER TABLE public.rider_profiles ALTER COLUMN access_code DROP NOT NULL;
 -- 3. Create indexes for fast status and presence queries
 CREATE INDEX IF NOT EXISTS idx_rider_profiles_is_online ON public.rider_profiles(is_online);
 CREATE INDEX IF NOT EXISTS idx_rider_profiles_last_seen_at ON public.rider_profiles(last_seen_at);
+CREATE INDEX IF NOT EXISTS idx_rider_profiles_status ON public.rider_profiles(status);
 
 -- 4. Ensure RLS policies allow riders to view and update their own profile presence
 DROP POLICY IF EXISTS "Riders can update their own profile" ON public.rider_profiles;
@@ -97,3 +98,21 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.update_rider_presence(BOOLEAN, DOUBLE PRECISION, DOUBLE PRECISION) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.update_rider_presence(BOOLEAN, DOUBLE PRECISION, DOUBLE PRECISION) TO anon;
+
+-- 6. Enforce suspension check strictly on rider profile status
+CREATE OR REPLACE FUNCTION public.is_rider_suspended(_rider_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.rider_profiles
+    WHERE user_id = _rider_id AND status = 'suspended'
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_rider_suspended(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_rider_suspended(UUID) TO anon;

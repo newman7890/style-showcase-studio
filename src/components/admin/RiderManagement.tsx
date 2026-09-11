@@ -327,9 +327,17 @@ export const RiderManagement = () => {
   const toggleRiderStatus = async (riderId: string, currentStatus: string) => {
     const nextStatus = currentStatus === "active" ? "suspended" : "active";
     try {
+      const updatePayload: Record<string, any> = {
+        status: nextStatus,
+        updated_at: new Date().toISOString(),
+      };
+      if (nextStatus === "suspended") {
+        updatePayload.is_online = false;
+      }
+
       const { error } = await supabase
         .from("rider_profiles" as any)
-        .update({ status: nextStatus } as any)
+        .update(updatePayload as any)
         .eq("id", riderId);
       if (error) throw error;
 

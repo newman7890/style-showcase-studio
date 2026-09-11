@@ -106,15 +106,6 @@ class SupabaseService {
   // Check if rider account is suspended by an admin
   static Future<bool> isRiderSuspended(String userId) async {
     try {
-      final isAdmin = await client
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .eq('role', 'admin')
-          .maybeSingle() != null;
-
-      if (isAdmin) return false;
-
       final profile = await client
           .from('rider_profiles')
           .select('status')
@@ -125,6 +116,14 @@ class SupabaseService {
     } catch (e) {
       return false;
     }
+  }
+
+  // Stream rider profile changes in realtime
+  static Stream<List<Map<String, dynamic>>> riderProfileStream(String userId) {
+    return client
+        .from('rider_profiles')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId);
   }
 
   // Fetch full rider profile including online status
