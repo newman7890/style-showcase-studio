@@ -16,6 +16,9 @@ DROP POLICY IF EXISTS "Admins read seller-verification objects" ON storage.objec
 DROP POLICY IF EXISTS "Sellers upload own verification docs" ON storage.objects;
 DROP POLICY IF EXISTS "Sellers read own verification docs" ON storage.objects;
 DROP POLICY IF EXISTS "Sellers update own verification docs" ON storage.objects;
+DROP POLICY IF EXISTS "Sellers and admins read own verification docs" ON storage.objects;
+DROP POLICY IF EXISTS "Sellers and admins update own verification docs" ON storage.objects;
+DROP POLICY IF EXISTS "Sellers and admins delete own verification docs" ON storage.objects;
 
 -- Strict: Sellers can ONLY upload into their own folder (userId/...)
 CREATE POLICY "Sellers upload own verification docs"
@@ -81,6 +84,8 @@ DROP POLICY IF EXISTS "Anyone can view product images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can upload product images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can update product images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can delete product images" ON storage.objects;
+DROP POLICY IF EXISTS "Admins and owners can update product images" ON storage.objects;
+DROP POLICY IF EXISTS "Admins and owners can delete product images" ON storage.objects;
 
 -- Allow public viewing of product images
 CREATE POLICY "Anyone can view product images"
