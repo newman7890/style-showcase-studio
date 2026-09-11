@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, Upload, Image as ImageIcon, MapPin, ExternalLink, Mail, Phone, Building2, Info, Truck, Navigation, KeyRound, ShieldCheck, Camera } from "lucide-react";
+import { 
+  Plus, Pencil, Trash2, Package, DollarSign, ShoppingBag, Clock, 
+  CheckCircle2, XCircle, Loader2, Wand2, Sparkles, Palette, Star, 
+  Upload, Image as ImageIcon, MapPin, ExternalLink, Mail, Phone, 
+  Building2, Info, Truck, Navigation, KeyRound, ShieldCheck, Camera,
+  Calendar, Filter, Search, Receipt, ArrowUpRight, ChevronDown, ChevronUp,
+  CreditCard, TrendingUp, CheckCircle, Clock3, AlertCircle
+} from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -113,6 +120,8 @@ const SellerDashboard = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
+  const [payoutLedger, setPayoutLedger] = useState<any[]>([]);
+  const [sellerPayouts, setSellerPayouts] = useState<any[]>([]);
   const [dropoffs, setDropoffs] = useState<any[]>([]);
   const [hubs, setHubs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +133,12 @@ const SellerDashboard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [colors, setColors] = useState<ColorRow[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Time filter for daily breakdown & analytics
+  const [timeFilter, setTimeFilter] = useState<"all" | "today" | "yesterday" | "week" | "month">("all");
+  const [salesSearch, setSalesSearch] = useState("");
+  const [salesPayoutFilter, setSalesPayoutFilter] = useState<"all" | "pending" | "paid">("all");
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
   // Drop-off scheduling state
   const [dropoffModalOpen, setDropoffModalOpen] = useState(false);
@@ -403,24 +418,28 @@ const SellerDashboard = () => {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const [p, oi, s, hubsRes, dropoffsRes, profRes] = await Promise.all([
+    const [p, oi, s, hubsRes, dropoffsRes, profRes, payoutsRes, ledgerRes] = await Promise.all([
       supabase.from("products").select("*").eq("seller_id", user.id).order("created_at", { ascending: false }),
       supabase
         .from("order_items")
-        .select("id, quantity, unit_price, seller_earnings, commission_amount, created_at, order_id, product_id, products(name, image), orders(id, status, tracking_code, pickup_otp, pickup_confirmed_at, shipping_name, shipping_city)")
+        .select("id, quantity, unit_price, seller_earnings, commission_amount, commission_percent, created_at, order_id, product_id, products(name, image, category), orders(id, status, tracking_code, pickup_otp, pickup_confirmed_at, shipping_name, shipping_city, payment_status, created_at)")
         .eq("seller_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(50),
+        .limit(250),
       supabase.rpc("get_seller_earnings_summary", { _seller_id: user.id }),
       supabase.from("hubs").select("*").eq("is_active", true),
       supabase.from("seller_dropoffs").select("*, hubs(name)").eq("seller_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("seller_profiles").select("*").eq("user_id", user.id).maybeSingle()
+      supabase.from("seller_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+      supabase.from("seller_payouts").select("*").eq("seller_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("payout_ledger").select("*").eq("seller_id", user.id).order("created_at", { ascending: false }),
     ]);
     setProducts((p.data as any) ?? []);
     setOrderItems((oi.data as any) ?? []);
     setSummary(Array.isArray(s.data) ? s.data[0] : s.data);
     setHubs((hubsRes.data as any) ?? []);
     setDropoffs((dropoffsRes.data as any) ?? []);
+    setSellerPayouts((payoutsRes.data as any) ?? []);
+    setPayoutLedger((ledgerRes.data as any) ?? []);
     if (profRes.data) {
       setSellerProfile(profRes.data);
       setFulfillmentForm({
@@ -433,6 +452,181 @@ const SellerDashboard = () => {
       });
     }
     setLoading(false);
+  };
+
+  // Helper: check payout status for an item
+  const getItemPayoutInfo = (item: any) => {
+    const ledgerEntry = payoutLedger.find((pl) => pl.order_item_id === item.id);
+    if (ledgerEntry?.status === "paid") {
+      return { status: "paid", label: "Paid Out", isPaid: true, paidAt: ledgerEntry.paid_at, ref: ledgerEntry.paystack_reference };
+    }
+    return { status: "pending", label: "Pending Payout", isPaid: false, paidAt: null, ref: null };
+  };
+
+  // Filter items by time range
+  const filteredOrderItems = useMemo(() => {
+    if (timeFilter === "all") return orderItems;
+    const now = new Date();
+
+    return orderItems.filter((item) => {
+      const dateStr = item.created_at || item.orders?.created_at;
+      if (!dateStr) return false;
+      const itemDate = new Date(dateStr);
+
+      if (timeFilter === "today") {
+        return itemDate.toDateString() === now.toDateString();
+      }
+      if (timeFilter === "yesterday") {
+        const yesterday = new Date();
+        yesterday.setDate(now.getDate() - 1);
+        return itemDate.toDateString() === yesterday.toDateString();
+      }
+      if (timeFilter === "week") {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        return itemDate >= sevenDaysAgo;
+      }
+      if (timeFilter === "month") {
+        return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+  }, [orderItems, timeFilter]);
+
+  // Computed totals for selected period
+  const periodStats = useMemo(() => {
+    const items = filteredOrderItems;
+    let gross = 0;
+    let commission = 0;
+    let earnings = 0;
+    let units = 0;
+    let pending = 0;
+    let paid = 0;
+    const orderSet = new Set<string>();
+
+    items.forEach((item) => {
+      const qty = Number(item.quantity) || 1;
+      const unitP = Number(item.unit_price || item.price) || 0;
+      const itemGross = unitP * qty;
+      const comm = Number(item.commission_amount) || (itemGross * 0.10);
+      const net = Number(item.seller_earnings) || (itemGross - comm);
+
+      gross += itemGross;
+      commission += comm;
+      earnings += net;
+      units += qty;
+      if (item.order_id) orderSet.add(item.order_id);
+
+      const pInfo = getItemPayoutInfo(item);
+      if (pInfo.isPaid) {
+        paid += net;
+      } else {
+        pending += net;
+      }
+    });
+
+    return {
+      gross,
+      commission,
+      earnings,
+      units,
+      ordersCount: orderSet.size,
+      pending,
+      paid,
+    };
+  }, [filteredOrderItems, payoutLedger]);
+
+  // Group sales day-by-day
+  const dailyGroups = useMemo(() => {
+    const map = new Map<string, {
+      dateKey: string;
+      dateObj: Date;
+      formattedDate: string;
+      items: any[];
+      gross: number;
+      commission: number;
+      earnings: number;
+      units: number;
+      ordersCount: number;
+    }>();
+
+    const now = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+
+    filteredOrderItems.forEach((item) => {
+      const dateStr = item.created_at || item.orders?.created_at || new Date().toISOString();
+      const d = new Date(dateStr);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      let formatted = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+      if (d.toDateString() === now.toDateString()) {
+        formatted = `Today · ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+      } else if (d.toDateString() === yesterday.toDateString()) {
+        formatted = `Yesterday · ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+      }
+
+      if (!map.has(dateKey)) {
+        map.set(dateKey, {
+          dateKey,
+          dateObj: d,
+          formattedDate: formatted,
+          items: [],
+          gross: 0,
+          commission: 0,
+          earnings: 0,
+          units: 0,
+          ordersCount: 0,
+        });
+      }
+
+      const group = map.get(dateKey)!;
+      group.items.push(item);
+      const qty = Number(item.quantity) || 1;
+      const unitP = Number(item.unit_price || item.price) || 0;
+      const itemGross = unitP * qty;
+      const comm = Number(item.commission_amount) || (itemGross * 0.10);
+      const net = Number(item.seller_earnings) || (itemGross - comm);
+
+      group.gross += itemGross;
+      group.commission += comm;
+      group.earnings += net;
+      group.units += qty;
+    });
+
+    // Sort days descending
+    return Array.from(map.values())
+      .map((g) => ({
+        ...g,
+        ordersCount: new Set(g.items.map((i) => i.order_id)).size,
+      }))
+      .sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+  }, [filteredOrderItems]);
+
+  // Search & Filter for itemized sales
+  const searchedOrderItems = useMemo(() => {
+    return filteredOrderItems.filter((item) => {
+      const prodName = (item.products?.name || "").toLowerCase();
+      const orderCode = (item.orders?.tracking_code || item.order_id || "").toLowerCase();
+      const query = salesSearch.toLowerCase().trim();
+
+      const matchesSearch = !query || prodName.includes(query) || orderCode.includes(query);
+
+      const pInfo = getItemPayoutInfo(item);
+      const matchesPayout =
+        salesPayoutFilter === "all" ||
+        (salesPayoutFilter === "paid" && pInfo.isPaid) ||
+        (salesPayoutFilter === "pending" && !pInfo.isPaid);
+
+      return matchesSearch && matchesPayout;
+    });
+  }, [filteredOrderItems, salesSearch, salesPayoutFilter, payoutLedger]);
+
+  const toggleDayExpansion = (dateKey: string) => {
+    setExpandedDays((prev) => ({
+      ...prev,
+      [dateKey]: prev[dateKey] === undefined ? false : !prev[dateKey],
+    }));
   };
 
   useEffect(() => {
@@ -774,45 +968,112 @@ const SellerDashboard = () => {
       <Header />
       <main className="min-h-screen pt-20 pb-24 w-full overflow-x-hidden">
         <div className="container mx-auto px-4 max-w-5xl w-full">
-          <motion.h1
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-2xl md:text-3xl font-semibold mb-6"
-          >
-            Seller Dashboard
-          </motion.h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <motion.h1
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-2xl md:text-3xl font-semibold"
+            >
+              Seller Dashboard
+            </motion.h1>
+
+            {/* Time Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+              {(
+                [
+                  { id: "all", label: "All Time" },
+                  { id: "today", label: "Today" },
+                  { id: "yesterday", label: "Yesterday" },
+                  { id: "week", label: "Last 7 Days" },
+                  { id: "month", label: "This Month" },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setTimeFilter(tab.id)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
+                    timeFilter === tab.id
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Summary cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6">
-            <Card className="overflow-hidden min-w-0">
+            <Card className="overflow-hidden min-w-0 border-border/80">
               <CardContent className="p-3 sm:p-5 min-w-0">
-                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Total sales</div>
-                <div className="text-sm sm:text-xl font-bold truncate mt-0.5" title={`GH₵${Number(summary?.total_sales ?? summary?.total_gross ?? 0).toFixed(2)}`}>
-                  GH₵{Number(summary?.total_sales ?? summary?.total_gross ?? 0).toFixed(2)}
+                <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground font-medium truncate">
+                  <span>{timeFilter === "all" ? "Total sales" : "Period sales"}</span>
+                  {timeFilter !== "all" && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 uppercase">
+                      {timeFilter}
+                    </Badge>
+                  )}
+                </div>
+                <div
+                  className="text-sm sm:text-xl font-bold truncate mt-1"
+                  title={`GH₵${(timeFilter === "all" ? Number(summary?.total_sales ?? summary?.total_gross ?? 0) : periodStats.gross).toFixed(2)}`}
+                >
+                  GH₵{(timeFilter === "all" ? Number(summary?.total_sales ?? summary?.total_gross ?? 0) : periodStats.gross).toFixed(2)}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {timeFilter === "all" ? `${Number(summary?.total_orders ?? 0)} lifetime orders` : `${periodStats.ordersCount} orders (${periodStats.units} items)`}
                 </div>
               </CardContent>
             </Card>
-            <Card className="overflow-hidden min-w-0">
+
+            <Card className="overflow-hidden min-w-0 border-emerald-500/20 bg-emerald-500/[0.02]">
               <CardContent className="p-3 sm:p-5 min-w-0">
-                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Your earnings</div>
-                <div className="text-sm sm:text-xl font-bold truncate mt-0.5 text-emerald-600 dark:text-emerald-400" title={`GH₵${Number(summary?.total_earnings ?? 0).toFixed(2)}`}>
-                  GH₵{Number(summary?.total_earnings ?? 0).toFixed(2)}
+                <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground font-medium truncate">
+                  <span>{timeFilter === "all" ? "Your earnings" : "Period earnings"}</span>
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">90%</span>
+                </div>
+                <div
+                  className="text-sm sm:text-xl font-bold truncate mt-1 text-emerald-600 dark:text-emerald-400"
+                  title={`GH₵${(timeFilter === "all" ? Number(summary?.total_earnings ?? 0) : periodStats.earnings).toFixed(2)}`}
+                >
+                  GH₵{(timeFilter === "all" ? Number(summary?.total_earnings ?? 0) : periodStats.earnings).toFixed(2)}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {timeFilter === "all" ? "Net seller earnings" : `Net for selected ${timeFilter}`}
                 </div>
               </CardContent>
             </Card>
-            <Card className="overflow-hidden min-w-0">
+
+            <Card className="overflow-hidden min-w-0 border-amber-500/20 bg-amber-500/[0.02]">
               <CardContent className="p-3 sm:p-5 min-w-0">
-                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Pending payout</div>
-                <div className="text-sm sm:text-xl font-bold truncate mt-0.5 text-amber-600 dark:text-amber-400" title={`GH₵${Number(summary?.pending_payout ?? summary?.pending_earnings ?? 0).toFixed(2)}`}>
+                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate flex items-center justify-between">
+                  <span>Pending payout</span>
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                </div>
+                <div
+                  className="text-sm sm:text-xl font-bold truncate mt-1 text-amber-600 dark:text-amber-400"
+                  title={`GH₵${Number(summary?.pending_payout ?? summary?.pending_earnings ?? 0).toFixed(2)}`}
+                >
                   GH₵{Number(summary?.pending_payout ?? summary?.pending_earnings ?? 0).toFixed(2)}
                 </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  Unsettled balance
+                </div>
               </CardContent>
             </Card>
-            <Card className="overflow-hidden min-w-0">
+
+            <Card className="overflow-hidden min-w-0 border-border/80">
               <CardContent className="p-3 sm:p-5 min-w-0">
-                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Orders</div>
-                <div className="text-sm sm:text-xl font-bold truncate mt-0.5">
-                  {Number(summary?.total_orders ?? 0)}
+                <div className="text-[10px] sm:text-xs text-muted-foreground font-medium truncate">Paid out</div>
+                <div
+                  className="text-sm sm:text-xl font-bold truncate mt-1 text-blue-600 dark:text-blue-400"
+                  title={`GH₵${Number(summary?.paid_payout ?? summary?.paid_earnings ?? 0).toFixed(2)}`}
+                >
+                  GH₵{Number(summary?.paid_payout ?? summary?.paid_earnings ?? 0).toFixed(2)}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  Settled to bank/MoMo
                 </div>
               </CardContent>
             </Card>
@@ -1377,20 +1638,417 @@ const SellerDashboard = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="earnings">
-              <Card>
-                <CardHeader><CardTitle>Payout summary</CardTitle></CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span>Gross sales</span><span>GH₵{Number(summary?.total_sales ?? summary?.total_gross ?? 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Platform commission (10%)</span><span>-GH₵{Number(summary?.total_commission ?? 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between font-semibold border-t pt-2"><span>Your net earnings</span><span>GH₵{Number(summary?.total_earnings ?? 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Paid out to subaccount</span><span>GH₵{Number(summary?.paid_payout ?? summary?.paid_earnings ?? 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>Pending payout</span><span>GH₵{Number(summary?.pending_payout ?? summary?.pending_earnings ?? 0).toFixed(2)}</span></div>
+            <TabsContent value="earnings" className="space-y-6">
+              {/* Financial Overview Card */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Net Earnings Card */}
+                <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.05] to-transparent shadow-xs">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {timeFilter === "all" ? "Total Net Earnings" : `${timeFilter.toUpperCase()} Earnings`}
+                      </span>
+                      <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
+                        90% Take-home
+                      </Badge>
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                      GH₵{(timeFilter === "all" ? Number(summary?.total_earnings ?? 0) : periodStats.earnings).toFixed(2)}
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mt-3 pt-3 border-t border-border/60">
+                      <span>Gross: GH₵{(timeFilter === "all" ? Number(summary?.total_sales ?? summary?.total_gross ?? 0) : periodStats.gross).toFixed(2)}</span>
+                      <span>Fee: -GH₵{(timeFilter === "all" ? Number(summary?.total_commission ?? 0) : periodStats.commission).toFixed(2)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Pending Payout Card */}
+                <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/[0.05] to-transparent shadow-xs">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Pending Payout
+                      </span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400">
+                      GH₵{Number(summary?.pending_payout ?? summary?.pending_earnings ?? 0).toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/60 flex items-center justify-between">
+                      <span>Awaiting bank/MoMo transfer</span>
+                      <Clock className="w-3.5 h-3.5 text-amber-500" />
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Paid Out Card */}
+                <Card className="border-blue-500/30 bg-gradient-to-br from-blue-500/[0.05] to-transparent shadow-xs">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Total Settled / Paid
+                      </span>
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-extrabold text-blue-600 dark:text-blue-400">
+                      GH₵{Number(summary?.paid_payout ?? summary?.paid_earnings ?? 0).toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/60 flex items-center justify-between">
+                      <span>Transferred to Subaccount</span>
+                      <Receipt className="w-3.5 h-3.5 text-blue-500" />
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* SECTION 1: Daily Sales & Earnings Breakdown */}
+              <div className="space-y-4 pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-primary" />
+                      Daily Sales & Itemized Earnings
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Track your sales and net earnings day-by-day. Click any day to view the sold items.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-xs px-2.5 py-1 self-start sm:self-auto">
+                    {dailyGroups.length} active selling day{dailyGroups.length === 1 ? "" : "s"}
+                  </Badge>
+                </div>
+
+                {dailyGroups.length === 0 ? (
+                  <Card className="p-8 text-center bg-secondary/30">
+                    <Calendar className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
+                    <h3 className="text-sm font-semibold text-foreground mb-1">No sales recorded for this period</h3>
+                    <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                      {timeFilter !== "all" 
+                        ? `You have not made any sales ${timeFilter === "today" ? "today" : timeFilter === "yesterday" ? "yesterday" : `during the selected ${timeFilter}`}. Switch to "All Time" to view your full history.`
+                        : "When customers order your products, your daily earnings breakdown and itemized payouts will appear here."}
+                    </p>
+                    {timeFilter !== "all" && (
+                      <Button variant="outline" size="sm" onClick={() => setTimeFilter("all")} className="mt-4 text-xs">
+                        View All Time Sales
+                      </Button>
+                    )}
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {dailyGroups.map((group) => {
+                      const isExpanded = expandedDays[group.dateKey] !== false; // Default expanded
+
+                      return (
+                        <Card key={group.dateKey} className="overflow-hidden border-border transition-all">
+                          {/* Day Header Bar */}
+                          <div
+                            onClick={() => toggleDayExpansion(group.dateKey)}
+                            className="p-3.5 sm:p-4 bg-muted/40 hover:bg-muted/70 transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-2 rounded-xl bg-background border border-border shadow-2xs">
+                                <Calendar className="w-4 h-4 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                                  {group.formattedDate}
+                                </h3>
+                                <div className="text-[11px] text-muted-foreground">
+                                  {group.ordersCount} order{group.ordersCount === 1 ? "" : "s"} · {group.units} item{group.units === 1 ? "" : "s"} sold
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Day Financial Summary */}
+                            <div className="flex items-center justify-between sm:justify-end gap-4 self-stretch sm:self-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-border/40">
+                              <div className="text-left sm:text-right">
+                                <div className="text-[10px] uppercase font-semibold text-muted-foreground">
+                                  Gross: GH₵{group.gross.toFixed(2)} · Fee (10%): -GH₵{group.commission.toFixed(2)}
+                                </div>
+                                <div className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400">
+                                  +GH₵{group.earnings.toFixed(2)} <span className="text-[10px] font-normal text-muted-foreground">(Net)</span>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                className="p-1 rounded-full text-muted-foreground hover:text-foreground"
+                                aria-label="Toggle day items"
+                              >
+                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Day Itemized List */}
+                          {isExpanded && (
+                            <div className="divide-y divide-border/50">
+                              {group.items.map((item, idx) => {
+                                const pInfo = getItemPayoutInfo(item);
+                                const qty = Number(item.quantity) || 1;
+                                const unitPrice = Number(item.unit_price || item.price) || 0;
+                                const grossSale = unitPrice * qty;
+                                const fee = Number(item.commission_amount) || (grossSale * 0.10);
+                                const netEarnings = Number(item.seller_earnings) || (grossSale - fee);
+                                const trackingCode = item.orders?.tracking_code || (item.order_id || "").slice(0, 8).toUpperCase();
+                                const orderStatus = item.orders?.status || "processing";
+
+                                return (
+                                  <div
+                                    key={item.id || idx}
+                                    className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
+                                  >
+                                    {/* Item Info */}
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="w-12 h-12 rounded-xl bg-secondary overflow-hidden shrink-0 border border-border">
+                                        {item.products?.image ? (
+                                          <img
+                                            src={item.products.image}
+                                            alt={item.products.name || "Product"}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                            <Package className="w-5 h-5 opacity-40" />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div className="min-w-0 flex-1">
+                                        <h4 className="text-xs sm:text-sm font-bold text-foreground truncate">
+                                          {item.products?.name || "Product"}
+                                        </h4>
+                                        <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                                          <span>Order #{trackingCode}</span>
+                                          <span>·</span>
+                                          <span>Qty: <strong>{qty}</strong> × GH₵{unitPrice.toFixed(2)}</span>
+                                          <span>·</span>
+                                          <span className="capitalize">{orderStatus}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Item Price & Payout Status */}
+                                    <div className="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/30">
+                                      <div className="text-left sm:text-right">
+                                        <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                          GH₵{netEarnings.toFixed(2)} <span className="text-[10px] text-muted-foreground font-normal">net</span>
+                                        </div>
+                                        <div className="text-[10px] text-muted-foreground">
+                                          Gross: GH₵{grossSale.toFixed(2)} (Fee: -GH₵{fee.toFixed(2)})
+                                        </div>
+                                      </div>
+
+                                      <Badge
+                                        variant="outline"
+                                        className={`text-[10px] px-2 py-0.5 shrink-0 ${
+                                          pInfo.isPaid
+                                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                                        }`}
+                                      >
+                                        {pInfo.label}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION 2: Itemized All-Sales Explorer & Search */}
+              <Card className="mt-8 border-border">
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base font-bold flex items-center gap-2">
+                        <Receipt className="w-4 h-4 text-primary" />
+                        Itemized Sales Explorer
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Filter and search all individual product sales and check payout settlement status.
+                      </p>
+                    </div>
+
+                    {/* Filter controls */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="relative w-full sm:w-48">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Search item or order..."
+                          value={salesSearch}
+                          onChange={(e) => setSalesSearch(e.target.value)}
+                          className="h-8 pl-8 text-xs rounded-lg"
+                        />
+                      </div>
+
+                      <Select
+                        value={salesPayoutFilter}
+                        onValueChange={(val: any) => setSalesPayoutFilter(val)}
+                      >
+                        <SelectTrigger className="h-8 text-xs w-32 rounded-lg">
+                          <SelectValue placeholder="All Payouts" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Payouts</SelectItem>
+                          <SelectItem value="pending">Pending Payout</SelectItem>
+                          <SelectItem value="paid">Paid Out</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-0">
+                  {searchedOrderItems.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-muted-foreground">
+                      No sold items matching your filter criteria.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
+                            <th className="py-2.5 px-3">Date</th>
+                            <th className="py-2.5 px-3">Product</th>
+                            <th className="py-2.5 px-3">Order #</th>
+                            <th className="py-2.5 px-3 text-center">Qty</th>
+                            <th className="py-2.5 px-3 text-right">Unit Price</th>
+                            <th className="py-2.5 px-3 text-right">Gross</th>
+                            <th className="py-2.5 px-3 text-right">10% Fee</th>
+                            <th className="py-2.5 px-3 text-right">Your Net</th>
+                            <th className="py-2.5 px-3 text-center">Payout</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {searchedOrderItems.map((item, idx) => {
+                            const pInfo = getItemPayoutInfo(item);
+                            const qty = Number(item.quantity) || 1;
+                            const unitPrice = Number(item.unit_price || item.price) || 0;
+                            const grossSale = unitPrice * qty;
+                            const fee = Number(item.commission_amount) || (grossSale * 0.10);
+                            const netEarnings = Number(item.seller_earnings) || (grossSale - fee);
+                            const trackingCode = item.orders?.tracking_code || (item.order_id || "").slice(0, 8).toUpperCase();
+                            const dateStr = item.created_at || item.orders?.created_at || new Date().toISOString();
+                            const d = new Date(dateStr);
+
+                            return (
+                              <tr key={item.id || idx} className="hover:bg-muted/20 transition-colors">
+                                <td className="py-3 px-3 text-muted-foreground whitespace-nowrap">
+                                  {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                  <div className="text-[10px] opacity-70">
+                                    {d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                                  </div>
+                                </td>
+
+                                <td className="py-3 px-3 max-w-[200px]">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-secondary overflow-hidden shrink-0 border border-border">
+                                      {item.products?.image ? (
+                                        <img src={item.products.image} alt="Product" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <Package className="w-4 h-4 m-2 text-muted-foreground opacity-40" />
+                                      )}
+                                    </div>
+                                    <span className="font-semibold text-foreground truncate block" title={item.products?.name}>
+                                      {item.products?.name || "Product"}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                <td className="py-3 px-3 font-mono text-muted-foreground whitespace-nowrap">
+                                  #{trackingCode}
+                                </td>
+
+                                <td className="py-3 px-3 text-center font-bold">
+                                  {qty}
+                                </td>
+
+                                <td className="py-3 px-3 text-right text-muted-foreground whitespace-nowrap">
+                                  GH₵{unitPrice.toFixed(2)}
+                                </td>
+
+                                <td className="py-3 px-3 text-right font-medium whitespace-nowrap">
+                                  GH₵{grossSale.toFixed(2)}
+                                </td>
+
+                                <td className="py-3 px-3 text-right text-rose-500 whitespace-nowrap">
+                                  -GH₵{fee.toFixed(2)}
+                                </td>
+
+                                <td className="py-3 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                                  +GH₵{netEarnings.toFixed(2)}
+                                </td>
+
+                                <td className="py-3 px-3 text-center whitespace-nowrap">
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] px-2 py-0.5 ${
+                                      pInfo.isPaid
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                                    }`}
+                                  >
+                                    {pInfo.label}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
-              <p className="text-xs text-muted-foreground mt-4">
-                Automated Paystack split payouts are active. 90% of your sale is routed directly to your registered Mobile Money or Bank account via your Paystack Subaccount upon customer checkout.
-              </p>
+
+              {/* SECTION 3: Payout Settlement History */}
+              {sellerPayouts.length > 0 && (
+                <Card className="mt-6 border-border">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-primary" />
+                      Settlement Transfer History
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Historical batch payouts transferred to your bank or mobile money account.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-border/60">
+                      {sellerPayouts.map((payout, i) => (
+                        <div key={payout.id || i} className="p-3.5 flex items-center justify-between text-xs hover:bg-muted/20">
+                          <div>
+                            <div className="font-semibold text-foreground">
+                              GH₵{Number(payout.amount).toFixed(2)}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {new Date(payout.created_at).toLocaleDateString(undefined, { dateStyle: "medium" })} · Ref: {payout.payout_reference || "Direct Split"}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 capitalize">
+                            {payout.status || "Completed"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Paystack Automated Split Notice */}
+              <div className="p-4 rounded-xl bg-blue-500/[0.04] border border-blue-500/20 text-xs text-muted-foreground leading-relaxed flex items-start gap-3">
+                <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-foreground">Automated Split Settlements:</strong> 90% of every customer purchase is routed to your registered Mobile Money or Bank account via your verified Paystack Subaccount upon order processing. Unsettled amounts remain in your Pending Payout balance until automatically cleared.
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="dropoffs" className="space-y-6">
