@@ -42,29 +42,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = SupabaseService.currentUser;
     if (user != null) {
       // Real-time listener for rider profile status changes (e.g. admin suspension)
-      _profileSubscription = SupabaseService.riderProfileStream(user.id).listen((rows) {
-        if (!mounted || rows.isEmpty) return;
-        final profile = rows.first;
-        final status = (profile['status'] as String? ?? 'active').toLowerCase();
-        if (status == 'suspended') {
-          _handleSuspensionKickout();
-        } else {
-          setState(() {
-            _profile = profile;
-            if (profile.containsKey('is_online') && profile['is_online'] != null) {
-              _isOnline = profile['is_online'] == true;
-            }
-          });
-        }
-      });
+      _profileSubscription = SupabaseService.riderProfileStream(user.id).listen(
+        (rows) {
+          if (!mounted || rows.isEmpty) return;
+          final profile = rows.first;
+          final status = (profile['status'] as String? ?? 'active').toLowerCase();
+          if (status == 'suspended') {
+            _handleSuspensionKickout();
+          } else {
+            setState(() {
+              _profile = profile;
+              if (profile.containsKey('is_online') && profile['is_online'] != null) {
+                _isOnline = profile['is_online'] == true;
+              }
+            });
+          }
+        },
+        onError: (err) {
+          debugPrint('Profile stream error: $err');
+        },
+        cancelOnError: false,
+      );
     }
 
     // Listen for realtime updates and refetch properly filtered orders
-    _ordersSubscription = SupabaseService.ordersStream().listen((_) {
-      if (mounted) {
-        _fetchOrders();
-      }
-    });
+    _ordersSubscription = SupabaseService.ordersStream().listen(
+      (_) {
+        if (mounted) {
+          _fetchOrders();
+        }
+      },
+      onError: (err) {
+        debugPrint('Orders stream error: $err');
+      },
+      cancelOnError: false,
+    );
 
     // Periodic heartbeat to keep rider presence fresh while app is open
     _heartbeatTimer = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -182,8 +194,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final errStr = e.toString();
+        final displayMsg = errStr.contains('SocketException') || errStr.contains('Failed host lookup')
+            ? 'Network error: Please check your internet connection and try again.'
+            : 'Failed to update status: $e';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e'), backgroundColor: Colors.red.shade700),
+          SnackBar(content: Text(displayMsg), backgroundColor: Colors.red.shade700),
         );
       }
     } finally {
