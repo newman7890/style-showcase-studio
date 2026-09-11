@@ -165,7 +165,7 @@ export const RiderManagement = () => {
     if (isInitial) setLoading(true);
     else setRefreshing(true);
     try {
-      const [codesRes, ridersRes, ticketsRes, activeOrdersRes] = await Promise.all([
+      const [codesRes, ridersRes, ticketsRes, activeOrdersRes, rolesRes] = await Promise.all([
         supabase.from("rider_access_codes" as any).select("*").order("created_at", { ascending: false }),
         supabase.from("rider_profiles" as any).select("*").order("created_at", { ascending: false }),
         supabase.from("rider_support_tickets" as any).select("*").order("created_at", { ascending: false }),
@@ -174,9 +174,31 @@ export const RiderManagement = () => {
           .select("assigned_rider_id, status")
           .not("assigned_rider_id", "is", null)
           .in("status", ["confirmed", "processing", "shipped"]),
+        supabase.from("user_roles" as any).select("user_id, role").eq("role", "rider"),
       ]);
       if (codesRes.data) setAccessCodes(codesRes.data as any);
-      const riderList = (ridersRes.data as unknown as RiderProfile[]) || [];
+      const riderList: RiderProfile[] = [...((ridersRes.data as unknown as RiderProfile[]) || [])];
+
+      // Auto-include any users assigned rider role if profile row was missing
+      if (rolesRes.data) {
+        (rolesRes.data as any[]).forEach((rRole) => {
+          if (!riderList.some((r) => r.user_id === rRole.user_id)) {
+            riderList.push({
+              id: rRole.user_id,
+              user_id: rRole.user_id,
+              full_name: "Delivery Rider",
+              phone_number: "N/A",
+              vehicle_type: "Motorcycle",
+              license_plate: null,
+              access_code: `RIDER-${rRole.user_id.slice(0, 4).toUpperCase()}`,
+              status: "active",
+              created_at: new Date().toISOString(),
+              is_online: false,
+              last_seen_at: null,
+            });
+          }
+        });
+      }
       setRiders(riderList);
 
       const activeMap: Record<string, number> = {};

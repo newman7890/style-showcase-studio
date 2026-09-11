@@ -134,7 +134,45 @@ class SupabaseService {
           .select('*')
           .eq('user_id', userId)
           .maybeSingle();
-      return profile != null ? Map<String, dynamic>.from(profile) : null;
+
+      if (profile != null) {
+        return Map<String, dynamic>.from(profile);
+      }
+
+      // Auto-provision profile row if user has rider role or logged in
+      final user = currentUser;
+      final metadata = user?.user_metadata ?? {};
+      final fullName = (metadata['full_name'] as String?)?.isNotEmpty == true
+          ? metadata['full_name'] as String
+          : user?.email?.split('@')[0] ?? 'Rider';
+      final phone = (metadata['phone_number'] as String?) ?? (metadata['phone'] as String?) ?? '';
+      final vehicle = (metadata['vehicle_type'] as String?) ?? 'Motorcycle';
+
+      final fallbackProfile = {
+        'user_id': userId,
+        'full_name': fullName,
+        'phone_number': phone,
+        'vehicle_type': vehicle,
+        'access_code': 'RIDER-${userId.substring(0, 4).toUpperCase()}',
+        'status': 'active',
+        'is_online': false,
+        'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      try {
+        final inserted = await client
+            .from('rider_profiles')
+            .upsert(fallbackProfile, onConflict: 'user_id')
+            .select()
+            .maybeSingle();
+        if (inserted != null) {
+          return Map<String, dynamic>.from(inserted);
+        }
+      } catch (_) {}
+
+      return fallbackProfile;
     } catch (e) {
       return null;
     }
@@ -142,8 +180,16 @@ class SupabaseService {
 
   // Update rider online/offline availability status
   static Future<void> setRiderOnlineStatus(bool isOnline) async {
-    final userId = currentUser?.id;
+    final user = currentUser;
+    final userId = user?.id;
     if (userId == null) throw Exception('No authenticated rider found.');
+
+    final metadata = user.user_metadata ?? {};
+    final fullName = (metadata['full_name'] as String?)?.isNotEmpty == true
+        ? metadata['full_name'] as String
+        : user.email?.split('@')[0] ?? 'Rider';
+    final phone = (metadata['phone_number'] as String?) ?? (metadata['phone'] as String?) ?? '';
+    final vehicle = (metadata['vehicle_type'] as String?) ?? 'Motorcycle';
 
     dynamic lastError;
     // 1. Attempt via update_rider_presence RPC first
@@ -156,12 +202,17 @@ class SupabaseService {
       lastError = e;
     }
 
-    // 2. Fallback to direct table upsert / update
+    // 2. Fallback to direct table upsert with ALL required columns
     try {
       await client
           .from('rider_profiles')
           .upsert({
             'user_id': userId,
+            'full_name': fullName,
+            'phone_number': phone,
+            'vehicle_type': vehicle,
+            'access_code': 'RIDER-${userId.substring(0, 4).toUpperCase()}',
+            'status': 'active',
             'is_online': isOnline,
             'last_seen_at': DateTime.now().toUtc().toIso8601String(),
             'updated_at': DateTime.now().toUtc().toIso8601String(),
