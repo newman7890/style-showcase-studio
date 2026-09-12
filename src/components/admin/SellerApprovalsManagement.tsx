@@ -125,6 +125,18 @@ export const SellerApprovalsManagement = () => {
   const [billing, setBilling] = useState<BillingAuth[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingPayout, setEditingPayout] = useState(false);
+  const [savingPayout, setSavingPayout] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({
+    payout_method: "momo",
+    momo_provider: "mtn",
+    momo_number: "",
+    momo_account_name: "",
+    bank_name: "",
+    bank_code: "",
+    account_name: "",
+    account_number: "",
+  });
 
   const load = async () => {
     setLoading(true);
@@ -147,6 +159,29 @@ export const SellerApprovalsManagement = () => {
       const { data, error } = await supabase.functions.invoke("create-paystack-subaccount", {
         body: { sellerId },
       });
+
+      // Handle function invocation errors (network, CORS, 404, etc.)
+      if (error) {
+        console.error("Edge Function invocation error:", error);
+        toast({
+          title: "⚠️ Subaccount Creation Failed",
+          description: `Edge Function error: ${error.message || JSON.stringify(error)}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Handle application-level errors returned by the function
+      if (data?.error) {
+        console.error("Subaccount creation error:", data.error);
+        toast({
+          title: "⚠️ Subaccount Creation Error",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (data?.subaccount_code && data?.is_real) {
         toast({ title: "✅ Paystack Subaccount Created!", description: `Real Code: ${data.subaccount_code}` });
       } else if (data?.subaccount_code && data?.paystack_error) {
@@ -159,15 +194,22 @@ export const SellerApprovalsManagement = () => {
       } else if (data?.subaccount_code) {
         toast({ title: "Paystack Subaccount Ready", description: `Code: ${data.subaccount_code}` });
       } else {
-        toast({ title: "Seller Approved", description: "Subaccount will sync on next attempt." });
+        console.error("Unexpected response from create-paystack-subaccount:", JSON.stringify(data));
+        toast({
+          title: "⚠️ Unexpected Response",
+          description: `No subaccount code returned. Response: ${JSON.stringify(data)?.substring(0, 150)}`,
+          variant: "destructive",
+        });
       }
     } catch (err: any) {
+      console.error("syncSubaccount catch:", err);
       toast({ title: "Error", description: err?.message || "Failed to create subaccount", variant: "destructive" });
     } finally {
       setSyncingSubaccount(null);
       await load();
     }
   };
+
 
   const setStatus = async (
     id: string,
@@ -264,8 +306,47 @@ export const SellerApprovalsManagement = () => {
     load();
   };
 
+  const savePayoutDetails = async () => {
+    if (!reviewing) return;
+    setSavingPayout(true);
+    const updateData: Record<string, any> = {
+      payout_method: payoutForm.payout_method,
+      momo_provider: payoutForm.payout_method === "momo" ? payoutForm.momo_provider : null,
+      momo_number: payoutForm.payout_method === "momo" ? payoutForm.momo_number : null,
+      momo_account_name: payoutForm.payout_method === "momo" ? payoutForm.momo_account_name : null,
+      bank_name: payoutForm.payout_method === "bank" ? payoutForm.bank_name : null,
+      bank_code: payoutForm.payout_method === "bank" ? payoutForm.bank_code : null,
+      account_name: payoutForm.payout_method === "bank" ? payoutForm.account_name : null,
+      account_number: payoutForm.payout_method === "bank" ? payoutForm.account_number : null,
+    };
+    const { error } = await supabase
+      .from("seller_profiles")
+      .update(updateData)
+      .eq("id", reviewing.id);
+    setSavingPayout(false);
+    if (error) {
+      toast({ title: "Error saving payout details", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Payout Details Saved ✅", description: "Updated seller settlement account details." });
+    setEditingPayout(false);
+    setReviewing({ ...reviewing, ...updateData } as SellerRow);
+    load();
+  };
+
   const openReview = async (r: SellerRow) => {
     setReviewing(r);
+    setEditingPayout(false);
+    setPayoutForm({
+      payout_method: r.payout_method || "momo",
+      momo_provider: r.momo_provider || "mtn",
+      momo_number: r.momo_number || "",
+      momo_account_name: r.momo_account_name || "",
+      bank_name: r.bank_name || "",
+      bank_code: r.bank_code || "",
+      account_name: r.account_name || "",
+      account_number: r.account_number || "",
+    });
     setCompliance([]);
     setBilling([]);
     const [{ data: docs }, { data: bills }] = await Promise.all([
@@ -628,42 +709,164 @@ export const SellerApprovalsManagement = () => {
                 </div>
               </TabsContent>
 
-              <TabsContent value="bank" className="space-y-2 pt-3">
-                <Row
-                  label="Payout method"
-                  value={
-                    reviewing.payout_method === "momo"
-                      ? "Mobile Money"
-                      : reviewing.payout_method === "bank"
-                      ? "Bank account"
-                      : reviewing.payout_method
-                  }
-                />
-                {reviewing.payout_method === "momo" ? (
-                  <>
+              <TabsContent value="bank" className="space-y-4 pt-3">
+                <div className="flex justify-between items-center pb-2 border-b">
+                  <span className="font-semibold text-sm">Settlement & Payout Configuration</span>
+                  <div className="flex gap-2">
+                    {!editingPayout ? (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => setEditingPayout(true)}>
+                          Edit Details
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={syncingSubaccount === reviewing.id}
+                          onClick={() => syncSubaccount(reviewing.id)}
+                        >
+                          {syncingSubaccount === reviewing.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                          Sync Paystack
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => setEditingPayout(false)} disabled={savingPayout}>
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={savePayoutDetails} disabled={savingPayout}>
+                          {savingPayout ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                          Save Changes
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {!editingPayout ? (
+                  <div className="space-y-2">
                     <Row
-                      label="Network"
+                      label="Payout method"
                       value={
-                        reviewing.momo_provider === "mtn"
-                          ? "MTN Mobile Money"
-                          : reviewing.momo_provider === "vod"
-                          ? "Telecel Cash"
-                          : reviewing.momo_provider === "atl"
-                          ? "AirtelTigo Money"
-                          : reviewing.momo_provider
+                        reviewing.payout_method === "momo"
+                          ? "Mobile Money"
+                          : reviewing.payout_method === "bank"
+                          ? "Bank account"
+                          : reviewing.payout_method
                       }
                     />
-                    <Row label="MoMo number" value={reviewing.momo_number} mono />
-                    <Row label="Account name" value={reviewing.momo_account_name} />
-                  </>
+                    {reviewing.payout_method === "momo" ? (
+                      <>
+                        <Row
+                          label="Network"
+                          value={
+                            reviewing.momo_provider === "mtn"
+                              ? "MTN Mobile Money"
+                              : reviewing.momo_provider === "vod"
+                              ? "Telecel Cash"
+                              : reviewing.momo_provider === "atl"
+                              ? "AirtelTigo Money"
+                              : reviewing.momo_provider || "MTN"
+                          }
+                        />
+                        <Row label="MoMo number" value={reviewing.momo_number} mono />
+                        <Row label="Account name" value={reviewing.momo_account_name} />
+                      </>
+                    ) : (
+                      <>
+                        <Row label="Bank name" value={reviewing.bank_name} />
+                        <Row label="Account holder" value={reviewing.account_name} />
+                        <Row label="Account #" value={reviewing.account_number} mono />
+                        <Row label="Bank code" value={reviewing.bank_code} mono />
+                        <Row label="SWIFT / BIC" value={reviewing.swift_bic} mono />
+                      </>
+                    )}
+                    <Row
+                      label="Paystack Subaccount"
+                      value={reviewing.paystack_subaccount_code || "Not created yet"}
+                      mono
+                    />
+                  </div>
                 ) : (
-                  <>
-                    <Row label="Bank name" value={reviewing.bank_name} />
-                    <Row label="Account holder" value={reviewing.account_name} />
-                    <Row label="Account #" value={reviewing.account_number} mono />
-                    <Row label="Bank code" value={reviewing.bank_code} mono />
-                    <Row label="SWIFT / BIC" value={reviewing.swift_bic} mono />
-                  </>
+                  <div className="space-y-3 bg-muted/40 p-4 rounded-lg border">
+                    <div>
+                      <Label className="text-xs font-semibold">Payout Method</Label>
+                      <select
+                        className="w-full mt-1 px-3 py-2 text-sm rounded-md border bg-background"
+                        value={payoutForm.payout_method}
+                        onChange={(e) => setPayoutForm({ ...payoutForm, payout_method: e.target.value })}
+                      >
+                        <option value="momo">Mobile Money (Ghana)</option>
+                        <option value="bank">Bank Account</option>
+                      </select>
+                    </div>
+
+                    {payoutForm.payout_method === "momo" ? (
+                      <>
+                        <div>
+                          <Label className="text-xs font-semibold">Mobile Money Network</Label>
+                          <select
+                            className="w-full mt-1 px-3 py-2 text-sm rounded-md border bg-background"
+                            value={payoutForm.momo_provider}
+                            onChange={(e) => setPayoutForm({ ...payoutForm, momo_provider: e.target.value })}
+                          >
+                            <option value="mtn">MTN Mobile Money</option>
+                            <option value="vod">Telecel Cash (Vodafone)</option>
+                            <option value="atl">AirtelTigo Money</option>
+                          </select>
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold">MoMo Phone Number (10 digits)</Label>
+                          <Input
+                            placeholder="e.g. 0244123456"
+                            value={payoutForm.momo_number}
+                            onChange={(e) => setPayoutForm({ ...payoutForm, momo_number: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold">Account Holder Name</Label>
+                          <Input
+                            placeholder="Registered MoMo wallet name"
+                            value={payoutForm.momo_account_name}
+                            onChange={(e) => setPayoutForm({ ...payoutForm, momo_account_name: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <Label className="text-xs font-semibold">Bank Name</Label>
+                          <Input
+                            placeholder="e.g. GCB Bank / Ecobank"
+                            value={payoutForm.bank_name}
+                            onChange={(e) => setPayoutForm({ ...payoutForm, bank_name: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold">Bank Code (Paystack Code)</Label>
+                          <Input
+                            placeholder="e.g. 040100"
+                            value={payoutForm.bank_code}
+                            onChange={(e) => setPayoutForm({ ...payoutForm, bank_code: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold">Account Number</Label>
+                          <Input
+                            placeholder="Account number"
+                            value={payoutForm.account_number}
+                            onChange={(e) => setPayoutForm({ ...payoutForm, account_number: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold">Account Name</Label>
+                          <Input
+                            placeholder="Full name on bank account"
+                            value={payoutForm.account_name}
+                            onChange={(e) => setPayoutForm({ ...payoutForm, account_name: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </TabsContent>
 

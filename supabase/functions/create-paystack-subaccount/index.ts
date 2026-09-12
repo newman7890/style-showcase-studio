@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticate, hasRole, isServiceRoleCall, SUPABASE_URL, SERVICE_ROLE_KEY } from "../_shared/auth.ts";
-import { getPaystackSecretKeyAsync, getPaystackKeysAsync } from "../_shared/paystack.ts";
+import { getAllPaystackSecretKeysAsync, getPaystackSecretKeyAsync, getPaystackKeysAsync } from "../_shared/paystack.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkGlobalRateLimitAsync, getClientIdentifier } from "../_shared/rateLimit.ts";
 
@@ -45,12 +45,8 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    let paystackSecretKey = "";
-    try {
-      paystackSecretKey = await getPaystackSecretKeyAsync();
-    } catch (e) {
-      console.warn("Paystack key warning:", e);
-    }
+    const allKeys = await getAllPaystackSecretKeysAsync();
+    let paystackSecretKey = allKeys[0]?.secretKey || "";
 
     const body: RequestBody = await req.json().catch(() => ({}));
     const targetId = body.sellerId || callerUserId;
@@ -92,6 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({
           success: true,
           subaccount_code: existingCode,
+          is_real: true,
           message: "Paystack subaccount already exists",
         }),
         {
@@ -100,10 +97,9 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     }
-    // If placeholder exists, we'll attempt to create a real one below
 
     // Fallback if no valid Paystack key configured: assign local subaccount code so seller approval never gets blocked!
-    if (!paystackSecretKey || paystackSecretKey.toLowerCase().includes("your_actual")) {
+    if (allKeys.length === 0) {
       const fallbackCode = `ACCT_LOCAL_${profile.id.substring(0, 8).toUpperCase()}`;
       await adminClient
         .from("seller_profiles")
@@ -117,7 +113,9 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({
           success: true,
           subaccount_code: fallbackCode,
-          message: "Seller approved cleanly! (Saved local subaccount code).",
+          is_real: false,
+          paystack_error: "No Paystack API key configured in Supabase secrets or Platform Settings.",
+          message: "Seller approved with local code. Please configure Paystack secret key to enable automated split payments.",
         }),
         {
           status: 200,
@@ -144,35 +142,47 @@ const handler = async (req: Request): Promise<Response> => {
       "tigo_cash": "ATL",
     };
 
-    let bankCode = profile.bank_code || "";
-    
-    // If payout method is momo (or no bank_code), use momo_provider mapping
-    if (!bankCode && profile.momo_provider) {
-      bankCode = momoProviderMap[profile.momo_provider] || profile.momo_provider.toUpperCase();
+    let bankCode = "";
+    let rawAccount = "";
+
+    const isMoMo = profile.payout_method === "momo" || (!profile.bank_code && (profile.momo_number || profile.momo_provider));
+
+    if (isMoMo) {
+      rawAccount = (profile.momo_number || profile.account_number || "").trim();
+      const providerKey = (profile.momo_provider || "mtn").toLowerCase().trim();
+      bankCode = momoProviderMap[providerKey] || "MTN";
+    } else {
+      rawAccount = (profile.account_number || profile.momo_number || "").trim();
+      bankCode = (profile.bank_code || "").trim();
+      if (!bankCode && profile.momo_provider) {
+        bankCode = momoProviderMap[profile.momo_provider.toLowerCase()] || "MTN";
+      }
     }
-    
-    // Default to MTN if nothing is set
+
     if (!bankCode) {
       bankCode = "MTN";
     }
-    bankCode = bankCode.trim();
 
-    const accountNumber = (
-      profile.account_number ||
-      profile.momo_number ||
-      ""
-    ).trim();
-
-    if (!accountNumber) {
+    if (!rawAccount) {
       return new Response(
         JSON.stringify({
-          error: "Missing settlement account number or mobile money number",
+          error: "Missing settlement account number or mobile money number in seller profile",
         }),
         {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
+    }
+
+    // Clean account number / mobile number
+    let cleanAccount = rawAccount.replace(/[\s\-\(\)]/g, "");
+    if (isMoMo || ["MTN", "VOD", "ATL"].includes(bankCode)) {
+      if (cleanAccount.startsWith("+233")) {
+        cleanAccount = "0" + cleanAccount.slice(4);
+      } else if (cleanAccount.startsWith("233") && cleanAccount.length === 12) {
+        cleanAccount = "0" + cleanAccount.slice(3);
+      }
     }
 
     const businessName = (
@@ -185,11 +195,13 @@ const handler = async (req: Request): Promise<Response> => {
       ? Number(profile.commission_override)
       : 10;
 
+    // Paystack Ghana Subaccount API requires settlement_bank (e.g. 'MTN', 'VOD', 'ATL', or bank code)
     const paystackPayload: Record<string, unknown> = {
       business_name: businessName,
-      bank_code: bankCode,
-      account_number: accountNumber,
+      settlement_bank: bankCode,
+      account_number: cleanAccount,
       percentage_charge: percentageCharge,
+      description: `Seller payout subaccount for ${businessName}`,
     };
 
     if (profile.email) {
@@ -204,28 +216,35 @@ const handler = async (req: Request): Promise<Response> => {
     let subaccountCode = "";
     let paystackError = "";
     let paystackRawResponse: any = null;
-    try {
-      const paystackRes = await fetch("https://api.paystack.co/subaccount", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${paystackSecretKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(paystackPayload),
-      });
 
-      const paystackData = await paystackRes.json();
-      paystackRawResponse = paystackData;
-      console.log("Paystack subaccount response:", JSON.stringify(paystackData));
+    // Try creating subaccount with available keys
+    for (const keyCfg of allKeys) {
+      try {
+        console.log(`Calling Paystack subaccount API using key from ${keyCfg.sourceName}...`);
+        const paystackRes = await fetch("https://api.paystack.co/subaccount", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${keyCfg.secretKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(paystackPayload),
+        });
 
-      if (paystackRes.ok && paystackData.status && paystackData.data?.subaccount_code) {
-        subaccountCode = paystackData.data.subaccount_code;
-      } else {
-        paystackError = paystackData.message || `Paystack API returned status ${paystackRes.status}`;
+        const paystackData = await paystackRes.json();
+        paystackRawResponse = paystackData;
+        console.log("Paystack subaccount response:", JSON.stringify(paystackData));
+
+        if (paystackRes.ok && paystackData.status && paystackData.data?.subaccount_code) {
+          subaccountCode = paystackData.data.subaccount_code;
+          paystackSecretKey = keyCfg.secretKey;
+          break;
+        } else {
+          paystackError = paystackData.message || `Paystack API returned status ${paystackRes.status}`;
+        }
+      } catch (paystackErr: any) {
+        paystackError = paystackErr?.message || "Network error calling Paystack API";
+        console.warn(`Paystack API call failed with key ${keyCfg.sourceName}:`, paystackErr);
       }
-    } catch (paystackErr: any) {
-      paystackError = paystackErr?.message || "Network error calling Paystack API";
-      console.warn("External Paystack API call failed:", paystackErr);
     }
 
     // If external call didn't return a subaccount_code, fallback gracefully so seller approval completes cleanly
@@ -246,13 +265,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: isRealCode,
         subaccount_code: subaccountCode,
         is_real: isRealCode,
         message: isRealCode
           ? "Paystack subaccount created successfully!"
-          : `Seller approved with temporary code. Paystack error: ${paystackError}`,
-        paystack_error: paystackError || null,
+          : `Seller approved with temporary code (${subaccountCode}). Paystack response: ${paystackError}`,
+        paystack_error: isRealCode ? null : (paystackError || null),
         debug: {
           key_prefix: paystackSecretKey ? paystackSecretKey.substring(0, 12) + "..." : "NO_KEY",
           payload_sent: paystackPayload,

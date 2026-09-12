@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const cleanKeyString = (raw: string): string => {
   if (!raw) return "";
   let val = raw.trim();
@@ -20,8 +22,8 @@ const getEnvVal = (name: string): string => {
 const isValidSecretKey = (key: string): boolean => {
   if (!key) return false;
   const trimmed = cleanKeyString(key);
-  // Only accept live Paystack secret keys (must start with sk_live_)
-  return trimmed.startsWith("sk_live_");
+  // Accept both live and test Paystack secret keys
+  return trimmed.startsWith("sk_live_") || trimmed.startsWith("sk_test_");
 };
 
 export interface PaystackKeyConfig {
@@ -33,9 +35,10 @@ export interface PaystackKeyConfig {
 export const getAllPaystackSecretKeys = (): PaystackKeyConfig[] => {
   const candidates: { secretName: string; publicName?: string }[] = [
     { secretName: "PAYSTACK_SECRET_KEY", publicName: "PAYSTACK_PUBLIC_KEY" },
-    { secretName: "Paystack_Live_Secret_Key", publicName: "Paystack_Live_Public_Key" },
     { secretName: "PAYSTACK_LIVE_SECRET_KEY", publicName: "PAYSTACK_LIVE_PUBLIC_KEY" },
-    // Test key entry removed – live mode only
+    { secretName: "Paystack_Live_Secret_Key", publicName: "Paystack_Live_Public_Key" },
+    { secretName: "PAYSTACK_TEST_SECRET_KEY", publicName: "PAYSTACK_TEST_PUBLIC_KEY" },
+    { secretName: "Paystack_Test_Secret_Key", publicName: "Paystack_Test_Public_Key" },
   ];
 
   const results: PaystackKeyConfig[] = [];
@@ -77,23 +80,31 @@ export const getAllPaystackSecretKeysAsync = async (): Promise<PaystackKeyConfig
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (supabaseUrl && serviceRoleKey && results.length > 0) {
+    if (supabaseUrl && serviceRoleKey) {
       const client = createClient(supabaseUrl, serviceRoleKey);
       const { data } = await client
         .from("platform_settings")
-        .select("paystack_public_key")
+        .select("*")
         .eq("id", 1)
         .maybeSingle();
 
-      if (data?.paystack_public_key) {
-        const pubKey = cleanKeyString(String(data.paystack_public_key));
-        if (pubKey && !results[0].publicKey) {
-          results[0].publicKey = pubKey;
+      if (data) {
+        const dbSecret = cleanKeyString(String((data as any).paystack_live_secret_key || (data as any).paystack_secret_key || ""));
+        const dbPub = cleanKeyString(String((data as any).paystack_live_public_key || (data as any).paystack_public_key || ""));
+        if (isValidSecretKey(dbSecret) && !results.some(r => r.secretKey === dbSecret)) {
+          results.unshift({
+            secretKey: dbSecret,
+            publicKey: dbPub || getEnvVal("PAYSTACK_PUBLIC_KEY") || "",
+            sourceName: "platform_settings (database)",
+          });
+        }
+        if (dbPub && results.length > 0 && !results[0].publicKey) {
+          results[0].publicKey = dbPub;
         }
       }
     }
   } catch (e) {
-    console.warn("Could not query platform_settings for paystack public key:", e);
+    console.warn("Could not query platform_settings for paystack keys:", e);
   }
 
   console.log(`getAllPaystackSecretKeysAsync: found ${results.length} valid key(s): ${results.map(r => r.sourceName).join(", ") || "none"}`);

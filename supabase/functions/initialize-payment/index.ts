@@ -135,51 +135,6 @@ const handler = async (req: Request): Promise<Response> => {
           discount_amount: pricing.discountAmount,
           items: pricing.items,
         };
-
-        // Pre-create pending order in orders table
-        const trackingCode = "TRK" + Math.random().toString(36).substring(2, 10).toUpperCase();
-        const insertPayload: Record<string, any> = {
-          user_id: userId,
-          tracking_code: trackingCode,
-          total_amount: serverAmount,
-          shipping_name: authoritativeDetails.shipping_name,
-          shipping_email: authoritativeDetails.shipping_email,
-          shipping_phone: authoritativeDetails.shipping_phone,
-          shipping_address: authoritativeDetails.shipping_address,
-          shipping_city: authoritativeDetails.shipping_city,
-          shipping_region: authoritativeDetails.shipping_region,
-          shipping_town: authoritativeDetails.shipping_town || null,
-          delivery_fee: authoritativeDetails.delivery_fee || 0,
-          discount_code: authoritativeDetails.discount_code || null,
-          discount_amount: authoritativeDetails.discount_amount || 0,
-          payment_method: paymentMethod || "mobile_money",
-          payment_reference: refCode,
-          status: "pending",
-          payment_status: "pending",
-        };
-
-        const { data: createdOrder, error: orderInsertErr } = await adminClient
-          .from("orders")
-          .insert(insertPayload)
-          .select()
-          .single();
-
-        if (!orderInsertErr && createdOrder) {
-          preCreatedOrderId = createdOrder.id;
-          if (authoritativeDetails.items.length > 0) {
-            const itemsPayload = authoritativeDetails.items.map((item: any) => ({
-              order_id: createdOrder.id,
-              product_id: item.product_id,
-              quantity: item.quantity,
-              price: item.price,
-              selected_color: item.selected_color || null,
-              selected_size: item.selected_size || null,
-            }));
-            await adminClient.from("order_items").insert(itemsPayload);
-          }
-        } else {
-          console.warn("Could not pre-create pending order, will create upon verification:", orderInsertErr);
-        }
       } catch (priceErr: any) {
         return new Response(
           JSON.stringify({ error: priceErr?.message || "Failed to calculate authoritative order total." }),
@@ -241,6 +196,40 @@ const handler = async (req: Request): Promise<Response> => {
         ],
       },
     };
+
+    // Check if items belong to a single seller with a real Paystack subaccount for automatic split payout
+    if (authoritativeDetails?.items && authoritativeDetails.items.length > 0) {
+      try {
+        const productIds = authoritativeDetails.items.map((i: any) => i.product_id);
+        const { data: prods } = await adminClient
+          .from("products")
+          .select("id, seller_id")
+          .in("id", productIds);
+
+        if (prods && prods.length > 0) {
+          const sellerIds = [...new Set(prods.map((p: any) => p.seller_id).filter(Boolean))];
+          if (sellerIds.length === 1 && sellerIds[0]) {
+            const { data: sellerProf } = await adminClient
+              .from("seller_profiles")
+              .select("paystack_subaccount_code")
+              .or(`id.eq.${sellerIds[0]},user_id.eq.${sellerIds[0]}`)
+              .maybeSingle();
+
+            if (
+              sellerProf?.paystack_subaccount_code &&
+              !sellerProf.paystack_subaccount_code.startsWith("ACCT_LOCAL_") &&
+              !sellerProf.paystack_subaccount_code.startsWith("ACCT_PENDING_")
+            ) {
+              paystackPayload.subaccount = sellerProf.paystack_subaccount_code;
+              (paystackPayload.metadata as Record<string, any>).subaccount_code = sellerProf.paystack_subaccount_code;
+              console.log(`Attached Paystack subaccount ${sellerProf.paystack_subaccount_code} to transaction`);
+            }
+          }
+        }
+      } catch (subErr) {
+        console.warn("Could not check seller subaccount for split payment:", subErr);
+      }
+    }
 
     const allKeys = await getAllPaystackSecretKeysAsync();
     let paystackData: any = null;
