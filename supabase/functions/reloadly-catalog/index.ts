@@ -24,14 +24,18 @@ async function requireUser(req: Request) {
 
 
 // Simple in-memory token cache to avoid re-authenticating on every request
-let cachedToken = null;
-let cachedAudience = null;
+let cachedToken: string | null = null;
+let cachedAudience: string | null = null;
 let tokenExpiry = 0;
+
+// In-memory catalog response cache to preserve Reloadly API quota (15 minutes TTL)
+const catalogCache = new Map<string, { data: any; expiresAt: number }>();
+const CATALOG_CACHE_TTL_MS = 15 * 60 * 1000;
 
 const SANDBOX_AUDIENCE = "https://giftcards-sandbox.reloadly.com";
 const LIVE_AUDIENCE = "https://giftcards.reloadly.com";
 
-async function requestToken(clientId, clientSecret, audience) {
+async function requestToken(clientId: string, clientSecret: string, audience: string) {
   const authResponse = await fetch("https://auth.reloadly.com/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -53,7 +57,7 @@ async function requestToken(clientId, clientSecret, audience) {
 
 // Tries the preferred audience, then falls back to the other environment
 // (Reloadly credentials are environment-specific: sandbox vs live).
-async function getAccessToken(clientId, clientSecret, preferredAudience) {
+async function getAccessToken(clientId: string, clientSecret: string, preferredAudience: string) {
   const now = Date.now();
   if (cachedToken && cachedAudience && now < tokenExpiry) {
     return { token: cachedToken, audience: cachedAudience };
@@ -83,22 +87,17 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate Limiting by IP (60 catalog requests per minute)
+  // Rate Limiting by IP (30 catalog requests per minute)
   const ipClientId = getClientIdentifier(req, null);
-  const ipCheck = await checkGlobalRateLimitAsync(null, "reloadly-catalog", ipClientId, { maxRequests: 60, windowMs: 60 * 1000 });
+  const ipCheck = await checkGlobalRateLimitAsync(null, "reloadly-catalog", ipClientId, { maxRequests: 30, windowMs: 60 * 1000 });
   if (!ipCheck.allowed) {
-    return new Response(JSON.stringify({ error: "Too many requests. Please wait." }), {
+    return new Response(JSON.stringify({ error: "Too many catalog requests. Please wait a moment." }), {
       status: 429,
       headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": ipCheck.resetInSec.toString() },
     });
   }
 
-  // Public, read-only catalog browsing: shoppers must be able to see the gift
-  // cards before signing in. No PII or purchase capability is exposed here.
-
-
   try {
-
     const env = Deno.env.toObject();
     const findEnv = (...cands: string[]) => {
       for (const c of cands) {
@@ -136,6 +135,16 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // Check catalog cache to conserve Reloadly API quota
+    const cacheKey = `${audience}_p${page}_s${size}_c${countryCode}_n${productName.toLowerCase()}`;
+    const cachedEntry = catalogCache.get(cacheKey);
+    if (cachedEntry && cachedEntry.expiresAt > Date.now()) {
+      return new Response(JSON.stringify({ success: true, data: cachedEntry.data, cached: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const { token: accessToken, audience: resolvedAudience } = await getAccessToken(clientId, clientSecret, audience);
     const baseUrl = resolvedAudience;
 
@@ -151,7 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const productsUrl = `${baseUrl}/products?${params.toString()}`;
-    console.log("Fetching:", productsUrl);
+    console.log("Fetching Reloadly catalog from API:", productsUrl);
 
     const productsResponse = await fetch(productsUrl, {
       method: "GET",
@@ -168,6 +177,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const productsData = await productsResponse.json();
+
+    // Cache the successful catalog response for 15 minutes
+    catalogCache.set(cacheKey, {
+      data: productsData,
+      expiresAt: Date.now() + CATALOG_CACHE_TTL_MS,
+    });
 
     return new Response(JSON.stringify({ success: true, data: productsData }), {
       status: 200,

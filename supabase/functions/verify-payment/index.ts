@@ -361,13 +361,29 @@ const handler = async (req: Request): Promise<Response> => {
       let pricing;
       try {
         pricing = await calculateAuthoritativeCheckoutTotal(supabase, checkoutDetails);
-      } catch {
-        pricing = {
-          deliveryFee: checkoutDetails.delivery_fee || 0,
-          discountAmount: checkoutDetails.discount_amount || 0,
-          totalAmount: actualPaidAmountPesewas / 100,
-          items: checkoutDetails.items,
-        };
+      } catch (priceErr: any) {
+        console.error("Authoritative pricing calculation error:", priceErr);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            friendlyError: `Validation error: ${priceErr?.message || "Invalid checkout pricing calculation"}. Reference: ${reference}`,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const expectedPesewas = Math.round(pricing.totalAmount * 100);
+
+      // Strict underpayment check
+      if (actualPaidAmountPesewas < expectedPesewas) {
+        console.error(`SECURITY ALERT in verify-payment: Underpayment detected (${actualPaidAmountPesewas} < ${expectedPesewas}) for reference ${reference}`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            friendlyError: `Payment amount (${(actualPaidAmountPesewas / 100).toFixed(2)} GHS) is less than required order total (${pricing.totalAmount.toFixed(2)} GHS). Please contact support.`,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
       }
 
       const paidAmountGhs = actualPaidAmountPesewas / 100;
