@@ -50,7 +50,7 @@ export async function calculateAuthoritativeCheckoutTotal(
 
   const { data: dbProducts, error: prodErr } = await supabase
     .from("products")
-    .select("id, price, sale_price, sale_ends_at, stock, name")
+    .select("id, price, sale_price, sale_ends_at, stock, colors, name")
     .in("id", productIds);
 
   if (prodErr || !dbProducts) {
@@ -71,6 +71,30 @@ export async function calculateAuthoritativeCheckoutTotal(
     const prod = productMap.get(item.product_id);
     if (!prod) {
       throw new Error(`Product ${item.product_id} was not found in the active catalog`);
+    }
+
+    // Check stock availability
+    let availableStock = typeof prod.stock === "number" ? Math.max(0, prod.stock) : 9999;
+    const colorName = typeof item.selected_color === "string" 
+      ? item.selected_color 
+      : item.selected_color?.name || null;
+
+    if (colorName && Array.isArray(prod.colors)) {
+      const matchedColor = prod.colors.find((c: any) => 
+        (typeof c === "string" && c.toLowerCase().trim() === colorName.toLowerCase().trim()) ||
+        (typeof c === "object" && c?.name?.toLowerCase().trim() === colorName.toLowerCase().trim())
+      );
+      if (matchedColor && typeof matchedColor === "object" && typeof matchedColor.stock === "number") {
+        availableStock = Math.max(0, matchedColor.stock);
+      }
+    }
+
+    if (availableStock <= 0) {
+      throw new Error(`"${prod.name}" is currently out of stock.`);
+    }
+
+    if (qty > availableStock) {
+      throw new Error(`Cannot checkout ${qty} of "${prod.name}". Only ${availableStock} left in stock.`);
     }
 
     const isSaleActive =

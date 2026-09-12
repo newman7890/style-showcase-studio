@@ -25,58 +25,49 @@ const generateTrackingCode = () => {
 };
 
 /**
- * Decrement product stock for each purchased item.
+ * Decrement product stock atomically using database-level locking.
  */
 async function decrementStock(
   supabase: any,
   items: Array<{ product_id: string; quantity: number; selected_color?: any }>
 ) {
-  for (const item of items) {
-    const qty = Number(item.quantity) || 1;
-    const productId = item.product_id;
-    if (!productId) continue;
+  if (!items || items.length === 0) return;
 
-    const { data: product, error: fetchErr } = await supabase
-      .from("products")
-      .select("stock, colors")
-      .eq("id", productId)
-      .single();
+  try {
+    const formattedItems = items.map((i) => ({
+      product_id: i.product_id,
+      quantity: Number(i.quantity) || 1,
+      selected_color: i.selected_color || null,
+    }));
 
-    if (fetchErr || !product) {
-      console.error(`Stock decrement: could not fetch product ${productId}`, fetchErr);
-      continue;
-    }
+    const { error: rpcErr } = await supabase.rpc("decrement_product_stock", {
+      _items: formattedItems,
+    });
 
-    const newStock = Math.max(0, (Number(product.stock) || 0) - qty);
-    const updatePayload: Record<string, any> = { stock: newStock };
+    if (rpcErr) {
+      console.error("Atomic decrement_product_stock RPC error:", rpcErr);
+      // Fallback to sequential update if RPC fails
+      for (const item of items) {
+        const qty = Number(item.quantity) || 1;
+        const productId = item.product_id;
+        if (!productId) continue;
 
-    if (item.selected_color && Array.isArray(product.colors)) {
-      const colorName =
-        typeof item.selected_color === "string"
-          ? item.selected_color
-          : item.selected_color?.name || null;
+        const { data: product } = await supabase
+          .from("products")
+          .select("stock")
+          .eq("id", productId)
+          .single();
 
-      if (colorName) {
-        const updatedColors = product.colors.map((c: any) => {
-          if (c && c.name === colorName) {
-            return { ...c, stock: Math.max(0, (Number(c.stock) || 0) - qty) };
-          }
-          return c;
-        });
-        updatePayload.colors = updatedColors;
+        if (product) {
+          const newStock = Math.max(0, (Number(product.stock) || 0) - qty);
+          await supabase.from("products").update({ stock: newStock }).eq("id", productId);
+        }
       }
-    }
-
-    const { error: updErr } = await supabase
-      .from("products")
-      .update(updatePayload)
-      .eq("id", productId);
-
-    if (updErr) {
-      console.error(`Stock decrement failed for product ${productId}:`, updErr);
     } else {
-      console.log(`Stock decremented for product ${productId}: ${product.stock} → ${newStock}`);
+      console.log("Product stock decremented atomically for", items.length, "items");
     }
+  } catch (err) {
+    console.error("Error in decrementStock:", err);
   }
 }
 
