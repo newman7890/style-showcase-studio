@@ -135,6 +135,15 @@ serve(async (req) => {
       );
     }
 
+    const isAdmin = await hasRole(auth.userId, "admin");
+    const isSeller = await hasRole(auth.userId, "seller");
+    if (!isAdmin && !isSeller) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: Only admins and sellers can use AI Product Studio." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Rate limiting per user (30 per hour)
     const userClientId = getClientIdentifier(req, auth.userId);
     const rateCheck = await checkGlobalRateLimitAsync(auth.client, "ai-generate-details", userClientId, { maxRequests: 30, windowMs: 60 * 60 * 1000 });

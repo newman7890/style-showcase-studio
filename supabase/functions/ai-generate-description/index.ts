@@ -17,8 +17,10 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!(await hasRole(auth.userId, "admin"))) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
+    const isAdmin = await hasRole(auth.userId, "admin");
+    const isSeller = await hasRole(auth.userId, "seller");
+    if (!isAdmin && !isSeller) {
+      return new Response(JSON.stringify({ error: "Forbidden: Only admins and sellers can generate product descriptions" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
